@@ -23,3 +23,13 @@ def has_required_fields(doc, required_fields):
                 logging.info(f"Field name '{field_name}' not in Document")
                 return False
     return True
+
+
+# TODO: Create folder for project and do the necessary checks
+def form_project_path(project_name, pid, root):
+    # Create local filepaths for where this application runs
+
+    raw_id = project_name + '-' + pid
+    project_path = root + '/' + raw_id
+
+    return project_path
