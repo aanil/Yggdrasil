@@ -1,4 +1,6 @@
 {
+    "seq_root_dir": "/proj/ngi2016004/INBOX",
+    "smartseq3_dir": "/home/anastasios/Documents/git/Yggdrasil/sim_out/smartseq3",
     "required_fields": ["details.library_construction_method", "details.customer_project_reference", "details.sequencing_setup", "project_name", "samples", "reference_genome", "staged_files"],
 
     "gen_refs":

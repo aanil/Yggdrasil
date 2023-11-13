@@ -1,1 +1,4 @@
-{}
+{
+    "seq_root_dir": "/proj/ngi2016004/INBOX",
+    "required_fields": ["details.library_construction_method", "details.customer_project_reference", "project_name", "project_id", "samples", "reference_genome"]
+}
