@@ -5,6 +5,9 @@ from lib.branches._10x import atac
 from lib.branches._10x import vdj
 from lib.branches._10x import multiome
 
+from lib.utils.config_loader import ConfigLoader
+from lib.utils.couch_utils import has_required_fields
+
 
 #from lib.branches._10x.utils import has_required_fields
 
@@ -21,20 +24,24 @@ def process(doc):
         if doc['details']['library_prep_option']:
             prep_option = doc['details']['library_prep_option']
 
-            if prep_option == "Chromium: 3' GEX":
-                gex.process(doc)
-            elif prep_option == "Chromium: ATAC-seq":
-                atac.process(doc)
-            elif prep_option == "Chromium: VDJ":
-                vdj.process(doc)
-            elif prep_option == "Chromium: Multiome":
-                multiome.process(doc)
-            else:
-                logging.warning(f"No module configured for task type '{prep_option}'.")
-                pass
+            _10x_config = ConfigLoader().load_config_path("lib/branches/_10x/10x_config.json")
+
+            # TODO: Might need to check required fields for each module if they differ
+            if has_required_fields(doc, _10x_config["required_fields"]):
+                if prep_option == "Chromium: 3' GEX":
+                    gex.process(doc)
+                elif prep_option == "Chromium: ATAC-seq":
+                    atac.process(doc)
+                elif prep_option == "Chromium: VDJ":
+                    vdj.process(doc)
+                elif prep_option == "Chromium: Multiome":
+                    multiome.process(doc)
+                else:
+                    logging.warning(f"No module configured for task type '{prep_option}'.")
+                    pass
 
     except Exception as e:
-        logging.warning(f"Error while processing incoming couchDB data: {e}")
+        logging.warning(f"10X: Error while processing couchDB data: {e}")
         # print(doc['details'])
     # prep_option = doc['details']
 

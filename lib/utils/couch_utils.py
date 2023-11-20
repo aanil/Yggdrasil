@@ -117,6 +117,7 @@ async def get_db_changes(db, last_processed_seq=None):
         try:
             doc = db.get(change['id'])
             last_processed_seq = change['seq']
+            # print(last_processed_seq)
             save_last_processed_seq(last_processed_seq)
 
             yield doc

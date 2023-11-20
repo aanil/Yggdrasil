@@ -19,7 +19,8 @@ async def fetch_data_from_couchdb():
 
     # Set only if you want to start from a specific sequence
     last_processed_seq = None
-    last_processed_seq = '68007-g1AAAACheJzLYWBgYMpgTmEQTM4vTc5ISXIwNDLXMwBCwxyQVCJDUv3___-zMpiTGBjKG3KBYuxpKWaJBgaG2PTgMSmPBUgyNACp_3ADJ6mDDTQwTDYzsDTDpjULACnTKcM'
+    # last_processed_seq = '68007-g1AAAACheJzLYWBgYMpgTmEQTM4vTc5ISXIwNDLXMwBCwxyQVCJDUv3___-zMpiTGBjKG3KBYuxpKWaJBgaG2PTgMSmPBUgyNACp_3ADJ6mDDTQwTDYzsDTDpjULACnTKcM'
+    last_processed_seq = '72679-g1AAAACheJzLYWBgYMpgTmEQTM4vTc5ISXIwNDLXMwBCwxyQVCJDUv3___-zMpiTGBgak3OBYuxpKWaJBgaG2PTgMSmPBUgyNACp_3ADZ7WADTQwTDYzsDTDpjULAC7GKhU'
 
     module_registry = ConfigLoader().load_config("module_registry.json")
 

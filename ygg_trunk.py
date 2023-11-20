@@ -39,6 +39,7 @@ async def process_couchdb_changes():
             # logging.error(f"Data causing the error: {data}")
 
         # Sleep to avoid excessive polling
+        print("Sleeping...")
         await asyncio.sleep(ygg_configs["couchdb_poll_interval"])
 
 
