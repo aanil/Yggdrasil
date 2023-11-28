@@ -36,6 +36,32 @@ class YggdrasilUtilities:
     module_cache = {}
 
     @staticmethod
+    def load_realm_class(module_path):
+        """
+        Load a realm class from a module path and cache it for reuse. The module path should include
+        the full path to the class in the format 'module.submodule.ClassName'.
+
+        Args:
+            module_path (str): The full path of the realm class to load (including the class name).
+
+        Returns:
+            class: The loaded realm class, or None if loading fails.
+        """
+        if module_path in YggdrasilUtilities.module_cache:
+            return YggdrasilUtilities.module_cache[module_path]
+
+        try:
+            # Split the module path to get the module and class name
+            module_name, class_name = module_path.rsplit('.', 1)
+            module = importlib.import_module(module_name)
+            realm_class = getattr(module, class_name)
+            YggdrasilUtilities.module_cache[module_path] = realm_class
+            return realm_class
+        except (ImportError, AttributeError) as e:
+            logging.error(f"Failed to load realm class from '{module_path}': {e}")
+            return None
+
+    @staticmethod
     def load_module(module_path):
         """
         Load a module and cache it for reuse.
