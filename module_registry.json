@@ -1,16 +1,8 @@
 {
     "SmartSeq 3": {
-        "module": "lib.branches.smartseq3.smartseq3",
-        "options": {
-            "slurm_job": true,
-            "delivery": true
-        }
+        "module": "lib.realms.smartseq3.smartseq3.SmartSeq3"
     },
     "10X Chromium": {
-        "module": "lib.branches._10x.10x",
-        "options": {
-            "slurm_job": true,
-            "delivery": true
-        }
+        "module": "lib.realms.tenx.tenx.TenX"
     }
 }
