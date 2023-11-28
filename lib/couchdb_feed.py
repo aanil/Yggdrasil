@@ -28,13 +28,16 @@ async def fetch_data_from_couchdb():
         async for change in get_db_changes(couch['projects'], last_processed_seq=last_processed_seq):
             try:
                 method = change['details']['library_construction_method']
+                # print(method)
                 
                 module_config = module_registry[method]
 
                 if module_config:
                     module_loc = module_config["module"]
+                    # TODO: Remove options. Not used anymore
                     options = module_config.get("options", {})
 
+                    # TODO: Stop yielding options. Not used anymore
                     yield (change, module_loc, options)
 
                 else:
