@@ -46,10 +46,10 @@ class GEXProject:
         :return: A list of Sample instances.
         """
         samples = []
-        for sample_name, sample_data in doc.get('samples', []).items():
+        for sample_id, sample_data in doc.get('samples', []).items():
             # Assuming 'samples' is a list of dictionaries, each representing a sample
             # You may need to adjust this based on your actual document structure
-            sample = GEXSample(sample_name, sample_data, self.project_info)
+            sample = GEXSample(sample_id, sample_data, self.project_info)
             samples.append(sample)
         return samples
 
@@ -59,8 +59,9 @@ class GEXProject:
 
 
 class GEXSample:
-    def __init__(self, name, metadata, project_info):
-        self.name = name
+    def __init__(self, sample_id, metadata, project_info):
+        # TODO: self.id must be demanded by a template class
+        self.id = sample_id
         self.metadata = metadata
         self.project_info = project_info
         self.status = "pending"  # other statuses: "processing", "completed", "failed"
@@ -80,37 +81,39 @@ class GEXSample:
         # Pre-processing
         self.status = "processing"
 
-        print(f"Processing sample: {self.name}")
+        print(f"Processing sample: {self.id}")
 
-        print(self.project_info['library_prep_option'], self.project_info['ref_genome'])
-        slurm_data = compile_metadata(self.metadata, self.name, self.project_info)
-        output_file = f"sim_out/10x/{self.name}_slurm_script.sh"
+        # print(self.project_info['library_prep_option'], self.project_info['ref_genome'])
+        slurm_data = compile_metadata(self.metadata, self.id, self.project_info)
+        output_file = f"sim_out/10x/{self.id}_slurm_script.sh"
         # Submit Slurm job asynchronously
         script_path = generate_slurm_script(slurm_data, "sim_out/10x/slurm_template.sh", output_file)
         print(f"Slurm script generated.")
         job_id = await self.sjob_manager.submit_job(script_path)
         print(f"Job submitted with ID: {job_id}")
         # Monitor job asynchronously
-        asyncio.create_task(self.sjob_manager.monitor_job(job_id, self.check_status))
+        # asyncio.create_task(self.sjob_manager.monitor_job(job_id, self.check_status))
+        asyncio.create_task(self.sjob_manager.monitor_job(job_id, self))
         # await self.sjob_manager.monitor_job(job_id)
         print(f"Job {job_id} submitted for monitoring.")
         # self.post_process()
         # self.status = "completed"
 
 
-    def check_status(self, job_id, status):
-        print(f"Job {job_id} status: {status}")
-        if status == "COMPLETED":
-            print(f"Sample {self.name} processing completed.")
-            self.post_process()
-            self.status = "completed"
-        elif status in ["FAILED", "CANCELLED"]:
-            self.status = "failed"
-            print(f"Sample {self.name} processing failed.")
+    # # TODO: Assess if this should be part of the SlurmJobManager class and move it there
+    # def check_status(self, job_id, status):
+    #     print(f"Job {job_id} status: {status}")
+    #     if status == "COMPLETED":
+    #         print(f"Sample {self.id} processing completed.")
+    #         self.post_process()
+    #         self.status = "completed"
+    #     elif status in ["FAILED", "CANCELLED"]:
+    #         self.status = "failed"
+    #         print(f"Sample {self.id} processing failed.")
 
 
     def post_process(self):
         # Post-processing logic
-        print(f"Sample {self.name} post-processing...")
+        print(f"Sample {self.id} post-processing...")
 
     # Additional methods for QC, path association, etc.
