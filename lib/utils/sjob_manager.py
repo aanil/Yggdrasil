@@ -36,13 +36,23 @@ class SlurmJobManager:
 
         return None
 
-    async def monitor_job(self, job_id, callback=None):
+    # async def monitor_job(self, job_id, callback=None):
+    #     while True:
+    #         status = await self._job_status(job_id)
+    #         if status in ["COMPLETED", "FAILED", "CANCELLED"]:
+    #             logging.info(f"Job {job_id} status: {status}")
+    #             if callback:
+    #                 callback(job_id, status)
+    #             break
+    #         await asyncio.sleep(self.polling_interval)
+
+    async def monitor_job(self, job_id, sample):
+        """Monitors the specified job and calls the sample's post-process method based on job status."""
         while True:
             status = await self._job_status(job_id)
             if status in ["COMPLETED", "FAILED", "CANCELLED"]:
                 logging.info(f"Job {job_id} status: {status}")
-                if callback:
-                    callback(job_id, status)
+                self.check_status(job_id, status, sample)
                 break
             await asyncio.sleep(self.polling_interval)
 
@@ -65,3 +75,22 @@ class SlurmJobManager:
             logging.error(f"Unexpected error while checking status of job {job_id}: {e}")
 
         return None
+    
+    @staticmethod
+    def check_status(job_id, status, sample):
+        """
+        Checks the status of a job and calls the appropriate method on the sample object.
+
+        Args:
+            job_id (str): The job ID.
+            status (str): The status of the job.
+            sample (object): The sample object (must have a post_process method and id attribute).
+        """
+        print(f"Job {job_id} status: {status}")
+        if status == "COMPLETED":
+            print(f"Sample {sample.id} processing completed.")
+            sample.post_process()
+            sample.status = "completed"
+        elif status in ["FAILED", "CANCELLED"]:
+            sample.status = "failed"
+            print(f"Sample {sample.id} processing failed.")
