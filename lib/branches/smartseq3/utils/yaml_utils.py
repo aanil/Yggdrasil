@@ -5,15 +5,13 @@ yaml=YAML()
 yaml.preserve_quotes = True
 
 
-def parse_yaml(config):
-    yaml_template = Path(config["file_paths"]["yaml_template"])
-    return yaml.load(yaml_template)
+def parse_yaml(file_path):
+    return yaml.load(Path(file_path))
 
 
 def write_yaml(config, args):
-    template = parse_yaml(config)
+    template = parse_yaml(config['yaml_template'])
     
-    # print(template)
     template['project'] = args['plate']
     template['sequence_files']['file1']['name'] = str(args['fastqs']['R1'])
     template['sequence_files']['file2']['name'] = str(args['fastqs']['R2'])
@@ -39,6 +37,8 @@ def write_yaml(config, args):
     # out_yaml = project_path / f"{args['plate']}.yaml"
 
     # TODO: Do not exit. Notify user (through Slack?).
+    # TODO: Make a backup of the existing file (e.g. by appending a timestamp, or suffixing _old#)
+    # TODO: Log instead of printing.
     if args["out_yaml"].is_file():
         print(f"YAML file `{args['out_yaml'].name}` already exists.")
         print(f"Path: {args['out_yaml']}")
