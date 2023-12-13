@@ -73,6 +73,7 @@ def compile_metadata(metadata, sample_name, project_info):
         for prep_id, prep_info in metadata.get('library_prep', {}).items():
             # Iterate over the available sequenced flowcells
             for sequenced_fc in prep_info.get('sequenced_fc', []):
+                # TODO: Validate that the fastq files exist
                 fastq_path = f"{config['seq_root_dir']}/{sequenced_fc}/Demultiplexing/{project_info['project_name']}/Sample_{sample_name}"
                 args_dict["comma_separated_fastq_file_paths"] += f"{fastq_path},"
 
