@@ -87,7 +87,7 @@ class GEXSample:
         slurm_data = compile_metadata(self.metadata, self.id, self.project_info)
         output_file = f"sim_out/10x/{self.id}_slurm_script.sh"
         # Submit Slurm job asynchronously
-        script_path = generate_slurm_script(slurm_data, "sim_out/10x/slurm_template.sh", output_file)
+        script_path = generate_slurm_script(slurm_data, "templates/10x/slurm_template.sh", output_file)
         print(f"Slurm script generated.")
         job_id = await self.sjob_manager.submit_job(script_path)
         print(f"Job submitted with ID: {job_id}")
