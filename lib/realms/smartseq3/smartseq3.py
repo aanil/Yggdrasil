@@ -18,7 +18,7 @@ DEBUG = True
 
 class SmartSeq3(DestinyInterface, RealmTemplate):
     # Class variables
-    config = ConfigLoader().load_config_path("lib/branches/smartseq3/ss3_config.json")
+    config = ConfigLoader().load_config("ss3_config.json")
 
     def __init__(self, doc):
         self.doc = doc
