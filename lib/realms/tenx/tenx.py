@@ -16,7 +16,7 @@ from lib.utils.couch_utils import has_required_fields
 
 class TenX(DestinyInterface, RealmTemplate):
     # Class variables
-    config = ConfigLoader().load_config_path("lib/branches/_10x/10x_config.json")
+    config = ConfigLoader().load_config("10x_config.json")
 
     def __init__(self, doc):
         self.doc = doc
@@ -46,7 +46,7 @@ class TenX(DestinyInterface, RealmTemplate):
 
             if project_class:
                 logging.info(f"Initializing project class for \"{project_method}\".")
-                return project_class(self.project_info)
+                return project_class(self.project_info, self.config)
             else:
                 logging.warning(f"No project class found for \"{project_method}\".")
                 return None

@@ -44,21 +44,20 @@ import logging
 from lib.utils.config_loader import ConfigLoader
 
 
-def compile_metadata(metadata, sample_name, project_info):
+def compile_metadata(metadata, sample_name, project_info, config):
     """
     Collect and transform metadata for a given sample.
 
     Args:
-        metadata (dict): The data for the sample to collect metadata for.
-        sample_name (str, optional): The name or identifier of the sample.
+        metadata (dict): The sample metadata to be compiled.
+        sample_name (str): The name or identifier of the sample.
+        project_info (dict): Project-related information.
+        config (dict): Pre-loaded method configurations.
 
     Returns:
         dict: A dictionary containing metadata for the specified sample.
     """
     try:
-        # Load the 10x configuration
-        config = ConfigLoader().load_config_path("lib/branches/_10x/10x_config.json")
-
         # Initialize the dictionary to store arguments for the sample
         args_dict = {
             "project_name": project_info['project_name'],

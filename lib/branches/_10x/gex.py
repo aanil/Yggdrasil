@@ -26,8 +26,9 @@ DEBUG = True
 
 
 class GEXProject:
-    def __init__(self, project_info):
+    def __init__(self, project_info, config):
         self.project_info = project_info
+        self.config = config
 
     async def process(self, doc):
         # GEX-specific logic
@@ -49,7 +50,7 @@ class GEXProject:
         for sample_id, sample_data in doc.get('samples', []).items():
             # Assuming 'samples' is a list of dictionaries, each representing a sample
             # You may need to adjust this based on your actual document structure
-            sample = GEXSample(sample_id, sample_data, self.project_info)
+            sample = GEXSample(sample_id, sample_data, self.project_info, self.config)
             samples.append(sample)
         return samples
 
@@ -59,11 +60,12 @@ class GEXProject:
 
 
 class GEXSample:
-    def __init__(self, sample_id, metadata, project_info):
+    def __init__(self, sample_id, metadata, project_info, config):
         # TODO: self.id must be demanded by a template class
         self.id = sample_id
         self.metadata = metadata
         self.project_info = project_info
+        self.config = config
         self.status = "pending"  # other statuses: "processing", "completed", "failed"
 
         if DEBUG:
@@ -84,7 +86,7 @@ class GEXSample:
         print(f"Processing sample: {self.id}")
 
         # print(self.project_info['library_prep_option'], self.project_info['ref_genome'])
-        slurm_data = compile_metadata(self.metadata, self.id, self.project_info)
+        slurm_data = compile_metadata(self.metadata, self.id, self.project_info, self.config)
         output_file = f"sim_out/10x/{self.id}_slurm_script.sh"
         # Submit Slurm job asynchronously
         script_path = generate_slurm_script(slurm_data, "templates/10x/slurm_template.sh", output_file)
