@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+from pathlib import Path
 # from lib.branches.branch_utils.genome_mapper import GenomeMapper
 # from ygg_trunk import DEBUG
 
@@ -87,9 +88,10 @@ class GEXSample:
 
         # print(self.project_info['library_prep_option'], self.project_info['ref_genome'])
         slurm_data = compile_metadata(self.metadata, self.id, self.project_info, self.config)
-        output_file = f"sim_out/10x/{self.id}_slurm_script.sh"
+        output_file = Path(self.config["10x_dir"]) / f"{self.id}_slurm_script.sh"
+        slurm_template = Path(self.config["slurm_template"])
         # Submit Slurm job asynchronously
-        script_path = generate_slurm_script(slurm_data, "templates/10x/slurm_template.sh", output_file)
+        script_path = generate_slurm_script(slurm_data, slurm_template, output_file)
         print(f"Slurm script generated.")
         job_id = await self.sjob_manager.submit_job(script_path)
         print(f"Job submitted with ID: {job_id}")
