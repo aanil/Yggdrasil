@@ -7,11 +7,13 @@ from datetime import datetime
 from lib.utils.sjob_manager import SlurmJobManager
 from tests.utils.mock_sjob_manager import MockSlurmJobManager
 
+from lib.realms.smartseq3.report_generator import Smartseq3ReportGenerator
+
 from lib.utils.branch_template import RealmTemplate
 from lib.utils.destiny_interface import DestinyInterface
 from lib.utils.config_loader import ConfigLoader
 from lib.utils.slurm_utils import generate_slurm_script
-from lib.branches.smartseq3.utils.yaml_utils import write_yaml
+from lib.realms.smartseq3.utils.yaml_utils import write_yaml
 
 
 DEBUG = True
@@ -153,10 +155,14 @@ class SS3Sample():
         # TODO: self.id must be demanded by a template class
         self.id = sample_id
         self.sample_data = sample_data
+        print(">>> SAMPLE DATA: ", sample_data)
         self.project_info = project_info
+        print(">>> PROJECT INFO: ", project_info)
         self.config = config
         # self.job_id = None
         self.status = "pending"  # other statuses: "processing", "completed", "failed"
+        self.metadata = None
+        self.output_dir = None
 
         if DEBUG:
             self.sjob_manager = MockSlurmJobManager()
@@ -165,19 +171,19 @@ class SS3Sample():
 
     async def process(self):
         # Collect metadata for this sample
-        print(f"Processing sample {self.id}")
+        logging.debug(f"Processing sample {self.id}")
         yaml_metadata = self._collect_yaml_metadata()
         if not yaml_metadata:
             logging.warning(f"Metadata missing for sample {self.id}")
             return None
 
-        print("Metadata collected. Creating YAML file")
+        logging.debug("Metadata collected. Creating YAML file")
 
         self.create_yaml_file(yaml_metadata)
 
-        print("YAML file created.")
+        logging.debug("YAML file created.")
 
-        print("Creating Slurm script")
+        logging.debug("Creating Slurm script")
         slurm_metadata = self._collect_slurm_metadata()
         if not slurm_metadata:
             logging.warning(f"Slurm metadata missing for sample {self.id}")
@@ -187,9 +193,9 @@ class SS3Sample():
         output_file = f"{self.project_info.get('project_dir')}/{self.id}_slurm_script.sh"
         slurm_template_path = self.config['slurm_template']
         slurm_script_path = generate_slurm_script(slurm_metadata, slurm_template_path, output_file)
-        print("Slurm script created. Submitting job")
+        logging.debug("Slurm script created. Submitting job")
         self.job_id = await self.sjob_manager.submit_job(slurm_script_path)
-        print(f"Job submitted with ID: {self.job_id}")
+        logging.debug(f"Job submitted with ID: {self.job_id}")
 
         # # Monitor the job
         # if self.job_id:
@@ -199,9 +205,10 @@ class SS3Sample():
         # asyncio.create_task(self.sjob_manager.monitor_job(self.job_id, self.check_status))
         asyncio.create_task(self.sjob_manager.monitor_job(self.job_id, self))
 
-        print(f"Job {self.job_id} submitted for monitoring.")
+        logging.debug(f"Job {self.job_id} submitted for monitoring.")
+
         # Perform any necessary post-processing
-        self.post_process()
+        # self.post_process()
 
     # TODO: Assess if this should be part of the SlurmJobManager class and move it there
     # def check_status(self, job_id, status):
@@ -269,6 +276,7 @@ class SS3Sample():
             metadata = {
                 # 'plate': self.id, # Temporarily not used, but might be used when we name everything after ngi
                 'plate': self.sample_data.get('customer_name', ''),
+                'barcode': barcode,
                 'bc_file': bc_path,
                 'fastqs': {k: str(v) for k, v in fastqs.items() if v},
                 'read_setup': read_setup,
@@ -279,6 +287,8 @@ class SS3Sample():
         except Exception as e:
             logging.error(f"Error constructing metadata for sample {self.id}: {e}")
             return None    
+
+        self.metadata = metadata
 
         return metadata
     
@@ -355,6 +365,7 @@ class SS3Sample():
         return fastqs
     
     def _collect_slurm_metadata(self):
+        # TODO: The project directory is checked and created by ensure_project_directory(). This might be redundant.
         project_dir = Path(self.config['smartseq3_dir']) / 'projects' / self.project_info['project_name']
         project_dir.mkdir(exist_ok=True)
 
@@ -419,3 +430,18 @@ class SS3Sample():
 
     def post_process(self):
         print("Post-processing")
+        print(self.config)
+        print(self.project_info)
+        print(self.sample_data)
+
+        # Check if sample dir exists
+        sample_dir = Path(self.project_info['project_dir'] / self.metadata['plate'])  # Replace with the actual path to the sample directory
+        if sample_dir.exists() and sample_dir.is_dir():
+            self.output_dir = sample_dir
+        else:
+            # TODO: In this case it might not make sense to continue, probably skip and report the issue (through Slack?)
+            logging.error("Sample directory does not exist after processing.")
+
+        # Generate report
+        report = Smartseq3ReportGenerator(self)
+        report.render(format='pdf')
