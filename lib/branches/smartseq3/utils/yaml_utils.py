@@ -1,5 +1,6 @@
 from pathlib import Path
 from ruamel.yaml import YAML
+import logging
 
 yaml=YAML()
 yaml.preserve_quotes = True
@@ -38,11 +39,10 @@ def write_yaml(config, args):
 
     # TODO: Do not exit. Notify user (through Slack?).
     # TODO: Make a backup of the existing file (e.g. by appending a timestamp, or suffixing _old#)
-    # TODO: Log instead of printing.
     if args["out_yaml"].is_file():
-        print(f"YAML file `{args['out_yaml'].name}` already exists.")
-        print(f"Path: {args['out_yaml']}")
-        print("Continuing to overwrite the file...")
+        logging.info(f"YAML file `{args['out_yaml'].name}` already exists in {args['out_yaml']}.")
+        logging.info(f"Path: ")
+        logging.info("Continuing to overwrite the file...")
         # print("Exiting... Please, resolve the issue manually.")
         # sys.exit(-1)
 
