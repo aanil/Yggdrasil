@@ -47,7 +47,7 @@ class MockSlurmJobManager:
             status (str): The status of the job.
             sample (object): The sample object (must have a post_process method and id attribute).
         """
-        print(f"Job {job_id} status: {status}")
+        # print(f"Job {job_id} status: {status}")
         if status == "COMPLETED":
             print(f"Sample {sample.id} processing completed.")
             sample.post_process()
