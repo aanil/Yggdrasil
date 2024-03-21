@@ -21,7 +21,7 @@ async def process_couchdb_changes():
                 try:
                     # Dynamically load the module
                     # module = Ygg.load_module(module_loc)
-                    print(f"Module location: {module_loc}")
+                    print(f">>> Module location: {module_loc}")
                     RealmClass = Ygg.load_realm_class(module_loc)
 
                     if RealmClass:
@@ -30,7 +30,7 @@ async def process_couchdb_changes():
                         if realm.proceed:
                             task = asyncio.create_task(realm.process())
                             tasks.append(task)
-                            print(f"Tasks ({realm.project_info['project_id']}): {tasks}")
+                            # print(f"Tasks ({realm.project_info['project_id']}): {tasks}")
                             # module.process(data)
                         else:
                             logging.info(f"Skipping task creation due to missing required information. {data.get('project_id')}")
@@ -78,9 +78,9 @@ async def main():
     # Start the asynchronous coroutine for processing CouchDB changes
     couchdb_task = process_couchdb_changes()
 
-    tasks = asyncio.all_tasks()
-    for task in tasks:
-        print(f"> {task.get_name()}, {task.get_coro()}")
+    # tasks = asyncio.all_tasks()
+    # for task in tasks:
+    #     print(f"> {task.get_name()}, {task.get_coro()}")
 
     # Wait for both tasks to complete
     await asyncio.gather(couchdb_task)
