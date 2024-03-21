@@ -8,7 +8,7 @@ from datetime import datetime
 from lib.utils.sjob_manager import SlurmJobManager
 from tests.utils.mock_sjob_manager import MockSlurmJobManager
 
-from lib.realms.smartseq3.report_generator import Smartseq3ReportGenerator
+# from lib.realms.smartseq3.report_generator import Smartseq3ReportGenerator
 
 from lib.utils.branch_template import RealmTemplate
 from lib.utils.destiny_interface import DestinyInterface
@@ -113,6 +113,9 @@ class SmartSeq3(DestinyInterface, RealmTemplate):
         self.status = "processing"
         print("Processing SmartSeq3 project")
         self.samples = self.extract_samples()
+        if not self.samples:
+            logging.warning("No samples found for processing. Returning...")
+            return
         tasks = [sample.process() for sample in self.samples]
         print(f"Sample tasks created. Waiting for completion...: {tasks}")
         await asyncio.gather(*tasks)
@@ -511,5 +514,5 @@ class SS3Sample():
             logging.error("Sample directory does not exist after processing.")
 
         # Generate report
-        report = Smartseq3ReportGenerator(self)
-        report.render(format='pdf')
+        # report = Smartseq3ReportGenerator(self)
+        # report.render(format='pdf')
