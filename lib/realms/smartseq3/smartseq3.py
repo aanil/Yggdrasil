@@ -1,3 +1,4 @@
+import glob
 import logging
 import asyncio
 
@@ -61,11 +62,27 @@ class SmartSeq3(DestinyInterface, RealmTemplate):
 
     def _check_required_fields(self):
         required_fields = self.config.get("required_fields", [])
+        sample_required_fields = self.config.get("sample_required_fields", [])
+
         missing_keys = [field for field in required_fields if not self._is_field(field, self.doc)]
         
         if missing_keys:
             logging.warning(f"Missing required project information: {missing_keys}.")
             return False
+
+        # Check sample-specific required fields
+        samples = self.doc.get('samples', {})
+        for sample_id, sample_data in samples.items():
+            for field in sample_required_fields:
+                if not self._is_field(field, sample_data):
+                    logging.warning(f"Missing required sample information '{field}' in sample '{sample_id}'.")
+
+                    if "total_reads_(m)" in field:
+                        # TODO: Send this message as a notification on Slack
+                        logging.warning("Consider running 'Aggregate Reads' in LIMS.")
+
+                    return False
+                
         return True
 
     def _is_field(self, field_path, data):
@@ -106,7 +123,11 @@ class SmartSeq3(DestinyInterface, RealmTemplate):
 
         for sample_id, sample_data in self.doc.get('samples', {}).items():
             sample = SS3Sample(sample_id, sample_data, self.project_info, self.config)
-            samples.append(sample)
+
+            if sample.flowcell_id:
+                samples.append(sample)
+            else:
+                logging.warning(f"Skipping {sample_id}. No flowcell IDs found.")
 
         return samples
 
@@ -155,9 +176,14 @@ class SS3Sample():
         # TODO: self.id must be demanded by a template class
         self.id = sample_id
         self.sample_data = sample_data
-        print(">>> SAMPLE DATA: ", sample_data)
+        # print(">>> SAMPLE DATA: ", sample_data)
         self.project_info = project_info
-        print(">>> PROJECT INFO: ", project_info)
+        # print(">>> PROJECT INFO: ", project_info)
+
+        # Collect flowcell ID
+        self.flowcell_id = self._get_latest_flowcell()
+        # print(">>> FLOWCELL IDS: ", self.flowcell_id)
+
         self.config = config
         # self.job_id = None
         self.status = "pending"  # other statuses: "processing", "completed", "failed"
@@ -168,6 +194,7 @@ class SS3Sample():
             self.sjob_manager = MockSlurmJobManager()
         else:
             self.sjob_manager = SlurmJobManager()
+
 
     async def process(self):
         # Collect metadata for this sample
@@ -223,9 +250,10 @@ class SS3Sample():
 
 
     def _collect_yaml_metadata(self):
+        # TODO: Replace this with get_barcode() and no need do this here, do it in __init__
         barcode = self.sample_data['library_prep']['A'].get('barcode', '').split('-')[-1]
         if not barcode:
-            logging.warning(f"Barcode missing for sample {self.id}")
+            logging.warning(f"Barcode not in StatusDB for sample {self.id}")
             return None
         
         bc_path = f"{self.config['smartseq3_dir']}/barcodes/{barcode}.txt"
@@ -238,20 +266,24 @@ class SS3Sample():
         seq_root = self.config["seq_root_dir"]
 
         # NOTE: zUMIs does not support multiple flowcells per sample
-        # SmartSeq3 sample libraries should not be sequenced across multiple flowcells
-        # SmartSeq3 libraries should not be re-sequenced in the same project
+        # Potential solutions:
+        #   1. SmartSeq3 sample libraries should not be sequenced across multiple flowcells
+        #       SmartSeq3 libraries should not be re-sequenced in the same project
+        #   2. Merge fastq files from multiple flowcells
+
         # Select the latest flowcell for analysis
-        latest_fc = self._get_latest_flowcell(self.sample_data.get('library_prep', {}))
-        if latest_fc:
-            fastq_path = f"{seq_root}/{latest_fc}/Demultiplexing/{self.project_info['project_name']}/Sample_{self.id}"
-            fastqs = self._list_fastq_files(fastq_path)
+        if self.flowcell_id:
+            fastqs = self._find_fastq_files(seq_root, self.project_info['project_id'], self.id, self.flowcell_id)
+            if not fastqs:
+                logging.warning(f"No fastq files found for sample {self.id}")
+                return None
         else:
-            logging.warning(f"No fastq files found for sample {self.id}")
+            logging.warning(f"No flowcell found for sample {self.id}")
             return None
 
-        if not all(fastqs.values()):
-            logging.warning(f"Not all fastq files found at {fastq_path}")
-            return None
+        # if not all(fastqs.values()):
+        #     logging.warning(f"Not all fastq files found at {fastq_path}")
+        #     return None
         
         seq_setup = self.project_info.get('sequencing_setup', '')
         if seq_setup:
@@ -292,37 +324,43 @@ class SS3Sample():
 
         return metadata
     
-    def _get_latest_flowcell(self, library_prep):
-        """
-        Selects the latest flowcell for the given library prep information.
 
-        Args:
-            library_prep: The library preparation information from the sample data.
-            sample_run_metrics: Sample run metrics containing sequencing_start_date.
+    def _get_latest_flowcell(self):
+        """
+        Selects the latest flowcell for the current sample.
 
         Returns:
-            The latest flowcell ID.
+            The latest flowcell ID or None if no valid flowcells are found.
         """
-        latest_fc = None
-        latest_date = None
-        for prep in library_prep.values():
-            for fc in prep.get('sequenced_fc', []):
-                fc_date = self._parse_fc_date(fc)
-                if fc_date and (not latest_date or fc_date > latest_date):
-                    latest_date = fc_date
-                    latest_fc = fc
-        return latest_fc
-    
+        try:
+            latest_fc = None
+            latest_date = None
+            if 'library_prep' in self.sample_data:
+                for prep_info in self.sample_data['library_prep'].values():
+                    for fc_id in prep_info.get('sequenced_fc', []):
+                        fc_date = self._parse_fc_date(fc_id)
+                        if fc_date and (not latest_date or fc_date > latest_date):
+                            latest_date = fc_date
+                            latest_fc = fc_id
+
+            if not latest_fc:
+                logging.warning(f"No valid flowcells found for sample {self.id}.")
+            return latest_fc
+
+        except Exception as e:
+            logging.error(f"Error extracting latest flowcell info for sample '{self.id}': {e}", exc_info=True)
+            return None
+
+
     def _parse_fc_date(self, flowcell_id):
         """
-        Parses the date from a flowcell ID, falls back to sequencing_start_date if needed.
+        Parses the date from a flowcell ID, considering different date formats.
 
         Args:
             flowcell_id: The flowcell ID to parse.
-            sample_run_metrics: Sample run metrics containing sequencing_start_date.
 
         Returns:
-            A date object representing the date of the flowcell.
+            A date object representing the date of the flowcell or None if parsing fails.
         """
         date_formats = ['%Y%m%d', '%y%m%d']  # Potential date formats
         date_str = flowcell_id.split('_')[0]
@@ -331,38 +369,66 @@ class SS3Sample():
             try:
                 return datetime.strptime(date_str, fmt).date()
             except ValueError:
-                logging.warning(f"Could not parse date for flowcell {flowcell_id}.")
-                return None
+                continue
 
-    def _list_fastq_files(self, fastq_path):
+        # Log an error if all parsing attempts fail
+        logging.error(f"Could not parse date for flowcell {flowcell_id}.", exc_info=True)
+        return None
+
+
+    def _find_fastq_files(self, base_path, project_id, sample_id, flowcell_id):
         """
-        List and categorize fastq files in the given directory using pathlib.
+        Finds the fastq files in a given directory structure.
 
         Args:
-            fastq_path: The directory path where fastq files are located.
+            base_path (str): The base directory path.
+            project_id (str): The project ID.
+            sample_id (str): The sample ID.
+            flowcell_id (str): The flowcell ID.
 
         Returns:
-            A dictionary with keys 'R1', 'R2', 'I1', 'I2' and their respective file paths.
+            dict: A dictionary containing the paths to the required fastq files.
         """
-        fastq_dir = Path(fastq_path)
-        fastqs = {'R1': None, 'R2': None, 'I1': None, 'I2': None}
+        try:
+            # Define the pattern for the fastq files
+            pattern = Path(base_path, project_id, sample_id, '*', flowcell_id, f"{sample_id}_S*_*_*.f*q.gz")
 
-        if not fastq_dir.exists():
-            logging.error(f"Fastq directory not found: {fastq_path}")
-            return fastqs
+            # Use glob to find files matching the pattern
+            file_paths = glob.glob(str(pattern))
 
-        for file in fastq_dir.iterdir():
-            if ''.join(file.suffixes) in ['.fastq.gz', '.fq.gz']:
-                if '_R1_' in file.name:
-                    fastqs['R1'] = file
-                elif '_R2_' in file.name:
-                    fastqs['R2'] = file
-                elif '_I1_' in file.name:
-                    fastqs['I1'] = file
-                elif '_I2_' in file.name:
-                    fastqs['I2'] = file
+            # Process and categorize the file paths
+            fastq_files = {'R1': None, 'R2': None, 'I1': None, 'I2': None}
 
-        return fastqs
+            # Check if files were found
+            if not file_paths:
+                logging.warning(f"No FASTQ files found for pattern: {pattern}")
+                return fastq_files
+
+            # Check for each required file type
+            for file_path in file_paths:
+                file = Path(file_path)
+                if file.name.endswith(('.fastq.gz', '.fq.gz')):
+                    if '_I1_' in file.name:
+                        fastq_files['I1'] = file
+                    elif '_I2_' in file.name:
+                        fastq_files['I2'] = file
+                    elif '_R1_' in file.name:
+                        fastq_files['R1'] = file
+                    elif '_R2_' in file.name:
+                        fastq_files['R2'] = file
+
+            # Verify that all fastq files were found
+            if not all(fastq_files.values()):
+                missing = [key for key, value in fastq_files.items() if value is None]
+                logging.warning(f"Missing FASTQ files for {missing} in {Path(pattern).parent}")
+                return {}
+
+            return fastq_files
+
+        except Exception as e:
+            logging.error(f"Error occurred while locating fastq files for sample '{sample_id}' on flowcell '{flowcell_id}': {e}", exc_info=True)
+            return {}
+
     
     def _collect_slurm_metadata(self):
         # TODO: The project directory is checked and created by ensure_project_directory(). This might be redundant.
@@ -433,6 +499,8 @@ class SS3Sample():
         print(self.config)
         print(self.project_info)
         print(self.sample_data)
+        print(self.metadata)
+        print(self.output_dir)
 
         # Check if sample dir exists
         sample_dir = Path(self.project_info['project_dir'] / self.metadata['plate'])  # Replace with the actual path to the sample directory
