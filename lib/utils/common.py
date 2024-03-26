@@ -34,6 +34,7 @@ class YggdrasilUtilities:
         username = utils.env_variable("USERNAME")
     """
     module_cache = {}
+    CONFIG_DIR = Path(__file__).parent.parent.parent / "yggdrasil_workspace/common/configurations"
 
     @staticmethod
     def load_realm_class(module_path):
@@ -118,7 +119,8 @@ class YggdrasilUtilities:
                 configuration file, or None if the file is not found.
         """
         # Get the path to the configurations directory
-        config_dir = Path(__file__).parent.parent.parent / "configurations"
+        # config_dir = Path(__file__).parent.parent.parent / "configurations"
+        config_dir = YggdrasilUtilities.CONFIG_DIR
         config_file = config_dir / file_name
 
         if config_file.exists():
