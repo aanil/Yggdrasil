@@ -1,7 +1,9 @@
 import logging
-import appdirs
+# import appdirs
 from datetime import datetime
 from pathlib import Path
+
+from lib.utils.config_loader import configs
 
 def configure_logging(debug=False):
     """
@@ -20,7 +22,8 @@ def configure_logging(debug=False):
         None
     """
     # Set up logging
-    log_dir = Path(appdirs.user_log_dir("Yggdrasil", "NationalGenomicsInfrastructure"))
+    # log_dir = Path(appdirs.user_log_dir("Yggdrasil", "NationalGenomicsInfrastructure"))
+    log_dir = Path(configs['yggdrasil_log_dir'])
     log_dir.mkdir(parents=True, exist_ok=True)
 
     # Add a timestamp to the log file name
