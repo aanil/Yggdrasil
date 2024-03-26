@@ -5,10 +5,14 @@ import logging
 
 from lib.utils.config_loader import ConfigLoader
 from lib.utils.common import YggdrasilUtilities as Ygg
+from lib.utils.logging_utils import configure_logging
 from lib.utils.couch_utils import couch_login
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# # Configure logging
+# logging.basicConfig(level=logging.INFO)
+
+#Call configure_logging to set up the logging environment
+configure_logging(debug=True)
 
 def process_document(doc_id):
     # Fetch document from database
