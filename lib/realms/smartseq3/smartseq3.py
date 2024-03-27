@@ -442,7 +442,7 @@ class SS3Sample():
             metadata = {
                 'project_name': self.project_info['project_name'],
                 # 'sample_id': self.id, # Temporarily not used, but might be used when we name everything after ngi
-                'plate_id': self.sample_data.get('customer_name', ''),
+                'plate_id': self.id, # self.sample_data.get('customer_name', ''),
                 'yaml_settings_path': project_dir / f"{self.id}.yaml",
                 'zumis_path': self.config['zumis_path'],
             }
