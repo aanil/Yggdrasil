@@ -179,13 +179,10 @@ class SS3Sample():
         # TODO: self.id must be demanded by a template class
         self.id = sample_id
         self.sample_data = sample_data
-        # print(">>> SAMPLE DATA: ", sample_data)
         self.project_info = project_info
-        # print(">>> PROJECT INFO: ", project_info)
 
         # Collect flowcell ID
         self.flowcell_id = self._get_latest_flowcell()
-        # print(">>> FLOWCELL IDS: ", self.flowcell_id)
 
         self.config = config
         # self.job_id = None
@@ -306,6 +303,7 @@ class SS3Sample():
             return None  # or handle the missing reference paths appropriately
 
         project_dir = self.project_info.get('project_dir')
+        sample_dir = project_dir / self.id
 
         try:
             metadata = {
@@ -316,7 +314,7 @@ class SS3Sample():
                 'fastqs': {k: str(v) for k, v in fastqs.items() if v},
                 'read_setup': read_setup,
                 'ref': ref_paths,
-                'outdir': str(project_dir),
+                'outdir': str(sample_dir),
                 'out_yaml': project_dir / f"{self.id}.yaml"
             }
         except Exception as e:
