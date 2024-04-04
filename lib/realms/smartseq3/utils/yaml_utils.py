@@ -2,6 +2,7 @@ from pathlib import Path
 from ruamel.yaml import YAML
 
 yaml=YAML()
+yaml.width = 200
 yaml.preserve_quotes = True
 
 
