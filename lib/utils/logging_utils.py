@@ -34,11 +34,20 @@ def configure_logging(debug=False):
     log_format = "%(asctime)s [%(levelname)s] %(message)s"
     log_level = logging.DEBUG if debug else logging.INFO
 
-    # Create a logger
-    logger = logging.getLogger()
+    # Set default logging level for all modules
+    logging.basicConfig(level=logging.WARNING)
 
-    # Set the logger's level
-    logger.setLevel(log_level)
+    # Create a logger for the application
+    logger = logging.getLogger('lib')
+
+    # Set logging level for the application
+    if debug:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+
+    # # Set the logger's level
+    # logger.setLevel(log_level)
 
     # Create a file handler and set the log level and format
     file_handler = logging.FileHandler(log_file)
