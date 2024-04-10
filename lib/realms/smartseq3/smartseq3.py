@@ -1,5 +1,4 @@
 import glob
-import logging
 import asyncio
 
 from pathlib import Path
@@ -8,8 +7,10 @@ from datetime import datetime
 from lib.utils.sjob_manager import SlurmJobManager
 from tests.utils.mock_sjob_manager import MockSlurmJobManager
 
-# from lib.realms.smartseq3.report_generator import Smartseq3ReportGenerator
+from lib.realms.smartseq3.utils.zumis_output_handler import zUMIsOutputHandler
+from lib.realms.smartseq3.report.report_generator import Smartseq3ReportGenerator
 
+from lib.utils.logging_utils import custom_logger
 from lib.utils.branch_template import RealmTemplate
 from lib.utils.destiny_interface import DestinyInterface
 from lib.utils.config_loader import ConfigLoader
@@ -18,6 +19,7 @@ from lib.realms.smartseq3.utils.yaml_utils import write_yaml
 
 
 DEBUG = True
+logging = custom_logger("SmartSeq3")
 
 class SmartSeq3(DestinyInterface, RealmTemplate):
     # Class variables
@@ -188,12 +190,21 @@ class SS3Sample():
         # self.job_id = None
         self.status = "pending"  # other statuses: "processing", "completed", "failed"
         self.metadata = None
-        self.output_dir = None
+
+        # Define the parent project directory
+        self.project_dir = self.project_info.get('project_dir')
+
+        # Define the sample directory
+        # NOTE: This directory is not created yet. To be verified in the post_process method.
+        self.sample_dir = self.project_dir / self.id
 
         if DEBUG:
             self.sjob_manager = MockSlurmJobManager()
         else:
             self.sjob_manager = SlurmJobManager()
+
+        # Initialize zUMIsOutputHandler
+        self.output_handler = zUMIsOutputHandler(self)
 
 
     async def process(self):
@@ -208,6 +219,7 @@ class SS3Sample():
 
         self.create_yaml_file(yaml_metadata)
 
+        # TODO: Check if the YAML file was created successfully
         logging.debug("YAML file created.")
 
         logging.debug("Creating Slurm script")
@@ -217,7 +229,7 @@ class SS3Sample():
             return None
 
         # Create Slurm script and submit job
-        output_file = f"{self.project_info.get('project_dir')}/{self.id}_slurm_script.sh"
+        output_file = f"{self.project_dir}/{self.id}_slurm_script.sh"
         slurm_template_path = self.config['slurm_template']
         slurm_script_path = generate_slurm_script(slurm_metadata, slurm_template_path, output_file)
         logging.debug("Slurm script created. Submitting job")
@@ -235,7 +247,7 @@ class SS3Sample():
         logging.debug(f"Job {self.job_id} submitted for monitoring.")
 
         # Perform any necessary post-processing
-        # self.post_process()
+        self.post_process()
 
     # TODO: Assess if this should be part of the SlurmJobManager class and move it there
     # def check_status(self, job_id, status):
@@ -302,9 +314,6 @@ class SS3Sample():
         else:
             return None  # or handle the missing reference paths appropriately
 
-        project_dir = self.project_info.get('project_dir')
-        sample_dir = project_dir / self.id
-
         try:
             metadata = {
                 # 'plate': self.id, # Temporarily not used, but might be used when we name everything after ngi
@@ -314,8 +323,8 @@ class SS3Sample():
                 'fastqs': {k: str(v) for k, v in fastqs.items() if v},
                 'read_setup': read_setup,
                 'ref': ref_paths,
-                'outdir': str(sample_dir),
-                'out_yaml': project_dir / f"{self.id}.yaml"
+                'outdir': str(self.sample_dir),
+                'out_yaml': self.project_dir / f"{self.id}.yaml"
             }
         except Exception as e:
             logging.error(f"Error constructing metadata for sample {self.id}: {e}")
@@ -433,15 +442,15 @@ class SS3Sample():
     
     def _collect_slurm_metadata(self):
         # TODO: The project directory is checked and created by ensure_project_directory(). This might be redundant.
-        project_dir = Path(self.config['smartseq3_dir']) / 'projects' / self.project_info['project_name']
-        project_dir.mkdir(exist_ok=True)
+        # project_dir = Path(self.config['smartseq3_dir']) / 'projects' / self.project_info['project_name']
+        # project_dir.mkdir(exist_ok=True)
 
         try:
             metadata = {
                 'project_name': self.project_info['project_name'],
                 # 'sample_id': self.id, # Temporarily not used, but might be used when we name everything after ngi
                 'plate_id': self.id, # self.sample_data.get('customer_name', ''),
-                'yaml_settings_path': project_dir / f"{self.id}.yaml",
+                'yaml_settings_path': self.project_dir / f"{self.id}.yaml",
                 'zumis_path': self.config['zumis_path'],
             }
         except Exception as e:
@@ -496,21 +505,36 @@ class SS3Sample():
 
 
     def post_process(self):
-        print("Post-processing")
-        print(self.config)
-        print(self.project_info)
-        print(self.sample_data)
-        print(self.metadata)
-        print(self.output_dir)
+        print(f"Post-processing sample {self.id}...")
+        # print(self.config)
+        # print(self.project_info)
+        # print(self.sample_data)
+        # print(self.metadata)
+        # print(self.sample_dir)
 
-        # Check if sample dir exists
-        sample_dir = Path(self.project_info['project_dir'] / self.metadata['plate'])  # Replace with the actual path to the sample directory
-        if sample_dir.exists() and sample_dir.is_dir():
-            self.output_dir = sample_dir
-        else:
-            # TODO: In this case it might not make sense to continue, probably skip and report the issue (through Slack?)
-            logging.error("Sample directory does not exist after processing.")
+        # Check if sample output is valid
+        if not self.output_handler.is_output_valid():
+            # TODO: Send a notification (Slack?) for manual intervention
+            logging.error(f"Sample {self.id} output is invalid. Skipping post-processing.")
+            return
 
-        # Generate report
-        # report = Smartseq3ReportGenerator(self)
-        # report.render(format='pdf')
+        # # Check if sample output dir exists
+        # self.sample_dir = Path(self.sample_dir)
+        # if not (self.sample_dir.exists() and self.sample_dir.is_dir()):
+        #     # TODO: In this case it might not make sense to continue, probably skip and report the issue (through Slack?)
+        #     logging.error(f"Sample {self.id} directory does not exist after processing: {self.sample_dir}")
+        #     return
+
+        # Instantiate report generator
+        report_generator = Smartseq3ReportGenerator(self)
+
+        # Collect stats
+        if report_generator.collect_stats() is None:
+            logging.error(f"Error collecting stats for sample {self.id}. Skipping report generation.")
+            return
+
+        # Create Plots
+        report_generator.create_graphs()
+
+        # Generate Report
+        report_generator.render(format='PDF')
