@@ -101,7 +101,7 @@ class Smartseq3ReportGenerator:
             ['Plate ID', self.sample.metadata['plate']],
             ['Barcode Set', self.sample.metadata.get('barcode', "--")],
             # ['Illumina Reagent kit', self.sample.project_info['sequencing_setup']],
-            ['Flowcell ID', self.sample.metadata.get('flowcell_id', "--")],
+            ['Flowcell ID', self.sample.flowcell_id.split('_')[-1][1:]],
             ['Genome', self.sample.project_info.get('ref_genome', None)],
             ['zUMIs version', self.meta.get('zUMIs_version', None)],
             ['Total number of sequenced reads', self.meta.get("total_reads", 0)],
