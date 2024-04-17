@@ -8,6 +8,7 @@ from lib.utils.config_loader import configs
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 logging.getLogger('numba').setLevel(logging.WARNING)
 logging.getLogger('h5py').setLevel(logging.WARNING)
+logging.getLogger('PIL').setLevel(logging.WARNING)
 
 # def configure_logging(debug=False):
 #     """
