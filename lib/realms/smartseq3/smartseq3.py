@@ -316,7 +316,7 @@ class SS3Sample():
 
         try:
             metadata = {
-                # 'plate': self.id, # Temporarily not used, but might be used when we name everything after ngi
+                # 'plate': self.id, # NOTE: Temporarily not used, but might be used when we name everything after ngi
                 'plate': self.sample_data.get('customer_name', ''),
                 'barcode': barcode,
                 'bc_file': bc_path,
@@ -529,12 +529,14 @@ class SS3Sample():
         report_generator = Smartseq3ReportGenerator(self)
 
         # Collect stats
-        if report_generator.collect_stats() is None:
+        if not report_generator.collect_stats():
             logging.error(f"Error collecting stats for sample {self.id}. Skipping report generation.")
             return
 
         # Create Plots
-        report_generator.create_graphs()
+        if not report_generator.create_graphs():
+            logging.error(f"Error creating plots for sample {self.id}. Skipping report generation.")
+            return
 
         # Generate Report
         report_generator.render(format='PDF')
