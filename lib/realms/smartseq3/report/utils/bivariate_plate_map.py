@@ -54,8 +54,6 @@ class BivariatePlateMap:
         # Create the layout matrix
         layout, value_scale = self._create_layout_matrix()
 
-        print(f"Initial: {value_scale.min()}")
-
         # Apply logarithmic scaling if specified
         if self.log_color:
             layout = np.log2(layout)
@@ -70,6 +68,10 @@ class BivariatePlateMap:
             size_title = self.size_title
 
         layout = np.nan_to_num(layout)
+        value_scale = np.nan_to_num(value_scale)
+
+        print(f"After layout: {layout.min()}")
+        print(f"After value scale: {value_scale.min()}")
 
         # Generate grid for plotting
         x, y = np.meshgrid(np.arange(len(self.columns)), np.arange(len(self.rows)))
@@ -133,6 +135,14 @@ class BivariatePlateMap:
         # Iterate over the DataFrame and populate the layout and value_scale matrices
         for _, row in self.data.iterrows():
             well_id = row[self.well_values]
+            
+            # Skip this iteration of the loop if well_id is NaN
+            if pd.isna(well_id):
+                # TODO: Log or even better - raise an exception
+                # logging.warning(f"Skipping NaN at index {_}")
+                print((f"Skipping NaN at index {_}"))
+                continue
+
             row_label, col_label = well_id[0], int(well_id[1:])
             row_index = self.rows.index(row_label)
             col_index = col_label - 1  # Adjust for 0-based indexing

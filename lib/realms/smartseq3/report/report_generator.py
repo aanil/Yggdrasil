@@ -30,8 +30,9 @@ class Smartseq3ReportGenerator:
 
         self.style = self._create_report_style()
 
-        # Get the zUMIsOutputHandler
+        # Get the zUMIsOutputHandler and create 'plots' folder
         self.output_handler = self.sample.output_handler
+        self.output_handler.create_plots_folder()
 
         # Initialize SS3DataCollector
         self.data_collector = SS3DataCollector(self.output_handler, self.sample)
@@ -46,20 +47,33 @@ class Smartseq3ReportGenerator:
     def collect_stats(self):
         self.stats = self.data_collector.collect_stats()
 
-        if not self.stats:
+        if self.stats is None or self.stats.empty:
             logging.error("No statistics found. Check manually why that is.")
-            return None
+            return False
+        else:
+            logging.info("SUCCESS: Statistics collected.")
+            print(self.stats)
 
         result = check_high_nan_percentage(self.stats, 10)
         if result:
             logging.warning(f"High number of NaNs detected ({result}%). Double check the given Barcode Set.")
+            return False
+
+        return True
 
 
     def create_graphs(self):
-        plotter = SS3FigurePlotter(self.stats, "/path/to/out_dir/if/needed", self.sample.id)    # TODO: fix class to handle absense of out_dir
+        plotter = SS3FigurePlotter(self.sample.id, self.stats, self.output_handler.plots_dir)    # TODO: fix class to handle absense of out_dir
         self.biv_plot = plotter.create_bivariate_plate_map("readspercell", "genecounts", "reads/cell", "Number of Genes", return_fig=True)
         self.rvf_plot = plotter.reads_vs_frags(return_fig=True)
         self.uvc_plot = plotter.umi_tagged_vs_count(return_fig=True)
+
+        if self.biv_plot and self.rvf_plot and self.uvc_plot:
+            logging.info("SUCCESS: Graphs created.")
+            return True
+        else:
+            logging.error("Failed to create graphs.")
+            return False
 
 
     def render(self, format='PDF'):
@@ -85,7 +99,7 @@ class Smartseq3ReportGenerator:
         return [
             ['Project ID', self.sample.project_info['project_name']],
             ['Plate ID', self.sample.metadata['plate']],
-            ['Barcode Set', self.sample.metadata.get('barcode_set', None)],
+            ['Barcode Set', self.sample.metadata.get('barcode', "--")],
             # ['Illumina Reagent kit', self.sample.project_info['sequencing_setup']],
             ['Flowcell ID', self.sample.metadata.get('flowcell_id', "--")],
             ['Genome', self.sample.project_info.get('ref_genome', None)],
@@ -125,7 +139,7 @@ class Smartseq3ReportGenerator:
     def _add_header(self, settings):
         header_elements = []
         # Add logo
-        header_elements.append(get_image(f"lib/{settings['logo']}", 8*cm, hAlign='CENTER'))
+        header_elements.append(get_image(f"{settings['logo']}", 8*cm, hAlign='CENTER'))
         header_elements.append(Spacer(1, 30))
 
         # Add title

@@ -73,7 +73,7 @@ class SS3DataCollector:
             return None
         
         barcode_well_ids = self.extract_well_ids(barcode_set, barcode_lookup)
-        if barcode_well_ids.empty:
+        if barcode_well_ids is None:
             logging.error("Well IDs extraction failed.")
             return None
 
@@ -85,17 +85,18 @@ class SS3DataCollector:
 
         counts_loom_file = self.output_handler.get_counts_loom_file()
         counts = self._aggr_umis_from_loom(counts_loom_file['umicount_inex'])
-        if counts.empty:
+        if counts is None:
             logging.error("Aggregating UMI counts from loom failed.")
             return None
 
-        if not stats.empty and not counts.empty and stats.index.equals(counts.index):
+        if not stats.empty and not counts.empty: # and stats.index.equals(counts.index):
             stats = pd.concat([stats, counts], axis=1)
             if stats.empty:
                 logging.error("Concatenated stats are empty.")
                 return None
         else:
             logging.error("Stats and counts have incompatible indices or are empty.")
+            print(stats.index, counts.index)
             return None
 
         # Save new stats to files
@@ -166,8 +167,12 @@ class SS3DataCollector:
             logging.warning(f"Unsupported reagent version '{reagent}'. Using default '1.5'.")
             target_col = 'XC'
 
-        # Read the CSV file
-        bc_data = pd.read_csv(barcode_lookup_fpath, sep=',')
+        try:
+            # Read the CSV file
+            bc_data = pd.read_csv(barcode_lookup_fpath, sep=',')
+        except Exception as e:
+            logging.error(f"Error reading barcode lookup file: {e}")
+            return None
 
         # Filter data to get well IDs for the specified barcode set
         # Set the target column as index for efficient lookup
@@ -267,7 +272,7 @@ class SS3DataCollector:
             pd.DataFrame: The processed and merged data.
         """
 
-        # Data validation checks can be added here
+        # NOTE: Data validation checks can be added here
 
         # Initial data setup as a DataFrame
         data = pd.DataFrame(input_data[target_cols[1]].unique(), columns=[target_cols[1]])
@@ -295,20 +300,15 @@ class SS3DataCollector:
         """
         try:
             with lp.connect(loom_file_path, validate=False) as umi_loom:
-                if not hasattr(umi_loom.ca, 'cell_names') or len(umi_loom.ca.cell_names) == 0:
-                    logging.warning(f"Loom file missing expected data: {loom_file_path}")
-                    return pd.DataFrame()  # or return None
+                # if not hasattr(umi_loom.ca, 'cell_names') or len(umi_loom.ca.cell_names) == 0:
+                #     logging.warning(f"Loom file missing expected data: {loom_file_path}")
+                #     return pd.DataFrame()  # or return None
                 
                 # Get cell barcodes
-                print(">>>HERE<<<")
                 cell_barcodes = umi_loom.ca.cell_names
 
-                print(cell_barcodes)
-                print("<<<HERE>>>")
-
                 # Initialize DataFrame to store results
-                # umi_data = pd.DataFrame(index=cell_barcodes)
-                umi_data = pd.DataFrame()
+                umi_data = pd.DataFrame(index=cell_barcodes)
 
                 # Accumulate data for each cell
                 for cell in cell_barcodes:
@@ -317,7 +317,7 @@ class SS3DataCollector:
                     umi_data.loc[cell, 'UMI_genes_detected'] = np.count_nonzero(np.asarray(umi_loom[:, cell_idx]))
         except Exception as e:
             logging.error(f"Error processing loom file {loom_file_path}: {e}")
-            return pd.DataFrame()  # or return None
+            return None
 
         # NOTE: With only casting "UMI_genes_detected" to int the data is identical to the old method
         umi_data['UMI_genes_detected'] = umi_data['UMI_genes_detected'].astype(int)
@@ -327,7 +327,7 @@ class SS3DataCollector:
 
         # Create MultiIndex for columns
         umi_data.columns = pd.MultiIndex.from_product([['Loom'], umi_data.columns], names=["source", "description"])
-
+        
         return umi_data
 
 

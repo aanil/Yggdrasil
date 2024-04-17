@@ -6,8 +6,13 @@ from io import BytesIO
 
 from lib.realms.smartseq3.report.utils.bivariate_plate_map import BivariatePlateMap
 
+from lib.utils.logging_utils import custom_logger
+
+logging = custom_logger(__name__.split('.')[-1])
+
+
 class SS3FigurePlotter:
-    def __init__(self, data, outdir, platename):
+    def __init__(self, platename, data, outdir):
         """
         Initialize the SS3Plotter with necessary data and output configurations.
 
@@ -37,7 +42,8 @@ class SS3FigurePlotter:
         plot_data['genecounts'] = self.data.loc[:, ('genecounts', 'Intron+Exon')]
         plot_data['WellID'] = self.data.loc[:, ('bc_set', 'WellID')]
 
-        print(f"Initial: {plot_data['genecounts'].min()}")
+        print(f"Initial gc: {plot_data['genecounts'].min()}")
+        print(f"Initial rpc: {plot_data['readspercell'].min()}")
 
         # Now, you can use processed_df with BivariatePlateMap
         plate_map = BivariatePlateMap(
@@ -54,6 +60,11 @@ class SS3FigurePlotter:
 
         # Generate the plot
         plot = plate_map.generate_plot()
+
+        if plot:
+            logging.info(f"Generated bivariate plate map for {self.platename}.")
+        else:
+            logging.error(f"Failed to generate bivariate plate map for {self.platename}.")
 
         if return_fig:
             # Return the figure object

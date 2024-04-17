@@ -18,6 +18,7 @@ class zUMIsOutputHandler:
         self.stats_dir = self.sample_dir / 'zUMIs_output' / 'stats'
         self.expression_dir = self.sample_dir / 'zUMIs_output' / 'expression'
         self.fastq_files_dir = self.sample_dir / 'fastq_files'
+        self.plots_dir = self.sample_dir / 'plots'
 
         # Define critical file paths
         self.gene_counts_fpath = self.stats_dir / f"{self.sample_id}.genecounts.txt"
@@ -25,6 +26,7 @@ class zUMIsOutputHandler:
         self.umicount_inex_loom_fpath = self.expression_dir / f"{self.sample_id}.umicount.inex.all.loom"
         self.bc_umi_stats_fpath = self.zumis_output_dir / f"{self.sample_id}kept_barcodes_binned.txt.BCUMIstats.txt"
         self.zumis_log_fpath = self.sample_dir / f"{self.sample_id}.zUMIs_runlog.txt"
+        self.features_plot_fpath = self.stats_dir / f"{self.sample_id}.features.pdf"
 
         # NOTE: This is a future file that will be created by the report generator
         # TODO: whether PDF or HTML should be decided by the report generator
@@ -51,16 +53,20 @@ class zUMIsOutputHandler:
 
     def create_fastq_folder(self):
         """Create fastq_files folder and manage soft links."""
-        self.fastq_files_path.mkdir(exist_ok=True)
+        self.fastq_files_dir.mkdir(exist_ok=True)
         # Logic to create soft links to fastq files
 
-    def get_gene_counts_file_path(self):
-        """Get path to the gene counts file."""
-        return self.zumis_output_path / 'stats' / f"{self.sample_id}.genecounts.txt"
+    def create_plots_folder(self):
+        """Create 'plots' folder for storing generated plots."""
+        self.plots_dir.mkdir(exist_ok=True)
 
-    def get_reads_per_cell_file_path(self):
-        """Get path to the reads per cell file."""
-        return self.zumis_output_path / 'stats' / f"{self.sample_id}.readspercell.txt"
+    # def get_gene_counts_file_path(self):
+    #     """Get path to the gene counts file."""
+    #     return self.zumis_output_dir / 'stats' / f"{self.sample_id}.genecounts.txt"
+
+    # def get_reads_per_cell_file_path(self):
+    #     """Get path to the reads per cell file."""
+    #     return self.zumis_output_dir / 'stats' / f"{self.sample_id}.readspercell.txt"
 
     def is_output_valid(self):
         """
@@ -84,6 +90,7 @@ class zUMIsOutputHandler:
             self.umicount_inex_loom_fpath,
             self.bc_umi_stats_fpath,
             self.zumis_log_fpath,
+            self.features_plot_fpath
             # Add more paths to expected files here
         ]
 
