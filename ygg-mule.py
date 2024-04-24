@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 import asyncio
 import argparse
-import logging
+# import logging
 
 from lib.utils.config_loader import ConfigLoader
 from lib.utils.common import YggdrasilUtilities as Ygg
-from lib.utils.logging_utils import configure_logging
+from lib.utils.logging_utils import configure_logging, custom_logger
 from lib.utils.couch_utils import couch_login
 
 # # Configure logging
@@ -13,6 +13,7 @@ from lib.utils.couch_utils import couch_login
 
 #Call configure_logging to set up the logging environment
 configure_logging(debug=True)
+logging = custom_logger("Ygg-Mule")
 
 def process_document(doc_id):
     # Fetch document from database
@@ -112,6 +113,7 @@ def get_module_location(document):
 
 
 def main():
+    logging.info("Ygg-Mule: Standalone Module Executor for Yggdrasil")
     # Set up argument parser
     parser = argparse.ArgumentParser(description='Ygg-Mule: Standalone Module Executor for Yggdrasil')
     parser.add_argument('doc_id', type=str, help='Document ID to process')
