@@ -236,12 +236,23 @@ class SS3Sample():
             return None
 
         # Create Slurm script and submit job
-        output_file = f"{self.project_dir}/{self.id}_slurm_script.sh"
         slurm_template_path = self.config['slurm_template']
-        slurm_script_path = generate_slurm_script(slurm_metadata, slurm_template_path, output_file)
+        if not generate_slurm_script(slurm_metadata, slurm_template_path, self.file_handler.slurm_script_path):
+            logging.error(f"Failed to create Slurm script for sample {self.id}.")
+            return None
+
+        # Submit the job
         logging.debug("Slurm script created. Submitting job")
-        self.job_id = await self.sjob_manager.submit_job(slurm_script_path)
-        logging.debug(f"Job submitted with ID: {self.job_id}")
+        self.job_id = await self.sjob_manager.submit_job(self.file_handler.slurm_script_path)
+
+        if self.job_id:
+            logging.debug(f"Job submitted with ID: {self.job_id}")
+            
+            asyncio.create_task(self.sjob_manager.monitor_job(self.job_id, self))
+            logging.debug(f"Job {self.job_id} submitted for monitoring.")
+        else:
+            logging.error("Failed to submit job.")
+            return None
 
         # # Monitor the job
         # if self.job_id:
@@ -249,9 +260,7 @@ class SS3Sample():
 
         # Monitor job asynchronously
         # asyncio.create_task(self.sjob_manager.monitor_job(self.job_id, self.check_status))
-        asyncio.create_task(self.sjob_manager.monitor_job(self.job_id, self))
-
-        logging.debug(f"Job {self.job_id} submitted for monitoring.")
+        
 
         # Perform any necessary post-processing
         self.post_process()
