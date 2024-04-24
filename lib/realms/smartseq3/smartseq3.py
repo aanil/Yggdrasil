@@ -20,7 +20,7 @@ from lib.utils.slurm_utils import generate_slurm_script
 from lib.realms.smartseq3.utils.yaml_utils import write_yaml
 
 
-DEBUG = True
+DEBUG = False
 logging = custom_logger("SmartSeq3")
 
 class SmartSeq3(DestinyInterface, RealmTemplate):
