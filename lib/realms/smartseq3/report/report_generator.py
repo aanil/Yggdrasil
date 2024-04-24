@@ -31,11 +31,11 @@ class Smartseq3ReportGenerator:
         self.style = self._create_report_style()
 
         # Get the zUMIsOutputHandler and create 'plots' folder
-        self.output_handler = self.sample.output_handler
-        self.output_handler.create_plots_folder()
+        self.file_handler = self.sample.file_handler
+        # self.file_handler.create_plots_folder()
 
         # Initialize SS3DataCollector
-        self.data_collector = SS3DataCollector(self.output_handler, self.sample)
+        self.data_collector = SS3DataCollector(self.file_handler, self.sample)
 
     def _create_report_style(self):
         style = getSampleStyleSheet()
@@ -63,7 +63,7 @@ class Smartseq3ReportGenerator:
 
 
     def create_graphs(self):
-        plotter = SS3FigurePlotter(self.sample.id, self.stats, self.output_handler.plots_dir)    # TODO: fix class to handle absense of out_dir
+        plotter = SS3FigurePlotter(self.sample.id, self.stats, self.file_handler.plots_dir)    # TODO: fix class to handle absense of out_dir
         self.biv_plot = plotter.create_bivariate_plate_map("readspercell", "genecounts", "reads/cell", "Number of Genes", return_fig=True)
         self.rvf_plot = plotter.reads_vs_frags(return_fig=True)
         self.uvc_plot = plotter.umi_tagged_vs_count(return_fig=True)

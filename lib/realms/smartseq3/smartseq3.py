@@ -7,7 +7,9 @@ from datetime import datetime
 from lib.utils.sjob_manager import SlurmJobManager
 from tests.utils.mock_sjob_manager import MockSlurmJobManager
 
-from lib.realms.smartseq3.utils.zumis_output_handler import zUMIsOutputHandler
+from lib.realms.smartseq3.utils.ss3_utils import SS3Utils
+
+from lib.realms.smartseq3.utils.sample_file_handler import SampleFileHandler
 from lib.realms.smartseq3.report.report_generator import Smartseq3ReportGenerator
 
 from lib.utils.logging_utils import custom_logger
@@ -183,6 +185,12 @@ class SS3Sample():
         self.sample_data = sample_data
         self.project_info = project_info
 
+        # Initialize barcode
+        self.barcode = self.get_barcode()
+
+        # Collect barcode // Any TODO s here? Probably do checks / add to separate `get_barcode` method?
+        # self.barcode = self.sample_data['library_prep']['A'].get('barcode', '').split('-')[-1]
+
         # Collect flowcell ID
         self.flowcell_id = self._get_latest_flowcell()
 
@@ -203,9 +211,8 @@ class SS3Sample():
         else:
             self.sjob_manager = SlurmJobManager()
 
-        # Initialize zUMIsOutputHandler
-        self.output_handler = zUMIsOutputHandler(self)
-
+        # Initialize SampleFileHandler
+        self.file_handler = SampleFileHandler(self)
 
     async def process(self):
         # Collect metadata for this sample
@@ -261,21 +268,28 @@ class SS3Sample():
     #         print(f"Sample {self.id} processing failed.")
 
 
+    def get_barcode(self):
+        """ Retrieve and validate the barcode from sample data. """
+        barcode = self.sample_data['library_prep']['A'].get('barcode', None)
+        if barcode:
+            return barcode.split('-')[-1]
+        else:
+            logging.warning(f"No barcode found in StatusDB for sample {self.id}.")
+            return None  # Or handle more appropriately based on your application's requirements
+
     def _collect_yaml_metadata(self):
         # TODO: Replace this with get_barcode() and no need do this here, do it in __init__
-        barcode = self.sample_data['library_prep']['A'].get('barcode', '').split('-')[-1]
-        if not barcode:
-            logging.warning(f"Barcode not in StatusDB for sample {self.id}")
-            return None
+        # barcode = self.sample_data['library_prep']['A'].get('barcode', '').split('-')[-1]
         
-        bc_path = f"{self.config['smartseq3_dir']}/barcodes/{barcode}.txt"
+        
+        # bc_path = f"{self.config['smartseq3_dir']}/barcodes/{barcode}.txt"
 
         # TODO: If barcode does not exist, make barcode using mkbarcode
-        if not Path(bc_path).exists():
-            logging.warning(f"Barcode {barcode} not found at {bc_path}.")
-            return None
+        # if not Path(bc_path).exists():
+        #     logging.warning(f"Barcode {barcode} not found at {bc_path}.")
+        #     return None
         
-        seq_root = self.config["seq_root_dir"]
+        # seq_root = self.config["seq_root_dir"]
 
         # NOTE: zUMIs does not support multiple flowcells per sample
         # Potential solutions:
@@ -285,9 +299,9 @@ class SS3Sample():
 
         # Select the latest flowcell for analysis
         if self.flowcell_id:
-            fastqs = self._find_fastq_files(seq_root, self.project_info['project_id'], self.id, self.flowcell_id)
-            if not fastqs:
-                logging.warning(f"No fastq files found for sample {self.id}")
+            fastqs = self.file_handler.locate_fastq_files()
+            if fastqs is None:
+                logging.warning(f"No FASTQ files found for sample '{self.id}' in flowcell '{self.flowcell_id}'. Ensure files are correctly named and located.")
                 return None
         else:
             logging.warning(f"No flowcell found for sample {self.id}")
@@ -299,27 +313,38 @@ class SS3Sample():
         
         seq_setup = self.project_info.get('sequencing_setup', '')
         if seq_setup:
-            read_setup = self._transform_seq_setup(seq_setup)
+            # read_setup = self._transform_seq_setup(seq_setup)
+            read_setup = SS3Utils.transform_seq_setup(seq_setup)
 
         ref_gen = self.project_info.get('ref_genome', '')
         # NOTE: Might break if the reference genome format is odd.
         # TODO: Might need to make more robust or even map the ref genomes to their paths
-        idx_path, gtf_path = self._get_ref_paths(ref_gen, self.config)
+        # idx_path, gtf_path = self._get_ref_paths(ref_gen, self.config)
 
-        if idx_path and gtf_path:
-            ref_paths = {
-                'gen_path': idx_path,
-                'gtf_path': gtf_path
-            }
-        else:
-            return None  # or handle the missing reference paths appropriately
+        # if idx_path and gtf_path:
+        #     ref_paths = {
+        #         'gen_path': idx_path,
+        #         'gtf_path': gtf_path
+        #     }
+        # else:
+        #     return None  # or handle the missing reference paths appropriately
+
+        ref_paths = self.file_handler.locate_ref_paths(ref_gen)
+
+        if self.barcode is None:
+            logging.warning(f"Barcode not available for sample {self.id}")
+            return None
+        
+        if not self.file_handler.ensure_barcode_file():
+            logging.error(f"Failed to create barcode file for sample {self.id}. Skipping...")
+            return None
 
         try:
             metadata = {
                 # 'plate': self.id, # NOTE: Temporarily not used, but might be used when we name everything after ngi
                 'plate': self.sample_data.get('customer_name', ''),
-                'barcode': barcode,
-                'bc_file': bc_path,
+                'barcode': self.barcode,
+                'bc_file': self.file_handler.barcode_fpath,
                 'fastqs': {k: str(v) for k, v in fastqs.items() if v},
                 'read_setup': read_setup,
                 'ref': ref_paths,
@@ -348,7 +373,8 @@ class SS3Sample():
             if 'library_prep' in self.sample_data:
                 for prep_info in self.sample_data['library_prep'].values():
                     for fc_id in prep_info.get('sequenced_fc', []):
-                        fc_date = self._parse_fc_date(fc_id)
+                        # fc_date = self._parse_fc_date(fc_id)
+                        fc_date = SS3Utils.parse_fc_date(fc_id)
                         if fc_date and (not latest_date or fc_date > latest_date):
                             latest_date = fc_date
                             latest_fc = fc_id
@@ -384,61 +410,6 @@ class SS3Sample():
         # Log an error if all parsing attempts fail
         logging.error(f"Could not parse date for flowcell {flowcell_id}.", exc_info=True)
         return None
-
-
-    def _find_fastq_files(self, base_path, project_id, sample_id, flowcell_id):
-        """
-        Finds the fastq files in a given directory structure.
-
-        Args:
-            base_path (str): The base directory path.
-            project_id (str): The project ID.
-            sample_id (str): The sample ID.
-            flowcell_id (str): The flowcell ID.
-
-        Returns:
-            dict: A dictionary containing the paths to the required fastq files.
-        """
-        try:
-            # Define the pattern for the fastq files
-            pattern = Path(base_path, project_id, sample_id, '*', flowcell_id, f"{sample_id}_S*_*_*.f*q.gz")
-
-            # Use glob to find files matching the pattern
-            file_paths = glob.glob(str(pattern))
-
-            # Process and categorize the file paths
-            fastq_files = {'R1': None, 'R2': None, 'I1': None, 'I2': None}
-
-            # Check if files were found
-            if not file_paths:
-                logging.warning(f"No FASTQ files found for pattern: {pattern}")
-                return fastq_files
-
-            # Check for each required file type
-            for file_path in file_paths:
-                file = Path(file_path)
-                if file.name.endswith(('.fastq.gz', '.fq.gz')):
-                    if '_I1_' in file.name:
-                        fastq_files['I1'] = file
-                    elif '_I2_' in file.name:
-                        fastq_files['I2'] = file
-                    elif '_R1_' in file.name:
-                        fastq_files['R1'] = file
-                    elif '_R2_' in file.name:
-                        fastq_files['R2'] = file
-
-            # Verify that all fastq files were found
-            if not all(fastq_files.values()):
-                missing = [key for key, value in fastq_files.items() if value is None]
-                logging.warning(f"Missing FASTQ files for {missing} in {Path(pattern).parent}")
-                return {}
-
-            return fastq_files
-
-        except Exception as e:
-            logging.error(f"Error occurred while locating fastq files for sample '{sample_id}' on flowcell '{flowcell_id}': {e}", exc_info=True)
-            return {}
-
     
     def _collect_slurm_metadata(self):
         # TODO: The project directory is checked and created by ensure_project_directory(). This might be redundant.
@@ -491,7 +462,7 @@ class SS3Sample():
         """
         try:
             # Extract species name before the first comma
-            species_key = ref_gen.split(',')[0].split('(')[1].strip().lower()
+            species_key = ref_gen.split(',')[0].split("(")[1].strip().lower()
             idx_path = config['gen_refs'][species_key]['idx_path']
             gtf_path = config['gen_refs'][species_key]['gtf_path']
             return idx_path, gtf_path
@@ -510,20 +481,15 @@ class SS3Sample():
         # print(self.project_info)
         # print(self.sample_data)
         # print(self.metadata)
-        # print(self.sample_dir)
+        # print(self.flowcell_id)
 
         # Check if sample output is valid
-        if not self.output_handler.is_output_valid():
+        if not self.file_handler.is_output_valid():
             # TODO: Send a notification (Slack?) for manual intervention
             logging.error(f"Sample {self.id} output is invalid. Skipping post-processing.")
             return
 
-        # # Check if sample output dir exists
-        # self.sample_dir = Path(self.sample_dir)
-        # if not (self.sample_dir.exists() and self.sample_dir.is_dir()):
-        #     # TODO: In this case it might not make sense to continue, probably skip and report the issue (through Slack?)
-        #     logging.error(f"Sample {self.id} directory does not exist after processing: {self.sample_dir}")
-        #     return
+        self.file_handler.create_directories()
 
         # Instantiate report generator
         report_generator = Smartseq3ReportGenerator(self)

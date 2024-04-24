@@ -5,20 +5,22 @@ import numpy as np
 # import time
 from pandas.errors import EmptyDataError
 
+from lib.realms.smartseq3.utils.ss3_utils import SS3Utils
+
 from lib.utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__.split('.')[-1])
 
 class SS3DataCollector:
-    def __init__(self, output_handler, sample):
+    def __init__(self, file_handler, sample):
         """
         Initialize the data collector with a reference to an instance of zUMIsOutputHandler.
 
         Args:
-            output_handler (zUMIsOutputHandler): An instance of zUMIsOutputHandler.
+            file_handler (zUMIsOutputHandler): An instance of zUMIsOutputHandler.
         """
         self.sample = sample
-        self.output_handler = output_handler
+        self.file_handler = file_handler
         self.meta = self.sample.metadata
         self.config = self.sample.config
 
@@ -31,7 +33,7 @@ class SS3DataCollector:
 
     #     # get well_ids : barcodes dict for the given barcode set
     #     barcode_well_ids = self.extract_well_ids(barcode_set, self.config['barcode_lookup_path'])
-    #     stat_files = self.output_handler.get_stat_files()
+    #     stat_files = self.file_handler.get_stat_files()
 
     #     # TODO: This is the new way. Compare to the old above. Also check speed of execution
     #     start_time_new = time.time()
@@ -41,7 +43,7 @@ class SS3DataCollector:
     #     execution_time_new = end_time_new - start_time_new
     #     # print(f"STATS: New Method Execution Time: {execution_time_new} seconds")
 
-    #     counts_loom_file = self.output_handler.get_counts_loom_file()
+    #     counts_loom_file = self.file_handler.get_counts_loom_file()
 
     #     # TODO: This is the new way. Compare to the old below. Also check speed of execution
     #     start_time_new = time.time()
@@ -53,8 +55,8 @@ class SS3DataCollector:
     #     stats = pd.concat([stats, counts], axis=1)
 
     #     # Save new stats to files
-    #     self.save_data(stats.loc[:, ('Loom', ['UMI_genes_detected', 'UMI_read_counts'])], self.output_handler.stats_dir / f"{self.output_handler.sample_id}.umi_stats.txt")
-    #     self.save_data(stats.loc[:, ('bc_set', 'WellID')], self.output_handler.stats_dir / f"{self.output_handler.sample_id}.well_barcodes.txt")
+    #     self.save_data(stats.loc[:, ('Loom', ['UMI_genes_detected', 'UMI_read_counts'])], self.file_handler.stats_dir / f"{self.file_handler.sample_id}.umi_stats.txt")
+    #     self.save_data(stats.loc[:, ('bc_set', 'WellID')], self.file_handler.stats_dir / f"{self.file_handler.sample_id}.well_barcodes.txt")
 
     #     # TODO: Remember to change the new_stats to stats once the new methods are confirmed to work correctly
     #     return stats
@@ -72,18 +74,18 @@ class SS3DataCollector:
             print(self.config)
             return None
         
-        barcode_well_ids = self.extract_well_ids(barcode_set, barcode_lookup)
+        barcode_well_ids = SS3Utils.extract_well_ids(barcode_set, barcode_lookup)
         if barcode_well_ids is None:
             logging.error("Well IDs extraction failed.")
             return None
 
-        stat_files = self.output_handler.get_stat_files()
+        stat_files = self.file_handler.get_stat_files()
         stats = self._aggr_stats(stat_files, barcode_well_ids)
         if stats is None:
             logging.error("Aggregating stats failed.")
             return None
 
-        counts_loom_file = self.output_handler.get_counts_loom_file()
+        counts_loom_file = self.file_handler.get_counts_loom_file()
         counts = self._aggr_umis_from_loom(counts_loom_file['umicount_inex'])
         if counts is None:
             logging.error("Aggregating UMI counts from loom failed.")
@@ -100,8 +102,8 @@ class SS3DataCollector:
             return None
 
         # Save new stats to files
-        self.save_data(stats.loc[:, ('Loom', ['UMI_genes_detected', 'UMI_read_counts'])], self.output_handler.stats_dir / f"{self.output_handler.sample_id}.umi_stats.txt")
-        self.save_data(stats.loc[:, ('bc_set', 'WellID')], self.output_handler.stats_dir / f"{self.output_handler.sample_id}.well_barcodes.txt")
+        self.save_data(stats.loc[:, ('Loom', ['UMI_genes_detected', 'UMI_read_counts'])], self.file_handler.stats_dir / f"{self.file_handler.sample_id}.umi_stats.txt")
+        self.save_data(stats.loc[:, ('bc_set', 'WellID')], self.file_handler.stats_dir / f"{self.file_handler.sample_id}.well_barcodes.txt")
 
         return stats
 
@@ -115,8 +117,8 @@ class SS3DataCollector:
     #         dict: A dictionary containing aggregated and processed data.
     #     """
     #     # Example of aggregating data
-    #     stats_data = self.load_stats(self.output_handler.get_stats_file_path())
-    #     umi_data = self.calc_umis(self.output_handler.get_umi_counts_file_path())
+    #     stats_data = self.load_stats(self.file_handler.get_stats_file_path())
+    #     umi_data = self.calc_umis(self.file_handler.get_umi_counts_file_path())
 
     #     # Combine data into a single structure
     #     aggregated_data = {
@@ -142,44 +144,44 @@ class SS3DataCollector:
         # ...
         pass
 
-    @staticmethod
-    def extract_well_ids(barcode_set, barcode_lookup_fpath, reagent='1.5'):
-        """
-        Extracts well IDs corresponding to a given barcode set.
+    # @staticmethod
+    # def extract_well_ids(barcode_set, barcode_lookup_fpath, reagent='1.5'):
+    #     """
+    #     Extracts well IDs corresponding to a given barcode set.
 
-        Args:
-            barcode_set (str): The barcode set to use for extracting well IDs (e.g., 1A).
-            barcode_lookup_fpath (str): Path to the CSV file containing barcode and well ID mappings.
-            reagent (str, optional): The reagent version used, defaults to '1.5'.
+    #     Args:
+    #         barcode_set (str): The barcode set to use for extracting well IDs (e.g., 1A).
+    #         barcode_lookup_fpath (str): Path to the CSV file containing barcode and well ID mappings.
+    #         reagent (str, optional): The reagent version used, defaults to '1.5'.
 
-        Returns:
-            pandas.Series: A Series where the index is barcodes and the values are corresponding well IDs.
+    #     Returns:
+    #         pandas.Series: A Series where the index is barcodes and the values are corresponding well IDs.
             
-        The function reads the barcode lookup CSV file and filters the data to get well IDs for the specified barcode set.
-        If an unsupported reagent version is provided, it logs a warning and defaults to using '1.5'.
-        """
-        # Determine the target column based on reagent version
-        if reagent == '1.5':
-            target_col = 'XC'
-        elif reagent == '1.0':
-            target_col = 'XC_NovaSeq'
-        else:
-            logging.warning(f"Unsupported reagent version '{reagent}'. Using default '1.5'.")
-            target_col = 'XC'
+    #     The function reads the barcode lookup CSV file and filters the data to get well IDs for the specified barcode set.
+    #     If an unsupported reagent version is provided, it logs a warning and defaults to using '1.5'.
+    #     """
+    #     # Determine the target column based on reagent version
+    #     if reagent == '1.5':
+    #         target_col = 'XC'
+    #     elif reagent == '1.0':
+    #         target_col = 'XC_NovaSeq'
+    #     else:
+    #         logging.warning(f"Unsupported reagent version '{reagent}'. Using default '1.5'.")
+    #         target_col = 'XC'
 
-        try:
-            # Read the CSV file
-            bc_data = pd.read_csv(barcode_lookup_fpath, sep=',')
-        except Exception as e:
-            logging.error(f"Error reading barcode lookup file: {e}")
-            return None
+    #     try:
+    #         # Read the CSV file
+    #         bc_data = pd.read_csv(barcode_lookup_fpath, sep=',')
+    #     except Exception as e:
+    #         logging.error(f"Error reading barcode lookup file: {e}")
+    #         return None
 
-        # Filter data to get well IDs for the specified barcode set
-        # Set the target column as index for efficient lookup
-        bc_data.set_index(target_col, inplace=True)
-        well_ids = bc_data.loc[bc_data.loc[:, 'BCset'] == barcode_set, 'WellID']
+    #     # Filter data to get well IDs for the specified barcode set
+    #     # Set the target column as index for efficient lookup
+    #     bc_data.set_index(target_col, inplace=True)
+    #     well_ids = bc_data.loc[bc_data.loc[:, 'BCset'] == barcode_set, 'WellID']
 
-        return well_ids
+    #     return well_ids
     
 
     def _aggr_stats(self, stat_files, barcode_wells):
@@ -336,7 +338,7 @@ class SS3DataCollector:
     ###########################################################################################################################
 
     def collect_meta(self, stats):
-        version = self.get_zumis_version(self.output_handler.zumis_log_fpath)
+        version = self.get_zumis_version(self.file_handler.zumis_log_fpath)
 
         total_reads = self.meta.get('total_reads', None)
         total_reads = None
