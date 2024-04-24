@@ -34,6 +34,7 @@ class SampleFileHandler:
 
     def init_file_paths(self):
         # Define critical file paths
+        self.slurm_script_path = self.base_dir / f"{self.sample_id}_slurm_script.sh"
         self.gene_counts_fpath = self.stats_dir / f"{self.sample_id}.genecounts.txt"
         self.reads_per_cell_fpath = self.stats_dir / f"{self.sample_id}.readspercell.txt"
         self.umicount_inex_loom_fpath = self.expression_dir / f"{self.sample_id}.umicount.inex.all.loom"
