@@ -33,6 +33,7 @@ class SlurmJobManager:
                 logging.error("Error submitting job. Details: %s", stderr.decode())
                 return None
 
+            logging.debug(f"Slurm RAW submit output: {stdout}")
             stdout_decoded = stdout.decode().strip()
             logging.debug(f"Slurm submit output: {stdout_decoded}")
 
