@@ -246,12 +246,12 @@ class SS3Sample():
         self.job_id = await self.sjob_manager.submit_job(self.file_handler.slurm_script_path)
 
         if self.job_id:
-            logging.debug(f"Job submitted with ID: {self.job_id}")
+            logging.debug(f"[{self.id}] Job submitted with ID: {self.job_id}")
             
             asyncio.create_task(self.sjob_manager.monitor_job(self.job_id, self))
-            logging.debug(f"Job {self.job_id} submitted for monitoring.")
+            logging.debug(f"[{self.id}] Job {self.job_id} submitted for monitoring.")
         else:
-            logging.error("Failed to submit job.")
+            logging.error(f"[{self.id}] Failed to submit job.")
             return None
 
         # # Monitor the job
