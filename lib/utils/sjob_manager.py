@@ -33,10 +33,18 @@ class SlurmJobManager:
                 logging.error("Error submitting job. Details: %s", stderr.decode())
                 return None
 
-            job_id = stdout.decode().strip()
-            if job_id.isdigit():  # Assuming the script outputs only the job ID if successful
+            stdout_decoded = stdout.decode().strip()
+            logging.debug(f"Slurm submit output: {stdout_decoded}")
+
+            # Improved regex to capture the job ID from a string like "Submitted batch job 123456"
+            match = re.search(r'Submitted batch job (\d+)', stdout_decoded)
+            job_id = match.group(1) if match else None
+
+            if job_id:
                 logging.info(f"Job submitted with ID: {job_id}")
                 return job_id
+            else:
+                logging.error("Failed to extract job ID from sbatch output.")
 
         except asyncio.TimeoutError:
             logging.error("Timeout while submitting job.")
