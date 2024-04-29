@@ -62,6 +62,7 @@ class SlurmJobManager:
         """Monitors the specified job and calls the sample's post-process method based on job status."""
         while True:
             status = await self._job_status(job_id)
+            print(f">>>> RECEIVED STATUS: {status}")
             if status in ["COMPLETED", "FAILED", "CANCELLED"]:
                 logging.info(f"Job {job_id} status: {status}")
                 self.check_status(job_id, status, sample)
