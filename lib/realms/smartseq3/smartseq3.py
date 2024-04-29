@@ -263,7 +263,7 @@ class SS3Sample():
         
 
         # Perform any necessary post-processing
-        self.post_process()
+        # self.post_process()
 
     # TODO: Assess if this should be part of the SlurmJobManager class and move it there
     # def check_status(self, job_id, status):
@@ -428,6 +428,7 @@ class SS3Sample():
         try:
             metadata = {
                 'project_name': self.project_info['project_name'],
+                'project_dir': self.project_dir,
                 # 'sample_id': self.id, # Temporarily not used, but might be used when we name everything after ngi
                 'plate_id': self.id, # self.sample_data.get('customer_name', ''),
                 'yaml_settings_path': self.project_dir / f"{self.id}.yaml",
