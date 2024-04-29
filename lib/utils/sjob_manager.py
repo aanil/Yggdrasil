@@ -21,6 +21,8 @@ class SlurmJobManager:
 
     async def submit_job(self, script_path):
         command = [self.slurm_script_path, "submit", script_path]
+
+        print(">>>> COMMAND: ", command)
         try:
             process = await asyncio.create_subprocess_exec(
                 *command,
@@ -30,10 +32,12 @@ class SlurmJobManager:
             stdout, stderr = await asyncio.wait_for(process.communicate(), self.command_timeout)
 
             if process.returncode != 0:
-                logging.error("Error submitting job. Details: %s", stderr.decode())
+                logging.error("Error submitting job. STDOUT: %s, STDERR: %s", stdout.decode(), stderr.decode())
                 return None
 
             logging.debug(f"Slurm RAW submit output: {stdout}")
+            logging.debug(f"STDOUT from slurm_manager.sh: {stdout.decode().strip()}")
+            logging.debug(f"STDERR from slurm_manager.sh: {stderr.decode().strip()}")
             stdout_decoded = stdout.decode().strip()
             logging.debug(f"Slurm submit output: {stdout_decoded}")
 
