@@ -161,7 +161,7 @@ class SlurmJobManager:
 
     async def monitor_job(self, job_id, sample):
         """Monitors the specified job and calls the sample's post-process method based on job status."""
-        logging.debug(f"[{self.id}] Job {self.job_id} submitted for monitoring.")
+        logging.debug(f"[{sample.id}] Job {job_id} submitted for monitoring.")
         while True:
             status = await self._job_status(job_id)
             print(f">>>> RECEIVED MONITORING STATUS: {status}")
