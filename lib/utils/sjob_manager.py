@@ -176,7 +176,8 @@ class SlurmJobManager:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(process.communicate(), self.command_timeout)
+            # stdout, stderr = await asyncio.wait_for(process.communicate(), self.command_timeout)
+            stdout, stderr = await process.communicate()
 
             print(stderr, stdout, process.returncode)
 
