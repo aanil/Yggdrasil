@@ -178,6 +178,8 @@ class SlurmJobManager:
             )
             stdout, stderr = await asyncio.wait_for(process.communicate(), self.command_timeout)
 
+            print(stderr, stdout, process.returncode)
+
             if stderr:
                 logging.error(f"Error from sacct command: {stderr.decode()}")
 
