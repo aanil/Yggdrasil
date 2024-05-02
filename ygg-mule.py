@@ -33,6 +33,7 @@ def process_document(doc_id):
             realm = RealmClass(document)
             if realm.proceed:
                 asyncio.run(realm.process())
+                print("Processing complete.")
             else:
                 logging.info(f"Skipping processing due to missing required information. {document.get('project_id')}")
         else:
@@ -40,14 +41,14 @@ def process_document(doc_id):
     except Exception as e:
         logging.error(f"Error while processing document: {e}", exc_info=True)
 
-async def run_module_process(realm):
-    """
-    Runs the process method of the realm asynchronously.
+# async def run_module_process(realm):
+#     """
+#     Runs the process method of the realm asynchronously.
 
-    Args:
-        realm (RealmClass): An instance of the realm class to run.
-    """
-    await realm.process()
+#     Args:
+#         realm (RealmClass): An instance of the realm class to run.
+#     """
+#     await realm.process()
 
 
 def fetch_document_from_db(doc_id):
