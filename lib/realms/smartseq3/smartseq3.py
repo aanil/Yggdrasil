@@ -123,6 +123,7 @@ class SmartSeq3(DestinyInterface, RealmTemplate):
         tasks = [sample.process() for sample in self.samples]
         print(f"Sample tasks created. Waiting for completion...: {tasks}")
         await asyncio.gather(*tasks)
+        print("All samples processed. Finalizing project...")
         self.finalize_project(self.samples)
 
     def extract_samples(self):
