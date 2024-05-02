@@ -173,20 +173,20 @@ class SlurmJobManager:
         try:
             process = await asyncio.create_subprocess_shell(
                 sacct_command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
             stdout, stderr = await asyncio.wait_for(process.communicate(), self.command_timeout)
 
             print(stderr, stdout, process.returncode)
 
             if stderr:
-                logging.error(f"Error from sacct command: {stderr.decode()}")
+                logging.error(f"sacct stderr: {stderr.decode().strip()}")
 
-            if process.returncode == 0 and stdout:
-                status_output = stdout.decode().strip()
-                logging.debug(f"sacct output for job {job_id}: {status_output}")
-                return stdout.decode().strip()
+            if stdout:
+                stdout_decoded = stdout.decode().strip()
+                logging.debug(f"sacct stdout for job {job_id}: {stdout_decoded}")
+                return stdout_decoded
 
         except asyncio.TimeoutError:
             logging.error(f"Timeout while checking status of job {job_id}.")
