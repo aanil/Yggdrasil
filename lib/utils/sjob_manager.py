@@ -1,7 +1,10 @@
 import re
 import asyncio
 import subprocess
-import logging
+
+from lib.utils.logging_utils import custom_logger
+
+logging = custom_logger(__name__.split('.')[-1])
 
 # import asyncio
 # import logging
@@ -158,6 +161,7 @@ class SlurmJobManager:
 
     async def monitor_job(self, job_id, sample):
         """Monitors the specified job and calls the sample's post-process method based on job status."""
+        logging.debug(f"[{self.id}] Job {self.job_id} submitted for monitoring.")
         while True:
             status = await self._job_status(job_id)
             print(f">>>> RECEIVED MONITORING STATUS: {status}")
