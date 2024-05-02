@@ -2,6 +2,7 @@ import re
 import asyncio
 import subprocess
 
+from lib.utils.config_loader import configs
 from lib.utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__.split('.')[-1])
@@ -117,8 +118,8 @@ logging = custom_logger(__name__.split('.')[-1])
 #################################################################################################
 
 class SlurmJobManager:
-    def __init__(self, polling_interval=1.0, command_timeout=8.0):
-        self.polling_interval = polling_interval
+    def __init__(self, polling_interval=10.0, command_timeout=8.0):
+        self.polling_interval = configs.get("job_monitor_poll_interval", polling_interval)
         self.command_timeout = command_timeout
 
     async def submit_job(self, script_path):
@@ -180,7 +181,7 @@ class SlurmJobManager:
             )
             # stdout, stderr = await asyncio.wait_for(process.communicate(), self.command_timeout)
             stdout, stderr = await process.communicate()
-            
+
             if stderr:
                 logging.error(f"sacct stderr: {stderr.decode().strip()}")
 
