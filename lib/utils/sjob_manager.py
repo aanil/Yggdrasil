@@ -164,7 +164,6 @@ class SlurmJobManager:
         logging.debug(f"[{sample.id}] Job {job_id} submitted for monitoring.")
         while True:
             status = await self._job_status(job_id)
-            print(f">>>> RECEIVED MONITORING STATUS: {status}")
             if status in ["COMPLETED", "FAILED", "CANCELLED"]:
                 logging.info(f"Job {job_id} status: {status}")
                 self.check_status(job_id, status, sample)
@@ -172,7 +171,6 @@ class SlurmJobManager:
             await asyncio.sleep(self.polling_interval)
 
     async def _job_status(self, job_id):
-        print(f"Checking status of job {job_id}")
         sacct_command = f"sacct -n -X -o State -j {job_id}"
         try:
             process = await asyncio.create_subprocess_shell(
@@ -182,9 +180,7 @@ class SlurmJobManager:
             )
             # stdout, stderr = await asyncio.wait_for(process.communicate(), self.command_timeout)
             stdout, stderr = await process.communicate()
-
-            print(stderr, stdout, process.returncode)
-
+            
             if stderr:
                 logging.error(f"sacct stderr: {stderr.decode().strip()}")
 
