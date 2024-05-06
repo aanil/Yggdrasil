@@ -12,7 +12,7 @@ class SampleFileHandler:
     # TODO: Only pass the project_name if project_info is not used anywhere else
     def __init__(self, sample):
         self.sample_id = sample.id
-        
+
         # NOTE: Temporary solution to keep the plate id for the transition period
         self.plate = sample.sample_data.get('customer_name', sample.id)
 
@@ -38,19 +38,25 @@ class SampleFileHandler:
 
     def init_file_paths(self):
         # Define critical file paths
-        self.slurm_script_path = self.base_dir / f"{self.sample_id}_slurm_script.sh"
+        # zUMIs output files
         self.gene_counts_fpath = self.stats_dir / f"{self.plate}.genecounts.txt"
         self.reads_per_cell_fpath = self.stats_dir / f"{self.plate}.readspercell.txt"
         self.umicount_inex_loom_fpath = self.expression_dir / f"{self.plate}.umicount.inex.all.loom"
         self.bc_umi_stats_fpath = self.zumis_output_dir / f"{self.plate}kept_barcodes_binned.txt.BCUMIstats.txt"
         self.zumis_log_fpath = self.sample_dir / f"{self.plate}.zUMIs_runlog.txt"
         self.features_plot_fpath = self.stats_dir / f"{self.plate}.features.pdf"
+
+        # Files needed for processing
+        self.slurm_script_path = self.base_dir / f"{self.sample_id}_slurm_script.sh"
         self.barcode_fpath = Path(self.config['smartseq3_dir']) / "barcodes" / f"{self.barcode}.txt"
         self.barcode_lookup_fpath = Path(self.config['barcode_lookup_path'])
 
-        # NOTE: This is a future file that will be created by the report generator
+        # Report output files
+        self.umi_stats_fpath = self.stats_dir / f"{self.plate}.umi_stats.txt"
+        self.well_barcodes_fpath = self.stats_dir / f"{self.plate}.well_barcodes.txt"
         # TODO: whether PDF or HTML should be decided by the report generator
         self.report_fpath = self.zumis_output_dir / f"{self.plate}_report.pdf"
+        
 
 
     def ensure_barcode_file(self):

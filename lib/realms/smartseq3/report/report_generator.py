@@ -263,7 +263,7 @@ class Smartseq3ReportGenerator:
         fig_info = {
                 'fig1':{'size': [800, 18],
                         'title': 'Figure 1: Features summary',
-                        'source': Path(f"{self.report_out}/stats/{self.sample.id}.features.pdf"),
+                        'source': self.file_handler.features_plot_fpath, # Path(f"{self.report_out}/stats/{self.sample.id}.features.pdf"),
                         'legend': settings['fig1']},
                 'fig2':{'size': [600, 16],
                         'title': 'Figure 2: Number of sequenced reads and genes per well',

@@ -102,8 +102,8 @@ class SS3DataCollector:
             return None
 
         # Save new stats to files
-        self.save_data(stats.loc[:, ('Loom', ['UMI_genes_detected', 'UMI_read_counts'])], self.file_handler.stats_dir / f"{self.file_handler.sample_id}.umi_stats.txt")
-        self.save_data(stats.loc[:, ('bc_set', 'WellID')], self.file_handler.stats_dir / f"{self.file_handler.sample_id}.well_barcodes.txt")
+        self.save_data(stats.loc[:, ('Loom', ['UMI_genes_detected', 'UMI_read_counts'])], self.file_handler.umi_stats_fpath)
+        self.save_data(stats.loc[:, ('bc_set', 'WellID')], self.file_handler.well_barcodes_fpath)
 
         return stats
 
