@@ -57,7 +57,7 @@ def add_figures(report, style, info):
             #report.append(Image(info['source'], width=info['size'][0]*cm, height=info['size'][1]*cm, hAlign='CENTER'))
         elif isinstance(info['source'], Path):
             # Convert PDF page to image
-            print(info['source'])
+            # print(info['source'])
             pil_image = convert_from_path(info['source'], info['size'][0])[0]
             buf = BytesIO()
             pil_image.save(buf, format='PNG')

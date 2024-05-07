@@ -1,5 +1,4 @@
 import json
-# import shutil
 import datetime
 
 from pathlib import Path
@@ -21,12 +20,8 @@ logging = custom_logger(__name__.split('.')[-1])
 class Smartseq3ReportGenerator:
     def __init__(self, sample):
         self.sample = sample
-        # self.sample_meta = sample.metadata
-        # self.sample_info = sample.sample_data
-        # self.project_info = sample.project_info
-        # self.configs = sample.configs
-        self.sample_out = Path(sample.sample_dir)
-        self.report_out = Path(sample.sample_dir) / "zUMIs_output"
+        # self.sample_out = Path(sample.sample_dir)
+        # self.report_out = Path(sample.sample_dir) / "zUMIs_output"
 
         self.style = self._create_report_style()
 
@@ -45,14 +40,15 @@ class Smartseq3ReportGenerator:
 
     
     def collect_stats(self):
+        # TODO: Make better log reporting
         self.stats = self.data_collector.collect_stats()
 
         if self.stats is None or self.stats.empty:
             logging.error("No statistics found. Check manually why that is.")
             return False
         else:
-            logging.info("SUCCESS: Statistics collected.")
-            print(self.stats)
+            logging.info("Statistics collected.")
+            # logging.debug(self.stats)
 
         result = check_high_nan_percentage(self.stats, 10)
         if result:
@@ -63,13 +59,14 @@ class Smartseq3ReportGenerator:
 
 
     def create_graphs(self):
+        # TODO: Make better log reporting
         plotter = SS3FigurePlotter(self.sample.id, self.stats, self.file_handler.plots_dir)    # TODO: fix class to handle absense of out_dir
         self.biv_plot = plotter.create_bivariate_plate_map("readspercell", "genecounts", "reads/cell", "Number of Genes", return_fig=True)
         self.rvf_plot = plotter.reads_vs_frags(return_fig=True)
         self.uvc_plot = plotter.umi_tagged_vs_count(return_fig=True)
 
         if self.biv_plot and self.rvf_plot and self.uvc_plot:
-            logging.info("SUCCESS: Graphs created.")
+            logging.info("Graphs created.")
             return True
         else:
             logging.error("Failed to create graphs.")
@@ -120,13 +117,14 @@ class Smartseq3ReportGenerator:
         overview_data = self._prepare_overview_data()
 
         doc = SimpleDocTemplate(
-            f"{self.report_out}/{self.sample.id}_report.pdf",
+            # TODO: Clean if below line works okay: f"{self.report_out}/{self.sample.id}_report.pdf",
+            str(self.file_handler.report_fpath),
             pagesize=A4, topMargin=72, rightMargin=72, leftMargin=72, bottomMargin=18
         )
 
         report_elements = self._build_report_elements(settings, overview_data)
         doc.build(report_elements)
-        print(f"Created Report at: {self.report_out}/{self.sample.id}_report.pdf")
+        logging.info(f"Created Report at: {self.file_handler.report_fpath}")
 
 
     def _build_report_elements(self, settings, overview_data):

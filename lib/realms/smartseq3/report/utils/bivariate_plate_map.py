@@ -86,13 +86,11 @@ class BivariatePlateMap:
         # Reverse the scaling operation
         threshold_value = (0 / (self.radius_max - self.radius_min)) * (value_scale.max() - value_scale.min()) + value_scale.min()
 
-        print(threshold_value)
-
-        min_above_threshold = np.min(value_scale[value_scale > threshold_value])
-
-        print(min_above_threshold)
-
-        print(value_scale.min())
+        # NOTE: Uncomment bellow for troubleshooting when investigating scaling issues
+        # print(threshold_value)
+        # min_above_threshold = np.min(value_scale[value_scale > threshold_value])
+        # print(min_above_threshold)
+        # print(value_scale.min())
 
         # Scatter plot with variable dot sizes and colors
         sc = self.ax.scatter(x.flat, y.flat, s=R.flat, c=layout.flat, cmap=self.color_map)

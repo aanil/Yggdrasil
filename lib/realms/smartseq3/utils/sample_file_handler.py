@@ -14,7 +14,7 @@ class SampleFileHandler:
         self.sample_id = sample.id
 
         # NOTE: Temporary solution to keep the plate id for the transition period
-        self.plate = sample.sample_data.get('customer_name', sample.id)
+        self.plate = sample.id # sample.sample_data.get('customer_name', sample.id)
 
         self.flowcell_id = sample.flowcell_id
         self.barcode = sample.barcode

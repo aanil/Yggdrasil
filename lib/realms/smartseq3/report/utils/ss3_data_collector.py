@@ -71,7 +71,6 @@ class SS3DataCollector:
         barcode_lookup = self.config.get('barcode_lookup_path')
         if not barcode_lookup:
             logging.error("Missing barcode lookup path in config.")
-            print(self.config)
             return None
         
         barcode_well_ids = SS3Utils.extract_well_ids(barcode_set, barcode_lookup)
@@ -98,7 +97,8 @@ class SS3DataCollector:
                 return None
         else:
             logging.error("Stats and counts have incompatible indices or are empty.")
-            print(stats.index, counts.index)
+            logging.debug(f"Stats Index:\n{stats.index}")
+            logging.debug(f"Counts Index:\n{counts.index}")
             return None
 
         # Save new stats to files
