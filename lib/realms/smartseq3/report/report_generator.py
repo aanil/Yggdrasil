@@ -94,7 +94,7 @@ class Smartseq3ReportGenerator:
 
         # Prepare data for the overview section
         return [
-            ['Project ID', self.sample.project_info['project_name']],
+            ['Project ID', self.sample.project_info['project_name'].replace('__', '.')],
             ['Plate ID', self.sample.metadata['plate']],
             ['Barcode Set', self.sample.metadata.get('barcode', "--")],
             # ['Illumina Reagent kit', self.sample.project_info['sequencing_setup']],
