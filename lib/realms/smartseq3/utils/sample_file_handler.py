@@ -1,4 +1,5 @@
 import glob
+import shutil
 
 from pathlib import Path
 
@@ -31,6 +32,9 @@ class SampleFileHandler:
         self.expression_dir = self.sample_dir / 'zUMIs_output' / 'expression'
         self.fastq_files_dir = self.sample_dir / 'fastq_files'
         self.plots_dir = self.sample_dir / 'plots'
+
+        # Initialize fastq files
+        self.fastq_files = {'R1': None, 'R2': None, 'I1': None, 'I2': None}
 
         # Define critical file paths
         self.init_file_paths()
@@ -103,27 +107,56 @@ class SampleFileHandler:
         """ Initialize and validate fastq file paths from the source directory. """
         pattern = Path(self.config['seq_root_dir'], self.project_id, self.sample_id, '*', self.flowcell_id, f"{self.sample_id}_S*_*_*.f*q.gz")
         file_paths = glob.glob(str(pattern))
-        fastq_files = {'R1': None, 'R2': None, 'I1': None, 'I2': None}
 
         for file_path in file_paths:
             file = Path(file_path)
             if file.name.endswith(('.fastq.gz', '.fq.gz')):
                 if '_R1_' in file.stem:
-                    fastq_files['R1'] = file
+                    self.fastq_files['R1'] = file
                 elif '_R2_' in file.stem:
-                    fastq_files['R2'] = file
+                    self.fastq_files['R2'] = file
                 elif '_I1_' in file.stem:
-                    fastq_files['I1'] = file
+                    self.fastq_files['I1'] = file
                 elif '_I2_' in file.stem:
-                    fastq_files['I2'] = file
+                    self.fastq_files['I2'] = file
 
-        if not all(fastq_files.values()):
-            missing = [key for key, value in fastq_files.items() if value is None]
+        if not all(self.fastq_files.values()):
+            missing = [key for key, value in self.fastq_files.items() if value is None]
             logging.warning(f"Missing FASTQ files for {missing} in {Path(pattern).parent}")
             # logging.warning(f"Missing or incorrect FASTQ files for sample {self.sample_id} in {pattern.parent}")
             return None
 
-        return fastq_files
+        return self.fastq_files
+
+
+    def symlink_fastq_files(self):
+        """Create symlinks for the directory containing the fastq files and copy auxiliary files."""
+        try:
+            # Construct the path directly from the known structure
+            fastq_parent_dir = Path(self.config['seq_root_dir'], self.project_id, self.sample_id)
+
+            # Create symlink for the fastq_parent_dir
+            symlink_target = self.fastq_files_dir / fastq_parent_dir.name
+            if not symlink_target.exists():
+                symlink_target.symlink_to(fastq_parent_dir)
+                logging.info(f"Symlink created for directory {fastq_parent_dir} in {self.fastq_files_dir}")
+            else:
+                logging.debug(f"Symlink for directory {fastq_parent_dir} already exists.")
+
+            # Handle .md5 and .lst files
+            for file_extension in ['.md5', '.lst']:
+                source_file = fastq_parent_dir.with_suffix(file_extension)
+                if source_file.exists():
+                    shutil.copy(source_file, self.fastq_files_dir)
+                    logging.info(f"Copied {source_file} to {self.fastq_files_dir}")
+                else:
+                    logging.warning(f"File {source_file} does not exist and was not copied.")
+
+        except Exception as e:
+            logging.error(f"Failed to create symlink and copy files: {e}")
+            return False
+
+        return True
 
 
     # TODO: Add checks to ensure that the paths exist
