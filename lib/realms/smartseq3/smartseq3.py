@@ -16,6 +16,7 @@ from lib.utils.logging_utils import custom_logger
 from lib.utils.branch_template import RealmTemplate
 from lib.utils.destiny_interface import DestinyInterface
 from lib.utils.config_loader import ConfigLoader
+from lib.utils.ngi_report_generator import generate_ngi_report
 from lib.utils.slurm_utils import generate_slurm_script
 from lib.realms.smartseq3.utils.yaml_utils import write_yaml
 
@@ -50,7 +51,7 @@ class SmartSeq3(DestinyInterface, RealmTemplate):
         try:
             project_info = {
                 "project_name": self.doc.get('project_name', '').replace(".", "__"),
-                "project_id": self.doc.get('project_id'),
+                "project_id": self.doc.get('project_id', 'Unknown_Project'),
                 "escg_id": self.doc.get('customer_project_reference'),
                 "library_prep_option": self.doc.get('details', {}).get('library_prep_option'),
                 "contact": self.doc.get('contact'),  # Is this an email or a name?
@@ -124,7 +125,7 @@ class SmartSeq3(DestinyInterface, RealmTemplate):
         print(f"Sample tasks created. Waiting for completion...: {tasks}")
         await asyncio.gather(*tasks)
         print("All samples processed. Finalizing project...")
-        self.finalize_project(self.samples)
+        self.finalize_project()
 
     def extract_samples(self):
         samples = []
@@ -139,9 +140,24 @@ class SmartSeq3(DestinyInterface, RealmTemplate):
 
         return samples
 
-    def finalize_project(self, samples):
+    def finalize_project(self):
         # Logic to gather results and prepare for delivery
-        pass
+        self._generate_ngi_report()
+
+
+    def _generate_ngi_report(self):
+        # TODO: Find a way to use the name of the user who signs. For Ygg-mule it could be an argument, but what about Ygg-trunk? Slack?
+        user_name = "Anastasios Glaros"
+        sample_list = [sample.id for sample in self.samples]
+        project_path = str(self.project_dir)
+        project_id = self.project_info.get("project_id")
+
+        # Generate the NGI report
+        report_success = generate_ngi_report(project_path, project_id, user_name, sample_list)
+        if report_success:
+            logging.info("NGI report was generated successfully.")
+        else:
+            logging.error("Failed to generate the NGI report.")
         
 
 
@@ -506,22 +522,28 @@ class SS3Sample():
         # Check if sample output is valid
         if not self.file_handler.is_output_valid():
             # TODO: Send a notification (Slack?) for manual intervention
-            logging.error(f"Sample {self.id} output is invalid. Skipping post-processing.")
+            logging.error(f"[{self.id}] Pipeline output is invalid. Skipping post-processing.")
             return
 
         self.file_handler.create_directories()
+
+        # Create symlinks for the fastq files
+        if not self.file_handler.symlink_fastq_files():
+            logging.error("Failed to manage symlinks and auxiliary files.")
+        else:
+            logging.info("Successfully managed symlinks and auxiliary files.")
 
         # Instantiate report generator
         report_generator = Smartseq3ReportGenerator(self)
 
         # Collect stats
         if not report_generator.collect_stats():
-            logging.error(f"Error collecting stats for sample {self.id}. Skipping report generation.")
+            logging.error(f"[{self.id}] Error collecting stats. Skipping report generation.")
             return
 
         # Create Plots
         if not report_generator.create_graphs():
-            logging.error(f"Error creating plots for sample {self.id}. Skipping report generation.")
+            logging.error(f"[{self.id}] Error creating plots. Skipping report generation.")
             return
 
         # Generate Report
