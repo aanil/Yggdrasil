@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import asyncio
 import argparse
-# import logging
 
 from lib.utils.config_loader import ConfigLoader
 from lib.utils.common import YggdrasilUtilities as Ygg
@@ -9,14 +8,17 @@ from lib.utils.logging_utils import configure_logging, custom_logger
 from lib.utils.couch_utils import couch_login
 
 # # Configure logging
-# logging.basicConfig(level=logging.INFO)
-
-#Call configure_logging to set up the logging environment
 configure_logging(debug=True)
 logging = custom_logger("Ygg-Mule")
 
 def process_document(doc_id):
-    # Fetch document from database
+    """
+    Processes a document by its ID. Fetches the document from the database,
+    determines the appropriate module to load, and executes the module.
+
+    Args:
+        doc_id (str): The ID of the document to process.
+    """
     document = fetch_document_from_db(doc_id)
 
     if not document:
@@ -33,22 +35,13 @@ def process_document(doc_id):
             realm = RealmClass(document)
             if realm.proceed:
                 asyncio.run(realm.process())
-                print("Processing complete.")
+                logging.info("Processing complete.")
             else:
                 logging.info(f"Skipping processing due to missing required information. {document.get('project_id')}")
         else:
             logging.warning(f"Failed to load module '{module_loc}'.")
     except Exception as e:
         logging.error(f"Error while processing document: {e}", exc_info=True)
-
-# async def run_module_process(realm):
-#     """
-#     Runs the process method of the realm asynchronously.
-
-#     Args:
-#         realm (RealmClass): An instance of the realm class to run.
-#     """
-#     await realm.process()
 
 
 def fetch_document_from_db(doc_id):
@@ -62,14 +55,10 @@ def fetch_document_from_db(doc_id):
         dict: The retrieved document, or None if not found.
     """
     try:
-        # Connect to CouchDB using Yggdrasil's utility
         couch = couch_login()
         database = couch['projects']
-
-        # Retrieve the document
         document = database[doc_id]
         return document
-
     except KeyError:
         logging.error(f'Document with ID {doc_id} not found in the database.')
         return None
@@ -104,7 +93,6 @@ def get_module_location(document):
         else:
             logging.warning(f"No module configuration found for method '{method}'.")
             return None
-
     except KeyError as e:
         logging.error(f'Error accessing module location: {e}')
         return None
