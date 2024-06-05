@@ -1,5 +1,4 @@
 import os
-import appdirs
 import logging
 import importlib
 
@@ -14,12 +13,16 @@ class YggdrasilUtilities:
     for handling configurations, loading modules, and other common tasks.
 
     Attributes:
-        None
+        module_cache (dict): A cache for loaded modules and classes.
+        CONFIG_DIR (Path): The directory containing configuration files.
 
     Methods:
         get_path(file_name: str) -> Path:
             Get the full path to a specific configuration or setup file
-            for the Yggdrasil application, configured by appdirs.
+            for the Yggdrasil application.
+
+        load_realm_class(module_path: str) -> type:
+            Load a realm class from a module path and cache it for reuse.
 
         load_module(module_path: str) -> module:
             Load a module and cache it for reuse.
@@ -46,7 +49,7 @@ class YggdrasilUtilities:
             module_path (str): The full path of the realm class to load (including the class name).
 
         Returns:
-            class: The loaded realm class, or None if loading fails.
+            type: The loaded realm class, or None if loading fails.
         """
         if module_path in YggdrasilUtilities.module_cache:
             return YggdrasilUtilities.module_cache[module_path]
@@ -71,7 +74,7 @@ class YggdrasilUtilities:
             module_path (str): The path of the module to load.
 
         Returns:
-            module: The loaded module.
+            module: The loaded module, or None if loading fails.
         """
         if module_path in YggdrasilUtilities.module_cache:
             return YggdrasilUtilities.module_cache[module_path]
@@ -83,27 +86,7 @@ class YggdrasilUtilities:
         except ImportError as e:
             logging.error(f"Failed to load module '{module_path}': {e}")
             return None
-
-    # @staticmethod
-    # def get_path(file_name):
-    #     """
-    #     Get the full path to a specific configuration or setup file
-    #     for the Yggdrasil application, configured by appdirs.
-
-    #     Args:
-    #         file_name (str): The name of the configuration file.
-
-    #     Returns:
-    #         pathlib.Path: A Path object representing the full path to the specified
-    #             configuration file.
-    #     """
-    #     config_dir = Path(appdirs.user_config_dir("Yggdrasil", "NationalGenomicsInfrastructure"))
-    #     config_file = config_dir / file_name
-    #     if config_file.exists():
-    #         return config_file
-    #     else:
-    #         logging.error(f"Configuration file '{file_name}' not found.")
-    #         return None
+        
 
     @staticmethod
     def get_path(file_name):
@@ -115,13 +98,11 @@ class YggdrasilUtilities:
             file_name (str): The name of the configuration file.
 
         Returns:
-            pathlib.Path: A Path object representing the full path to the specified
+            Path: A Path object representing the full path to the specified
                 configuration file, or None if the file is not found.
         """
-        # Get the path to the configurations directory
-        # config_dir = Path(__file__).parent.parent.parent / "configurations"
-        config_dir = YggdrasilUtilities.CONFIG_DIR
-        config_file = config_dir / file_name
+        # Get the path to the configuration file
+        config_file = YggdrasilUtilities.CONFIG_DIR / file_name
 
         if config_file.exists():
             return config_file
