@@ -7,7 +7,7 @@ from lib.utils.common import YggdrasilUtilities as Ygg
 from lib.utils.logging_utils import configure_logging, custom_logger
 from lib.utils.couch_utils import couch_login
 
-# # Configure logging
+# Configure logging
 configure_logging(debug=True)
 logging = custom_logger("Ygg-Mule")
 
