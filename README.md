@@ -51,23 +51,54 @@ The project uses a configuration loader to manage settings.
 The configuration files should be placed in the `yggdrasil_workspace/common/configurations` directory.
 Currently, this can be adjusted in the `common.py` script, but this is likely to change in the future.
 
+- **config.json** fields:
+    - yggdrasil_log_dir: Directory where logs will be stored.
+    - couchdb_url: URL of the CouchDB server. Example: "http://localhost:5984"
+    - couchdb_database: Name of the CouchDB database.
+    - couchdb_poll_interval: Interval (in seconds) for polling CouchDB for changes.
+    - job_monitor_poll_interval: Interval (in seconds) for polling the job monitor.
+
 Example Configuration File (config.json)
 
 ```json
 {
     "yggdrasil_log_dir": "yggdrasil_workspace/logs",
     "couchdb_url": "http://localhost:5984",
-    "couchdb_database": "my_database"
+    "couchdb_database": "my_database",
+    "couchdb_poll_interval": 3,
+    "job_monitor_poll_interval": 60
 }
 ```
+
+- **module_registry.json**:
+
+This file maps different library construction methods to their respective processing modules. The modules specified here will be dynamically loaded and executed based on the library construction method specified in the CouchDB document.
+
+Example:
+
+```json
+{
+    "SmartSeq 3": {
+        "module": "lib.realms.smartseq3.smartseq3.SmartSeq3"
+    },
+    "10X Chromium": {
+        "module": "lib.realms.tenx.tenx.TenX"
+    }
+}
+```
+
+In this example the assumed modules registered are:
+- SmartSeq 3:
+    - module: The path to the module handling SmartSeq 3 data.
+- 10X Chromium:
+    - module: The path to the module handling 10X Chromium data.
 
 ## Environment Variables
 
 Ensure the following environment variables are set:
 
-COUCH_USER: Your CouchDB username.
-
-COUCH_PASS: Your CouchDB password.
+    - COUCH_USER: Your CouchDB username.
+    - COUCH_PASS: Your CouchDB password.
 
 ## Logging
 
