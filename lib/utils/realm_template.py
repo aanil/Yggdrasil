@@ -67,4 +67,3 @@ class RealmTemplate(ABC):
         """
         pass
 
-    # Other common methods and utilities can be added here
