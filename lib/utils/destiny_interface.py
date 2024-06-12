@@ -1,5 +1,6 @@
 
 from abc import ABC, abstractmethod
+import warnings
 
 class DestinyInterface(ABC):
     """
@@ -7,6 +8,8 @@ class DestinyInterface(ABC):
     It defines the interface for processing documents, where each destiny encapsulates a unique pathway
     or processing logic, akin to the diverse fates woven by the Norns under Yggdrasil.
     """
+    def __init__(self):
+        warnings.warn("DestinyInterface is deprecated and will be removed in future releases, use RealmTemplate instead.", DeprecationWarning)
 
     @abstractmethod
     def process(self, doc):

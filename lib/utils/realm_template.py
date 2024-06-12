@@ -20,10 +20,20 @@ class RealmTemplate(ABC):
     @abstractmethod
     def pre_process(self, doc):
         """
-        Pre-process the document. This method should be implemented by each branch to handle 
+        Pre-process the document. This method should be implemented by each realm to handle 
         preliminary processing specific to its requirements.
 
         :param doc: The document to be pre-processed.
+        """
+        pass
+
+    @abstractmethod
+    def process(self, doc):
+        """
+        Process the document. This method needs to be implemented by each concrete realm class,
+        defining how each document's journey unfolds.
+
+        :param doc: The document to be processed.
         """
         pass
 
@@ -60,7 +70,7 @@ class RealmTemplate(ABC):
     @abstractmethod
     def post_process(self, result):
         """
-        Post-process the results from the Slurm job. Each branch should implement this method 
+        Post-process the results from the Slurm job. Each realm should implement this method 
         to handle post-processing specific to its outcome.
 
         :param result: The result from the Slurm job to be post-processed.
