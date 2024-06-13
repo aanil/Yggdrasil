@@ -34,6 +34,10 @@ from lib.utils.logging_utils import custom_logger
 logging = custom_logger(__name__.split('.')[-1])
 
 class SS3Utils():
+    """
+    Utility class for SmartSeq3-related operations, including sequence setup transformations,
+    flowcell date parsing, barcode file creation, and well ID extraction.
+    """
     
     @staticmethod
     def transform_seq_setup(seq_setup_str):
@@ -58,6 +62,15 @@ class SS3Utils():
 
     @staticmethod
     def parse_fc_date(flowcell_id):
+        """
+        Parses the date from a flowcell ID, considering different date formats.
+
+        Args:
+            flowcell_id (str): The flowcell ID to parse.
+
+        Returns:
+            datetime.date: A date object representing the date of the flowcell or None if parsing fails.
+        """
         date_formats = ['%Y%m%d', '%y%m%d']
         date_str = flowcell_id.split('_')[0]
         for fmt in date_formats:
@@ -67,7 +80,8 @@ class SS3Utils():
                 continue
         logging.error(f"Could not parse date for flowcell {flowcell_id}.")
         return None
-    
+
+
     @staticmethod
     def create_barcode_file(bc_set, bc_lookup_fpath, save_as):
         """
