@@ -1,16 +1,47 @@
 from pathlib import Path
 from ruamel.yaml import YAML
 
+from lib.utils.logging_utils import custom_logger
+
+logging = custom_logger(__name__.split('.')[-1])
+
 yaml=YAML()
 yaml.width = 200
 yaml.preserve_quotes = True
 
 
 def parse_yaml(file_path):
+    """
+    Parse a YAML file.
+
+    Args:
+        file_path (str): The path to the YAML file to be parsed.
+
+    Returns:
+        dict: The parsed YAML content as a dictionary.
+    """
     return yaml.load(Path(file_path))
 
 
 def write_yaml(config, args):
+    """
+    Write data to a YAML file based on a template and provided arguments.
+
+    This function reads a YAML template, fills it with values from `args`,
+    and writes the output to a specified file. It handles sequence files,
+    reference paths, output directories, and barcodes.
+
+    Args:
+        config (dict): Configuration dictionary containing the path to the YAML template.
+        args (dict): Arguments to be filled into the template, including:
+            - plate: Project name or identifier.
+            - fastqs: Dictionary with paths to FASTQ files (R1, R2, I1, I2).
+            - read_setup: Dictionary with base definitions for each read type.
+            - ref: Dictionary with paths to reference genome files (gen_path, gtf_path).
+            - outdir: Output directory path.
+            - bc_file: Path to the barcode file.
+            - out_yaml: Path to the output YAML file.
+    """
     template = parse_yaml(config['yaml_template'])
     
     template['project'] = args['plate']
@@ -31,21 +62,12 @@ def write_yaml(config, args):
     template['out_dir'] = str(args['outdir'])
     template['barcodes']['barcode_file'] = str(args['bc_file'])
 
-    # project_path = Path(config["abs_paths"]["project_dir"].format(args["project_id"]))
-
-    # # Check if project dir exists, otherwise create it
-    # project_path.mkdir(exist_ok=True)
-    # out_yaml = project_path / f"{args['plate']}.yaml"
-
     # TODO: Do not exit. Notify user (through Slack?).
     # TODO: Make a backup of the existing file (e.g. by appending a timestamp, or suffixing _old#)
-    # TODO: Log instead of printing.
     if args["out_yaml"].is_file():
-        print(f"YAML file `{args['out_yaml'].name}` already exists.")
-        print(f"Path: {args['out_yaml']}")
-        print("Continuing to overwrite the file...")
-        # print("Exiting... Please, resolve the issue manually.")
-        # sys.exit(-1)
+        logging.warning(f"YAML file `{args['out_yaml'].name}` already exists.")
+        logging.debug(f"Path: {args['out_yaml']}")
+        logging.warning("Continuing to overwrite the file...")
 
     with open(args["out_yaml"], 'w') as outfile:
         yaml.dump(template, outfile)
