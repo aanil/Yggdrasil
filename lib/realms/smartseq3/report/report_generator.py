@@ -1,9 +1,7 @@
 import json
 import datetime
 
-from pathlib import Path
-
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, ListFlowable, ListItem, PageBreak, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, ListFlowable, ListItem, PageBreak #, Image
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
@@ -18,10 +16,25 @@ from lib.utils.logging_utils import custom_logger
 logging = custom_logger(__name__.split('.')[-1])
 
 class Smartseq3ReportGenerator:
+    """
+    Generates reports for SmartSeq3 samples, including statistics collection,
+    graph creation, and PDF report rendering.
+
+    Attributes:
+        sample (object): The sample object containing sample data.
+        style (StyleSheet1): The stylesheet used for formatting the report.
+        file_handler (SampleFileHandler): Handles file operations for the sample.
+        data_collector (SS3DataCollector): Collects data for the report.
+    """
+
     def __init__(self, sample):
+        """
+        Initialize the Smartseq3ReportGenerator with sample information.
+
+        Args:
+            sample (object): The sample object containing sample data.
+        """
         self.sample = sample
-        # self.sample_out = Path(sample.sample_dir)
-        # self.report_out = Path(sample.sample_dir) / "zUMIs_output"
 
         self.style = self._create_report_style()
 
@@ -33,6 +46,12 @@ class Smartseq3ReportGenerator:
         self.data_collector = SS3DataCollector(self.file_handler, self.sample)
 
     def _create_report_style(self):
+        """
+        Create and return the stylesheet for the report.
+
+        Returns:
+            StyleSheet1: The stylesheet used for formatting the report.
+        """
         style = getSampleStyleSheet()
         style.add(ParagraphStyle(name='Justify', alignment=TA_JUSTIFY))
 
@@ -40,7 +59,12 @@ class Smartseq3ReportGenerator:
 
     
     def collect_stats(self):
-        # TODO: Make better log reporting
+        """
+        Collect statistics for the report.
+
+        Returns:
+            bool: True if statistics are collected successfully, False otherwise.
+        """
         self.stats = self.data_collector.collect_stats()
 
         if self.stats is None or self.stats.empty:
@@ -59,7 +83,12 @@ class Smartseq3ReportGenerator:
 
 
     def create_graphs(self):
-        # TODO: Make better log reporting
+        """
+        Create graphs for the report.
+
+        Returns:
+            bool: True if graphs are created successfully, False otherwise.
+        """
         plotter = SS3FigurePlotter(self.sample.id, self.stats, self.file_handler.plots_dir)    # TODO: fix class to handle absense of out_dir
         self.biv_plot = plotter.create_bivariate_plate_map("readspercell", "genecounts", "reads/cell", "Number of Genes", return_fig=True)
         self.rvf_plot = plotter.reads_vs_frags(return_fig=True)
@@ -74,6 +103,15 @@ class Smartseq3ReportGenerator:
 
 
     def render(self, format='PDF'):
+        """
+        Render the report in the specified format.
+
+        Args:
+            format (str): The format of the report ('PDF' or 'HTML').
+
+        Returns:
+            None
+        """
         if format.upper() == 'PDF':
             return self._render_pdf()
         elif format.upper() == 'HTML':
@@ -84,11 +122,23 @@ class Smartseq3ReportGenerator:
 
     # TODO: Probably there's a better place for this path (use config_loader?)
     def _fetch_settings(self):
+        """
+        Fetch report settings from a JSON file.
+
+        Returns:
+            dict: The report settings.
+        """
         with open("lib/realms/smartseq3/report/report_settings.json") as f:
             return json.load(f)
 
 
     def _prepare_overview_data(self):
+        """
+        Prepare overview data for the report.
+
+        Returns:
+            list: A list of lists containing overview data.
+        """
         
         self.meta = self.data_collector.collect_meta(self.stats)
 
@@ -108,16 +158,27 @@ class Smartseq3ReportGenerator:
     
 
     def _render_html(self):
+        """
+        Render the report in HTML format.
+
+        Returns:
+            None
+        """
         # TODO: Specific rendering for HTML
         pass
 
 
     def _render_pdf(self):
+        """
+        Render the report in PDF format.
+
+        Returns:
+            None
+        """
         settings = self._fetch_settings()
         overview_data = self._prepare_overview_data()
 
         doc = SimpleDocTemplate(
-            # TODO: Clean if below line works okay: f"{self.report_out}/{self.sample.id}_report.pdf",
             str(self.file_handler.report_fpath),
             pagesize=A4, topMargin=72, rightMargin=72, leftMargin=72, bottomMargin=18
         )
@@ -128,6 +189,16 @@ class Smartseq3ReportGenerator:
 
 
     def _build_report_elements(self, settings, overview_data):
+        """
+        Build the elements of the report.
+
+        Args:
+            settings (dict): The report settings.
+            overview_data (list): The overview data for the report.
+
+        Returns:
+            list: A list of report elements.
+        """
         report_elements = []
         report_elements.extend(self._add_header(settings))
         report_elements.extend(self._add_body(settings, overview_data))
@@ -135,6 +206,15 @@ class Smartseq3ReportGenerator:
         return report_elements
 
     def _add_header(self, settings):
+        """
+        Add the header section to the report.
+
+        Args:
+            settings (dict): The report settings.
+
+        Returns:
+            list: A list of header elements.
+        """
         header_elements = []
         # Add logo
         header_elements.append(get_image(f"{settings['logo']}", 8*cm, hAlign='CENTER'))
@@ -160,6 +240,16 @@ class Smartseq3ReportGenerator:
         return header_elements
 
     def _add_body(self, settings, overview_data):
+        """
+        Add the body section to the report.
+
+        Args:
+            settings (dict): The report settings.
+            overview_data (list): The overview data for the report.
+
+        Returns:
+            list: A list of body elements.
+        """
         body_elements = []
 
         # Add ending statements
@@ -246,6 +336,15 @@ class Smartseq3ReportGenerator:
     
 
     def _add_graphs(self, settings):
+        """
+        Add the graphs section to the report.
+
+        Args:
+            settings (dict): The report settings.
+
+        Returns:
+            list: A list of graph elements.
+        """
         graph_elements = []
 
         # Add graphs description
