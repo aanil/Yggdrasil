@@ -45,8 +45,8 @@ class SS3FigurePlotter:
         plot_data['genecounts'] = self.data.loc[:, ('genecounts', 'Intron+Exon')]
         plot_data['WellID'] = self.data.loc[:, ('bc_set', 'WellID')]
 
-        print(f"Initial gc: {plot_data['genecounts'].min()}")
-        print(f"Initial rpc: {plot_data['readspercell'].min()}")
+        # print(f"Initial gc: {plot_data['genecounts'].min()}")
+        # print(f"Initial rpc: {plot_data['readspercell'].min()}")
 
         # Create the BivariatePlateMap
         plate_map = BivariatePlateMap(
