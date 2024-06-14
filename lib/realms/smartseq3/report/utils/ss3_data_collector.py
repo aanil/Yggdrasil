@@ -12,6 +12,28 @@ logging = custom_logger(__name__.split('.')[-1])
 
 
 class SS3DataCollector:
+    """
+    Collects and aggregates data for SmartSeq3 samples.
+
+    This class is responsible for collecting, aggregating, and processing statistical
+    and metadata information for SmartSeq3 samples. It interacts with file handlers
+    and utilizes various utilities to extract and compile necessary data.
+
+    Attributes:
+        sample (SS3Sample): Instance of SS3Sample containing sample information and metadata.
+        file_handler (SampleFileHandler): Instance of SampleFileHandler for file operations.
+        meta (dict): Metadata of the sample.
+        config (dict): Configuration settings for the sample processing.
+
+    Methods:
+        collect_stats(): Collects and aggregates statistical data.
+        _aggr_stats(stat_files, barcode_wells): Aggregates statistical data from multiple files.
+        _merge_data_by_type(input_data, target_cols): Prepares and merges data based on unique 'type' values.
+        _aggr_umis_from_loom(loom_file_path): Reads a loom file to aggregate UMI and read counts.
+        collect_meta(stats): Collects metadata for the sample.
+        get_zumis_version(zumis_log_fpath): Retrieves the zUMIs version from the log file.
+        save_data(data, path): Saves the DataFrame to a CSV file.
+    """
     def __init__(self, file_handler, sample):
         """
         Initialize the data collector with references to the file handler and sample instance.
