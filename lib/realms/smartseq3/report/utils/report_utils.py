@@ -17,6 +17,16 @@ from lib.utils.logging_utils import custom_logger
 logging = custom_logger(__name__)
 
 def get_image(path, width=1*cm, **kwargs):
+    """
+    Create a ReportLab Image object with the correct aspect ratio.
+
+    Args:
+        path (str): Path to the image file.
+        width (float): Width of the image in cm.
+
+    Returns:
+        Image: ReportLab Image object.
+    """
     img = ImageReader(path)
     iw, ih = img.getSize()
     aspect = ih / float(iw)
@@ -24,6 +34,16 @@ def get_image(path, width=1*cm, **kwargs):
 
 
 def get_image_from_bytes(buf, width=1*cm, **kwargs):
+    """
+    Create a ReportLab Image object from a BytesIO buffer with the correct aspect ratio.
+
+    Args:
+        buf (BytesIO): BytesIO buffer containing the image data.
+        width (float): Width of the image in cm.
+
+    Returns:
+        Image: ReportLab Image object.
+    """
     # Load the image from BytesIO object
     pil_image = PILImage.open(buf)
 
@@ -42,6 +62,17 @@ def get_image_from_bytes(buf, width=1*cm, **kwargs):
 
 
 def add_figures(report, style, info):
+    """
+    Add figures to the report.
+
+    Args:
+        report (list): List to which report elements are appended.
+        style (StyleSheet1): The stylesheet used for formatting the report.
+        info (dict): Dictionary containing figure information.
+
+    Returns:
+        list: Updated report list with figures added.
+    """
     for key, info in info.items():
         # Add figure title
         title = f'<font style = "font-family:Lato" size=12><b>{info["title"]}</b><br/></font>'
@@ -54,18 +85,16 @@ def add_figures(report, style, info):
         if isinstance(info['source'], BytesIO):
             # Load image from BytesIO
             buf = info['source']
-            #report.append(Image(info['source'], width=info['size'][0]*cm, height=info['size'][1]*cm, hAlign='CENTER'))
         elif isinstance(info['source'], Path):
             # Convert PDF page to image
-            # print(info['source'])
             pil_image = convert_from_path(info['source'], info['size'][0])[0]
             buf = BytesIO()
             pil_image.save(buf, format='PNG')
             buf.seek(0)
-            #report.append(Image(buf, width=info['size'][0]*cm, height=info['size'][1]*cm, hAlign='CENTER'))
         else:
             logging.error(f"Unrecognized source type: {type(info['source'])}")
-            print(info['source'])
+            logging.debug(info['source'])
+            continue
 
         # Add image to report using aspect ratio
         report.append(get_image_from_bytes(buf, width=info['size'][1]*cm, hAlign='CENTER'))
@@ -83,28 +112,48 @@ def add_figures(report, style, info):
 
     return report
 
-
+# NOTE: Replaced by the get_zumis_version in the ss3_data_collector.py
 # TODO: Fix and use this to automatically get zUMIs' version
-def get_zumis_version(project_dir, sample_plate):
-    """Returns the zUMIs version that the given plate was rabn on."""
-    # TODO: Try-Except in case the folder or file does not exist
+# def get_zumis_version(project_dir, sample_plate):
+#     """
+#     Returns the zUMIs version that the given plate was run on.
 
-    sample_zumis_log_path = Path(project_dir / sample_plate / f"{sample_plate}.zUMIs_runlog.txt")
+#     Args:
+#         project_dir (Path): The project directory.
+#         sample_plate (str): The sample plate identifier.
 
-    log_file = open(sample_zumis_log_path, 'r')
-    lines = log_file.readlines()
-    version = "--"
+#     Returns:
+#         str: The zUMIs version.
+#     """
+#     # TODO: Try-Except in case the folder or file does not exist
 
-    for line in reversed(lines):
-        if "zUMIs version" in line:
-            version = line.split()[-1]
+#     sample_zumis_log_path = Path(project_dir / sample_plate / f"{sample_plate}.zUMIs_runlog.txt")
 
-    log_file.close()
+#     log_file = open(sample_zumis_log_path, 'r')
+#     lines = log_file.readlines()
+#     version = "--"
 
-    return version
+#     for line in reversed(lines):
+#         if "zUMIs version" in line:
+#             version = line.split()[-1]
+
+#     log_file.close()
+
+#     return version
 
 
 def get_bc_wells(bc_set, bc_file, reagent="1.5"):
+    """
+    Extract well IDs corresponding to a given barcode set.
+
+    Args:
+        bc_set (str): The barcode set to use for extracting well IDs (e.g., 1A).
+        bc_file (str): Path to the CSV file containing barcode and well ID mappings.
+        reagent (str, optional): The reagent version used, defaults to '1.5'.
+
+    Returns:
+        pd.Series: Series where the index is barcodes and the values are corresponding well IDs.
+    """
     if reagent == '1.5':
         target_col = 'XC'
     elif reagent == '1.0':
@@ -119,6 +168,17 @@ def get_bc_wells(bc_set, bc_file, reagent="1.5"):
 
 
 def prepare_data(input_data, bc_wells, target_cols=['N', 'RG']) -> pd.DataFrame:
+    """
+    Prepare data for analysis by merging based on target columns.
+
+    Args:
+        input_data (pd.DataFrame): Input data to be prepared.
+        bc_wells (pd.Series): Barcode wells information.
+        target_cols (list): List of target columns for merging.
+
+    Returns:
+        pd.DataFrame: Prepared data.
+    """
     data = pd.DataFrame()
 
     # TODO: the loop is not correct. merge or join by using the barcode as indices
@@ -158,8 +218,6 @@ def check_high_nan_percentage(data, threshold_percent):
     nan_count = data.isna().sum().sum()  # Total number of NaNs
     total_elements = data.size
     nan_percentage = (nan_count / total_elements) * 100
-
-    # print(nan_percentage)
 
     if nan_percentage > threshold_percent:
         return nan_percentage
