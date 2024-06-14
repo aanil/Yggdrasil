@@ -1,11 +1,11 @@
-import glob
+# import glob
 import asyncio
 
 from pathlib import Path
-from datetime import datetime
+# from datetime import datetime
 
 from lib.utils.sjob_manager import SlurmJobManager
-from tests.utils.mock_sjob_manager import MockSlurmJobManager
+from tests.mocks.mock_sjob_manager import MockSlurmJobManager
 
 from lib.realms.smartseq3.utils.ss3_utils import SS3Utils
 
@@ -13,32 +13,47 @@ from lib.realms.smartseq3.utils.sample_file_handler import SampleFileHandler
 from lib.realms.smartseq3.report.report_generator import Smartseq3ReportGenerator
 
 from lib.utils.logging_utils import custom_logger
-from lib.utils.branch_template import RealmTemplate
-from lib.utils.destiny_interface import DestinyInterface
+from lib.utils.realm_template import RealmTemplate
+# from lib.utils.destiny_interface import DestinyInterface
 from lib.utils.config_loader import ConfigLoader
 from lib.utils.ngi_report_generator import generate_ngi_report
 from lib.utils.slurm_utils import generate_slurm_script
 from lib.realms.smartseq3.utils.yaml_utils import write_yaml
 
 
-DEBUG = False
+DEBUG = True
 logging = custom_logger("SmartSeq3")
 
-class SmartSeq3(DestinyInterface, RealmTemplate):
-    # Class variables
+class SmartSeq3(RealmTemplate):
+    """
+    Class representing a SmartSeq3 project.
+
+    Attributes:
+        config (MappingProxyType): Configuration settings for the SmartSeq3 project.
+        doc (dict): Document containing project data.
+        proceed (bool): Flag indicating whether the project has all required fields to proceed.
+        project_info (dict): Extracted project information.
+        project_dir (Path): Path to the project directory.
+        samples (list): List of SS3Sample instances.
+    """
+
     config = ConfigLoader().load_config("ss3_config.json")
 
     def __init__(self, doc):
+        """
+        Initialize a SmartSeq3 project instance.
+
+        Args:
+            doc (dict): Document containing project data.
+        """
         self.doc = doc
         self.proceed = self._check_required_fields()
 
         # TODO: What if I return None if not self.proceed?
         if self.proceed:
             self.project_info = self._extract_project_info()
-
             self.project_dir = self.ensure_project_directory()
             self.project_info['project_dir'] = self.project_dir
-
             self.samples = []
 
 
@@ -46,7 +61,8 @@ class SmartSeq3(DestinyInterface, RealmTemplate):
         """
         Extracts project information from the provided document.
 
-        :return: A dictionary containing selected project information or an empty dictionary in case of an error.
+        Returns:
+            dict: A dictionary containing selected project information or an empty dictionary in case of an error.
         """
         try:
             project_info = {
@@ -60,12 +76,18 @@ class SmartSeq3(DestinyInterface, RealmTemplate):
             }
 
             return project_info
-
         except Exception as e:
             logging.error(f"Error occurred while extracting project information: {e}")
             return {}  # Return an empty dict or some default values to allow continuation
 
+
     def _check_required_fields(self):
+        """
+        Checks if the document contains all required fields.
+
+        Returns:
+            bool: True if all required fields are present, False otherwise.
+        """
         required_fields = self.config.get("required_fields", [])
         sample_required_fields = self.config.get("sample_required_fields", [])
 
@@ -85,13 +107,17 @@ class SmartSeq3(DestinyInterface, RealmTemplate):
                     if "total_reads_(m)" in field:
                         # TODO: Send this message as a notification on Slack
                         logging.warning("Consider running 'Aggregate Reads' in LIMS.")
-
                     return False
-                
         return True
 
+
     def _is_field(self, field_path, data):
-        """Check if a nested field exists in a dictionary."""
+        """
+        Checks if the document contains all required fields.
+
+        Returns:
+            bool: True if all required fields are present, False otherwise.
+        """
         keys = field_path.split('.')
         for key in keys:
             if isinstance(data, dict) and key in data:
@@ -100,10 +126,14 @@ class SmartSeq3(DestinyInterface, RealmTemplate):
                 return False
         return True
 
+
+    # TODO: Check whether this would be better fit in the sample_file_handler
     def ensure_project_directory(self):
         """
         Ensures that the project directory exists.
-        Returns the Path object of the directory if successful, or None if an error occurs.
+
+        Returns:
+            Path: The Path object of the directory if successful, or None if an error occurs.
         """
         try:
             project_dir = Path(self.config['smartseq3_dir']) / 'projects' / self.project_info['project_name']
@@ -115,19 +145,28 @@ class SmartSeq3(DestinyInterface, RealmTemplate):
 
 
     async def process(self):
+        """
+        Process the SmartSeq3 project by handling its samples.
+        """
         self.status = "processing"
-        print("Processing SmartSeq3 project")
+        logging.info(f"Processing SmartSeq3 project {self.project_info['project_name']}")
         self.samples = self.extract_samples()
         if not self.samples:
             logging.warning("No samples found for processing. Returning...")
             return
         tasks = [sample.process() for sample in self.samples]
-        print(f"Sample tasks created. Waiting for completion...: {tasks}")
+        logging.debug(f"Sample tasks created. Waiting for completion...: {tasks}")
         await asyncio.gather(*tasks)
-        print("All samples processed. Finalizing project...")
+        logging.info("All samples processed. Finalizing project...")
         self.finalize_project()
 
     def extract_samples(self):
+        """
+        Extracts samples from the document and creates SS3Sample instances.
+
+        Returns:
+            list: A list of SS3Sample instances.
+        """
         samples = []
 
         for sample_id, sample_data in self.doc.get('samples', {}).items():
@@ -140,19 +179,24 @@ class SmartSeq3(DestinyInterface, RealmTemplate):
 
         return samples
 
+
     def finalize_project(self):
-        # Logic to gather results and prepare for delivery
+        """
+        Finalizes the project by generating reports and handling any post-processing (such as preparing deliveries).
+        """
         self._generate_ngi_report()
 
 
     def _generate_ngi_report(self):
-        # TODO: Find a way to use the name of the user who signs. For Ygg-mule it could be an argument, but what about Ygg-trunk? Slack?
+        """
+        Generates the NGI report for the project.
+        """
+        # TODO: Find a way to use the name of the user who signs. For Ygg-mule it could be an argument, but what about Ygg-trunk? Slack maybe?
         user_name = "Anastasios Glaros"
         sample_list = [sample.id for sample in self.samples]
         project_path = str(self.project_dir)
         project_id = self.project_info.get("project_id")
-
-        # Generate the NGI report
+   
         report_success = generate_ngi_report(project_path, project_id, user_name, sample_list)
         if report_success:
             logging.info("NGI report was generated successfully.")
@@ -160,11 +204,20 @@ class SmartSeq3(DestinyInterface, RealmTemplate):
             logging.error("Failed to generate the NGI report.")
         
 
-
     def pre_process(self, doc):
+        """
+        Pre-process method placeholder.
+
+        Args:
+            doc (dict): Document to pre-process.
+        """
         pass
 
     def create_slurm_job(self, sample):
+        """
+        Placeholder for creating a Slurm job on the project level.
+        Not used in the current implementation, but demanded by the RealmTemplate (perhaps reconsider template).
+        """
         # try:
         #     output_file = f"sim_out/10x/{sample['scilife_name']}_slurm_script.sh"
         #     # Use your method to generate the Slurm script here
@@ -173,30 +226,59 @@ class SmartSeq3(DestinyInterface, RealmTemplate):
         #     logging.warning(f"Error in creating Slurm job for sample {sample['scilife_name']}: {e}")
         pass
 
-    def submit_job(self, script):
-        """
-        Submits a job to Slurm. This uses the JobManager's functionality.
-        """
-        # Use JobManager to submit the job
-        return super().submit_job(script)
+    # def submit_job(self, script):
+    #     """
+    #     Submits a job to Slurm. This uses the JobManager's functionality.
+    #     """
+    #     # Use JobManager to submit the job
+    #     return super().submit_job(script)
 
-    def monitor_job(self, job_id):
-        """
-        Monitors the submitted Slurm job. This uses the JobManager's functionality.
-        """
-        # Use JobManager to monitor the job
-        return super().monitor_job(job_id)
+    # def monitor_job(self, job_id):
+    #     """
+    #     Monitors the submitted Slurm job. This uses the JobManager's functionality.
+    #     """
+    #     # Use JobManager to monitor the job
+    #     return super().monitor_job(job_id)
     
     def post_process(self, result):
         """
-        Concrete implementation of the post_process method.
+        Post-process method placeholder.
+
+        Args:
+            result: Result to post-process.
         """
         pass
 
 
 
 class SS3Sample():
+    """
+    Class representing a sample in a SmartSeq3 project.
+
+    Attributes:
+        id (str): Sample ID.
+        sample_data (dict): Data related to the sample.
+        project_info (dict): Information about the parent project.
+        barcode (str): Barcode of the sample.
+        flowcell_id (str): ID of the latest flowcell.
+        config (dict): Configuration settings.
+        status (str): Current status of the sample.
+        metadata (dict): Metadata for the sample.
+        project_dir (Path): Path to the parent project directory.
+        sample_dir (Path): Path to the sample directory.
+        sjob_manager (SlurmJobManager): Manager for submitting and monitoring Slurm jobs.
+        file_handler (SampleFileHandler): Handler for sample files.
+    """
     def __init__(self, sample_id, sample_data, project_info, config):
+        """
+        Initialize a SmartSeq3 sample instance.
+
+        Args:
+            sample_id (str): ID of the sample.
+            sample_data (dict): Data related to the sample.
+            project_info (dict): Information about the parent project.
+            config (dict): Configuration settings.
+        """
         # TODO: self.id must be demanded by a template class
         self.id = sample_id
         self.sample_data = sample_data
@@ -205,14 +287,12 @@ class SS3Sample():
         # Initialize barcode
         self.barcode = self.get_barcode()
 
-        # Collect barcode // Any TODO s here? Probably do checks / add to separate `get_barcode` method?
-        # self.barcode = self.sample_data['library_prep']['A'].get('barcode', '').split('-')[-1]
-
         # Collect flowcell ID
         self.flowcell_id = self._get_latest_flowcell()
 
         self.config = config
         # self.job_id = None
+        # TODO: Currently not used much, but should be used if we write to a database
         self.status = "pending"  # other statuses: "processing", "completed", "failed"
         self.metadata = None
 
@@ -232,8 +312,10 @@ class SS3Sample():
         self.file_handler = SampleFileHandler(self)
 
     async def process(self):
-        # Collect metadata for this sample
-        logging.debug(f"Processing sample {self.id}")
+        """
+        Process the sample by collecting metadata, creating YAML files, generating Slurm scripts, and submitting jobs.
+        """
+        logging.info(f"Processing sample {self.id}")
         yaml_metadata = self._collect_yaml_metadata()
         if not yaml_metadata:
             logging.warning(f"Metadata missing for sample {self.id}")
@@ -280,31 +362,15 @@ class SS3Sample():
             logging.error(f"[{self.id}] Failed to submit job.")
             return None
 
-        # # Monitor the job
-        # if self.job_id:
-        #     await self.sjob_manager.monitor_job(self.job_id)
-
-        # Monitor job asynchronously
-        # asyncio.create_task(self.sjob_manager.monitor_job(self.job_id, self.check_status))
-        
-
-        # Perform any necessary post-processing
-        # self.post_process()
-
-    # TODO: Assess if this should be part of the SlurmJobManager class and move it there
-    # def check_status(self, job_id, status):
-    #     print(f"Job {job_id} status: {status}")
-    #     if status == "COMPLETED":
-    #         print(f"Sample {self.id} processing completed.")
-    #         self.post_process()
-    #         self.status = "completed"
-    #     elif status in ["FAILED", "CANCELLED"]:
-    #         self.status = "failed"
-    #         print(f"Sample {self.id} processing failed.")
 
 
     def get_barcode(self):
-        """ Retrieve and validate the barcode from sample data. """
+        """
+        Retrieve and validate the barcode from sample data.
+
+        Returns:
+            str: The barcode of the sample.
+        """
         barcode = self.sample_data['library_prep']['A'].get('barcode', None)
         if barcode:
             return barcode.split('-')[-1]
@@ -312,20 +378,14 @@ class SS3Sample():
             logging.warning(f"No barcode found in StatusDB for sample {self.id}.")
             return None  # Or handle more appropriately based on your application's requirements
 
+
     def _collect_yaml_metadata(self):
-        # TODO: Replace this with get_barcode() and no need do this here, do it in __init__
-        # barcode = self.sample_data['library_prep']['A'].get('barcode', '').split('-')[-1]
-        
-        
-        # bc_path = f"{self.config['smartseq3_dir']}/barcodes/{barcode}.txt"
+        """
+        Collect metadata necessary for creating a YAML file for the sample.
 
-        # TODO: If barcode does not exist, make barcode using mkbarcode
-        # if not Path(bc_path).exists():
-        #     logging.warning(f"Barcode {barcode} not found at {bc_path}.")
-        #     return None
-        
-        # seq_root = self.config["seq_root_dir"]
-
+        Returns:
+            dict: The collected metadata or None if necessary data is missing.
+        """
         # NOTE: zUMIs does not support multiple flowcells per sample
         # Potential solutions:
         #   1. SmartSeq3 sample libraries should not be sequenced across multiple flowcells
@@ -348,22 +408,12 @@ class SS3Sample():
         
         seq_setup = self.project_info.get('sequencing_setup', '')
         if seq_setup:
-            # read_setup = self._transform_seq_setup(seq_setup)
             read_setup = SS3Utils.transform_seq_setup(seq_setup)
 
         ref_gen = self.project_info.get('ref_genome', '')
-        # NOTE: Might break if the reference genome format is odd.
+
+        # NOTE: Might break if the reference genome naming format is odd.
         # TODO: Might need to make more robust or even map the ref genomes to their paths
-        # idx_path, gtf_path = self._get_ref_paths(ref_gen, self.config)
-
-        # if idx_path and gtf_path:
-        #     ref_paths = {
-        #         'gen_path': idx_path,
-        #         'gtf_path': gtf_path
-        #     }
-        # else:
-        #     return None  # or handle the missing reference paths appropriately
-
         ref_paths = self.file_handler.locate_ref_paths(ref_gen)
 
         if self.barcode is None:
@@ -408,7 +458,6 @@ class SS3Sample():
             if 'library_prep' in self.sample_data:
                 for prep_info in self.sample_data['library_prep'].values():
                     for fc_id in prep_info.get('sequenced_fc', []):
-                        # fc_date = self._parse_fc_date(fc_id)
                         fc_date = SS3Utils.parse_fc_date(fc_id)
                         if fc_date and (not latest_date or fc_date > latest_date):
                             latest_date = fc_date
@@ -422,35 +471,14 @@ class SS3Sample():
             logging.error(f"Error extracting latest flowcell info for sample '{self.id}': {e}", exc_info=True)
             return None
 
-
-    def _parse_fc_date(self, flowcell_id):
-        """
-        Parses the date from a flowcell ID, considering different date formats.
-
-        Args:
-            flowcell_id: The flowcell ID to parse.
-
-        Returns:
-            A date object representing the date of the flowcell or None if parsing fails.
-        """
-        date_formats = ['%Y%m%d', '%y%m%d']  # Potential date formats
-        date_str = flowcell_id.split('_')[0]
-
-        for fmt in date_formats:
-            try:
-                return datetime.strptime(date_str, fmt).date()
-            except ValueError:
-                continue
-
-        # Log an error if all parsing attempts fail
-        logging.error(f"Could not parse date for flowcell {flowcell_id}.", exc_info=True)
-        return None
     
     def _collect_slurm_metadata(self):
-        # TODO: The project directory is checked and created by ensure_project_directory(). This might be redundant.
-        # project_dir = Path(self.config['smartseq3_dir']) / 'projects' / self.project_info['project_name']
-        # project_dir.mkdir(exist_ok=True)
+        """
+        Collect metadata necessary for creating a Slurm job script.
 
+        Returns:
+            dict: The collected metadata or None if necessary data is missing.
+        """
         try:
             metadata = {
                 'project_name': self.project_info['project_name'],
@@ -485,6 +513,7 @@ class SS3Sample():
             'I2': f"BC(1-{i2})"
         }
 
+
     def _get_ref_paths(self, ref_gen, config):
         """
         Maps a reference genome to its STAR index and GTF file paths.
@@ -508,16 +537,20 @@ class SS3Sample():
 
 
     def create_yaml_file(self, metadata):
+        """
+        Create a YAML file with the provided metadata.
+
+        Args:
+            metadata (dict): Metadata to write to the YAML file.
+        """
         write_yaml(self.config, metadata)
 
 
     def post_process(self):
-        print(f"Post-processing sample {self.id}...")
-        # print(self.config)
-        # print(self.project_info)
-        # print(self.sample_data)
-        # print(self.metadata)
-        # print(self.flowcell_id)
+        """
+        Post-process the sample after job completion.
+        """
+        logging.info(f"Post-processing sample {self.id}...")
 
         # Check if sample output is valid
         if not self.file_handler.is_output_valid():
