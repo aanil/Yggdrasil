@@ -1,8 +1,7 @@
+import numpy as np
 import pandas as pd
 import loompy as lp
-import numpy as np
 
-# import time
 from pandas.errors import EmptyDataError
 
 from lib.realms.smartseq3.utils.ss3_utils import SS3Utils
@@ -11,13 +10,15 @@ from lib.utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__.split('.')[-1])
 
+
 class SS3DataCollector:
     def __init__(self, file_handler, sample):
         """
-        Initialize the data collector with a reference to an instance of zUMIsOutputHandler.
+        Initialize the data collector with references to the file handler and sample instance.
 
         Args:
-            file_handler (zUMIsOutputHandler): An instance of zUMIsOutputHandler.
+            file_handler (SampleFileHandler): Instance of SampleFileHandler for file operations.
+            sample (SS3Sample): Instance of SS3Sample containing sample information and metadata.
         """
         self.sample = sample
         self.file_handler = file_handler
@@ -63,6 +64,12 @@ class SS3DataCollector:
 
 
     def collect_stats(self):
+        """
+        Collects and aggregates statistical data from various sources.
+
+        Returns:
+            pd.DataFrame or None: Aggregated statistics DataFrame if successful, None otherwise.
+        """
         barcode_set = self.meta.get('barcode')
         if not barcode_set:
             logging.error("Missing barcode in metadata. Unable to extract well IDs.")
@@ -108,81 +115,10 @@ class SS3DataCollector:
         return stats
 
 
-
-    # def aggregate_data(self):
-    #     """
-    #     Main method to aggregate data from various sources.
-
-    #     Returns:
-    #         dict: A dictionary containing aggregated and processed data.
-    #     """
-    #     # Example of aggregating data
-    #     stats_data = self.load_stats(self.file_handler.get_stats_file_path())
-    #     umi_data = self.calc_umis(self.file_handler.get_umi_counts_file_path())
-
-    #     # Combine data into a single structure
-    #     aggregated_data = {
-    #         "stats": stats_data,
-    #         "umis": umi_data,
-    #         # Add more data as needed
-    #     }
-
-    #     return aggregated_data
-
-
     ###########################################################################################################################
     ### NOTE: Below methods used for statistical data collection                                                              #
     ###########################################################################################################################
 
-    def calc_umis(self, loom_file_path):
-        # Implementation of UMI calculation logic
-        # ...
-        pass
-
-    def load_stats(self, stats_file_path):
-        # Implementation of stats loading logic
-        # ...
-        pass
-
-    # @staticmethod
-    # def extract_well_ids(barcode_set, barcode_lookup_fpath, reagent='1.5'):
-    #     """
-    #     Extracts well IDs corresponding to a given barcode set.
-
-    #     Args:
-    #         barcode_set (str): The barcode set to use for extracting well IDs (e.g., 1A).
-    #         barcode_lookup_fpath (str): Path to the CSV file containing barcode and well ID mappings.
-    #         reagent (str, optional): The reagent version used, defaults to '1.5'.
-
-    #     Returns:
-    #         pandas.Series: A Series where the index is barcodes and the values are corresponding well IDs.
-            
-    #     The function reads the barcode lookup CSV file and filters the data to get well IDs for the specified barcode set.
-    #     If an unsupported reagent version is provided, it logs a warning and defaults to using '1.5'.
-    #     """
-    #     # Determine the target column based on reagent version
-    #     if reagent == '1.5':
-    #         target_col = 'XC'
-    #     elif reagent == '1.0':
-    #         target_col = 'XC_NovaSeq'
-    #     else:
-    #         logging.warning(f"Unsupported reagent version '{reagent}'. Using default '1.5'.")
-    #         target_col = 'XC'
-
-    #     try:
-    #         # Read the CSV file
-    #         bc_data = pd.read_csv(barcode_lookup_fpath, sep=',')
-    #     except Exception as e:
-    #         logging.error(f"Error reading barcode lookup file: {e}")
-    #         return None
-
-    #     # Filter data to get well IDs for the specified barcode set
-    #     # Set the target column as index for efficient lookup
-    #     bc_data.set_index(target_col, inplace=True)
-    #     well_ids = bc_data.loc[bc_data.loc[:, 'BCset'] == barcode_set, 'WellID']
-
-    #     return well_ids
-    
 
     def _aggr_stats(self, stat_files, barcode_wells):
         """
@@ -193,7 +129,7 @@ class SS3DataCollector:
             barcode_wells (pd.Series): Series mapping well IDs to barcodes.
 
         Returns:
-            pd.DataFrame: DataFrame with aggregated statistical data.
+            pd.DataFrame: DataFrame with aggregated statistical data or None on failure.
         """
         # Convert barcode_wells to DataFrame and set a MultiIndex
         data = pd.DataFrame(barcode_wells)
@@ -207,15 +143,12 @@ class SS3DataCollector:
                 stats = pd.read_table(file_path)
             except EmptyDataError:
                 logging.error(f"File is empty or unreadable: {file_path}")
-                # Decide on further action - return None, skip, etc.
                 return None
             except ValueError as e:
                 logging.error(f"Error processing file {file_path}: {e}")
-                # Decide on further action - return None, skip, etc.
                 return None
             except Exception as e:
                 logging.error(f"Unexpected error while reading file {file_path}: {e}")
-                # Decide on further action - return None, skip, etc.
                 return None
 
             if file_type == 'readspercell':
@@ -259,8 +192,6 @@ class SS3DataCollector:
         return data
 
 
-
-
     @staticmethod
     def _merge_data_by_type(input_data: pd.DataFrame, target_cols=['N', 'RG']) -> pd.DataFrame:
         """
@@ -276,7 +207,6 @@ class SS3DataCollector:
 
         # NOTE: Data validation checks can be added here
 
-        # Initial data setup as a DataFrame
         data = pd.DataFrame(input_data[target_cols[1]].unique(), columns=[target_cols[1]])
 
         # Process and merge data based on unique types
@@ -288,6 +218,7 @@ class SS3DataCollector:
         data.fillna(0, inplace=True)
 
         return data
+
 
     # TODO: Find better name
     def _aggr_umis_from_loom(self, loom_file_path):
@@ -338,6 +269,15 @@ class SS3DataCollector:
     ###########################################################################################################################
 
     def collect_meta(self, stats):
+        """
+        Collect metadata for the sample, including zUMIs version, total reads, and filtered reads.
+
+        Args:
+            stats (pd.DataFrame): DataFrame containing aggregated statistics.
+
+        Returns:
+            dict: Dictionary containing metadata.
+        """
         version = self.get_zumis_version(self.file_handler.zumis_log_fpath)
 
         total_reads = self.meta.get('total_reads', None)
@@ -346,21 +286,15 @@ class SS3DataCollector:
             total_reads = "Find in project summary report"
         else:
             total_reads = f"{int(total_reads / 1000000)} M"
-        filtered_reads = int(stats.loc[:, ('readspercell', 'TotalReads')].sum(axis=0) / 1000000)  # Placeholder in MReads
-        avg_readspercell = round(filtered_reads / 384 * 1000, 2)  # Placeholder in KReads
+
+        filtered_reads = int(stats.loc[:, ('readspercell', 'TotalReads')].sum(axis=0) / 1000000)  # in MReads
+        avg_readspercell = round(filtered_reads / 384 * 1000, 2)  # in KReads
 
         metadata = {
             "zUMIs_version": version,
-            # "sequencing_setup": self.meta['sequencing_setup'], #self.meta['sequencing_setup'], # In project_info
-            # "barcode_set": self.meta['barcode_set'], # In sample->library_prep-> ... A/B/C ... -> barcode (or reagent_label) : as "SMARTSEQ3-22B"
-            # "sample_id": self.sample.id, # Or is it id? Anyway in sample_info
-            # "flowcells": None, # TODO: collect the 'sc_flowcells' from self.meta['library_prep'] ...[ A/B/C ] ... ['sequenced_fc'] and join them?
-            # "genome": self.sample.project_info['ref_genome'], # In project_info -- if want short name: ref_gen.split(',')[0].split('(')[1].strip().lower()
-            # "number of cells": 384, # TODO: Does this even make sense for Smart-seq3? It will always be 384.
             "total_reads": total_reads,
             "filtered_reads": f"{filtered_reads} M",  # Placeholder in MReads
             "avg_readspercell": f"{avg_readspercell} K"  # Placeholder in KReads
-            # Add more metadata as needed
         }
         return metadata
 
@@ -389,42 +323,17 @@ class SS3DataCollector:
         return "--"
 
 
-
-
-
-
-
     ###########################################################################################################################
     ### NOTE: Below methods are helping utilities                                                                             #
     ###########################################################################################################################
 
     @staticmethod
     def save_data(data, path):
+        """
+        Save the DataFrame to a CSV file.
+
+        Args:
+            data (pd.DataFrame): DataFrame to be saved.
+            path (str or Path): Path to the output file.
+        """
         data.to_csv(path, index=True, sep='\t')
-
-
-
-
-    ###################################### DELETE BELOW #######################################################################
-
-    # @staticmethod
-    # def compare_dataframes(df1, df2):
-    #     """
-    #     Compare two dataframes and print differences.
-
-    #     Args:
-    #         df1 (pd.DataFrame): First dataframe.
-    #         df2 (pd.DataFrame): Second dataframe.
-
-    #     Returns:
-    #         bool: True if dataframes are identical, False otherwise.
-    #     """
-    #     if df1.equals(df2):
-    #         print("Dataframes are identical.")
-    #         return True
-    #     else:
-    #         # If dataframes are not equal, find the differences
-    #         diff = df1.compare(df2)
-    #         print("Differences found:")
-    #         print(diff)
-    #         return False
