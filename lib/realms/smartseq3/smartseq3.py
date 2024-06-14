@@ -14,7 +14,6 @@ from lib.realms.smartseq3.report.report_generator import Smartseq3ReportGenerato
 
 from lib.utils.logging_utils import custom_logger
 from lib.utils.realm_template import RealmTemplate
-# from lib.utils.destiny_interface import DestinyInterface
 from lib.utils.config_loader import ConfigLoader
 from lib.utils.ngi_report_generator import generate_ngi_report
 from lib.utils.slurm_utils import generate_slurm_script
