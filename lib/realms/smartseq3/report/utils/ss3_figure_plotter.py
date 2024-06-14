@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -26,15 +25,19 @@ class SS3FigurePlotter:
         self.platename = platename
 
 
-    def create_bivariate_plate_map(self, color_col, size_col, color_title="", size_title="", log_color=True, fig_num='Fig2', return_fig=False):
+    def create_bivariate_plate_map(self, color_title="", size_title="", log_color=True, fig_num='Fig2', return_fig=False):
         """
         Creates a bivariate plate map plot.
 
         Args:
-            color_col (str): Column name for values that determine color.
-            size_col (str): Column name for values that determine size.
-            title (str, optional): Title of the plot. Default is an empty string.
-            log_scale (bool, optional): Whether to apply logarithmic scale. Default is True.
+            color_title (str, optional): Title for the color legend. Default is an empty string.
+            size_title (str, optional): Title for the size legend. Default is an empty string.
+            log_color (bool, optional): Whether to apply logarithmic scale to color values. Default is True.
+            fig_num (str, optional): Figure number for naming the output file. Default is 'Fig2'.
+            return_fig (bool, optional): Whether to return the figure object. Default is False.
+
+        Returns:
+            BytesIO or None: BytesIO object containing the figure if return_fig is True, otherwise None.
         """
         # Process DataFrame to fit BivariatePlateMap requirements
         plot_data = pd.DataFrame()
@@ -45,7 +48,7 @@ class SS3FigurePlotter:
         print(f"Initial gc: {plot_data['genecounts'].min()}")
         print(f"Initial rpc: {plot_data['readspercell'].min()}")
 
-        # Now, you can use processed_df with BivariatePlateMap
+        # Create the BivariatePlateMap
         plate_map = BivariatePlateMap(
             data=plot_data,
             color_values='readspercell',
@@ -71,17 +74,12 @@ class SS3FigurePlotter:
             buf = BytesIO()
             plot.savefig(buf, format='PNG')
             buf.seek(0)
-
             plate_map.save_plot()
-            
             return buf
         else:
             # Save the plot to a file
             plt.savefig(f"{self.outdir}/{self.platename}_{fig_num}.pdf")
             plt.close()
-
-        
-        # return plate_map
 
 
     def reads_vs_frags(self, fig_num='Fig5', return_fig=False):
