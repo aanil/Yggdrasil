@@ -1,31 +1,44 @@
+import logging
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
 from io import BytesIO
 from pathlib import Path
-from matplotlib.collections import PatchCollection
+
 
 class BivariatePlateMap:
+    """
+    Creates a bivariate plate map plot with customizable parameters.
+
+    Attributes:
+        data (pd.DataFrame): DataFrame containing the data to be plotted.
+        color_values (str): Column name for values that determine color.
+        size_values (str): Column name for values that determine size.
+        well_values (str): Column name for well IDs.
+        color_map (str): Color map for the plot.
+        title (str): Title of the plot.
+        color_title (str): Title for the color legend.
+        size_title (str): Title for the size legend.
+        x_label (str): Label for the x-axis.
+        y_label (str): Label for the y-axis.
+        figsize (tuple): Size of the figure.
+        radius_min (int): Minimum radius for the plot points.
+        radius_max (int): Maximum radius for the plot points.
+        log_size (bool): Whether to apply logarithmic scale to sizes.
+        log_color (bool): Whether to apply logarithmic scale to colors.
+        rows (list): List of row labels.
+        columns (list): List of column labels.
+        fig_name (str): Filename for saving the plot.
+        output_dir (Path): Directory for saving the plot.
+    """
     def __init__(self, data, color_values=None, size_values=None, well_values=None,
                  color_map="RdYlBu", title="", color_title = "", size_title="",
                  x_label="", y_label="", figsize=(10, 7), output_dir=None, fig_name=None,
                  radius_min=10, radius_max=200, log_size=False, log_color=False):
         """
-        Create a bivariate plate map plot with customizable parameters.
-
-        Args:
-            data (pd.DataFrame): DataFrame containing the data to be plotted.
-            color_values (str, optional): Column name for values that determine color. Default is None.
-            size_values (str, optional): Column name for values that determine size. Default is None.
-            color_map (str, optional): Color map for the plot. Default is "RdYlBu".
-            title (str, optional): Title of the plot. Default is an empty string.
-            x_label (str, optional): Label for the x-axis. Default is an empty string.
-            y_label (str, optional): Label for the y-axis. Default is an empty string.
-            figsize (tuple, optional): Size of the figure. Default is (10, 6).
-            radius_min (int, optional): Minimum radius for the plot points. Default is 10.
-            radius_max (int, optional): Maximum radius for the plot points. Default is 200.
-            log_scale (bool, optional): Whether to apply logarithmic scale. Default is True.
+        Initializes the BivariatePlateMap with the provided data and parameters.
         """
         self.data = data
         self.color_values = color_values
@@ -50,6 +63,9 @@ class BivariatePlateMap:
     def generate_plot(self):
         """
         Generates the bivariate plate map plot using the class attributes.
+
+        Returns:
+            matplotlib.figure.Figure: The generated plot figure.
         """
         # Create the layout matrix
         layout, value_scale = self._create_layout_matrix()
@@ -70,8 +86,8 @@ class BivariatePlateMap:
         layout = np.nan_to_num(layout)
         value_scale = np.nan_to_num(value_scale)
 
-        print(f"After layout: {layout.min()}")
-        print(f"After value scale: {value_scale.min()}")
+        # print(f"After layout: {layout.min()}")
+        # print(f"After value scale: {value_scale.min()}")
 
         # Generate grid for plotting
         x, y = np.meshgrid(np.arange(len(self.columns)), np.arange(len(self.rows)))
@@ -83,10 +99,9 @@ class BivariatePlateMap:
         R = (value_scale - value_scale.min()) / (value_scale.max() - value_scale.min())
         R = R * (self.radius_max - self.radius_min) + self.radius_min
 
-        # Reverse the scaling operation
-        threshold_value = (0 / (self.radius_max - self.radius_min)) * (value_scale.max() - value_scale.min()) + value_scale.min()
-
         # NOTE: Uncomment bellow for troubleshooting when investigating scaling issues
+        # Reverse the scaling operation
+        # threshold_value = (0 / (self.radius_max - self.radius_min)) * (value_scale.max() - value_scale.min()) + value_scale.min()
         # print(threshold_value)
         # min_above_threshold = np.min(value_scale[value_scale > threshold_value])
         # print(min_above_threshold)
@@ -101,15 +116,6 @@ class BivariatePlateMap:
         # Add colorbar and legends
         self._add_colorbar(sc, label=color_title)
         self._add_size_legend(value_scale, label=size_title)
-
-        # Set plot title and axis labels
-        # plt.title(self.title)
-        # plt.xlabel(self.x_label)
-        # plt.ylabel(self.y_label)
-
-        # # Save plot if filename is provided
-        # if self.fig_name:
-        #     plt.savefig(self.output_dir / self.fig_name)
 
         # Adjust layout for optimal display
         plt.tight_layout()
@@ -138,7 +144,7 @@ class BivariatePlateMap:
             if pd.isna(well_id):
                 # TODO: Log or even better - raise an exception
                 # logging.warning(f"Skipping NaN at index {_}")
-                print((f"Skipping NaN at index {_}"))
+                logging.warning((f"Skipping NaN at index {_}"))
                 continue
 
             row_label, col_label = well_id[0], int(well_id[1:])
@@ -177,20 +183,13 @@ class BivariatePlateMap:
         self.ax.invert_yaxis()
         self.ax.xaxis.tick_top()
 
-        # Set plot title and axis labels if provided
-        # if self.title:
-        #     self.ax.set_title(self.title)
-        # if self.x_label:
-        #     self.ax.set_xlabel(self.x_label)
-        # if self.y_label:
-        #     self.ax.set_ylabel(self.y_label)
-
 
     def _add_colorbar(self, scatter_plot, label):
         """
         Adds a colorbar to the plot.
 
         Args:
+            scatter_plot (matplotlib.collections.PathCollection): The scatter plot to which the colorbar is added.
             label (str): Label for the colorbar, describing what the colors represent.
         """
         # Create colorbar based on the scatter plot
@@ -199,7 +198,7 @@ class BivariatePlateMap:
         # Set the label for the colorbar
         cbar.ax.set_ylabel(label)
 
-        # Optionally, additional customization can be added here, like colorbar position, orientation, etc.
+        # Optional / additional customization can be added here, like colorbar position, orientation, etc.
 
 
     def _add_size_legend(self, value_scale, label):
@@ -208,6 +207,7 @@ class BivariatePlateMap:
 
         Args:
             value_scale (np.ndarray): Array containing the values used to scale the dot sizes.
+            label (str): Title for the size legend.
         """
         # Define the range of dot sizes based on the value scale
         min_size = int(value_scale.min())
@@ -228,7 +228,7 @@ class BivariatePlateMap:
 
         # Define labels for each size
         # TODO: Not correct - even if the dot size is scaled, the value should be the same as the original value
-        min_value_label = f"0 - {min_size}"
+        # min_value_label = f"0 - {min_size}"
         labels = [str(min_size), str(mid_size), str(max_size)]
 
         # Create the legend with these dummy scatter plots
@@ -371,9 +371,6 @@ class BivariatePlateMap:
     def save_plot(self):
         """
         Saves the generated plate map plot to a file.
-
-        Parameters:
-        - filename (str): The path to the file where the plot should be saved.
         """
         plt.savefig(self.output_dir / self.fig_name)
         plt.close()
