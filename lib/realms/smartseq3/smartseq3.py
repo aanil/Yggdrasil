@@ -425,8 +425,8 @@ class SS3Sample():
 
         try:
             metadata = {
-                # 'plate': self.id, # NOTE: Temporarily not used, but might be used when we name everything after ngi
-                'plate': self.sample_data.get('customer_name', ''),
+                'plate': self.id, # NOTE: Temporarily not used, but might be used when we name everything after ngi
+                # 'plate': self.sample_data.get('customer_name', ''),
                 'barcode': self.barcode,
                 'bc_file': self.file_handler.barcode_fpath,
                 'fastqs': {k: str(v) for k, v in fastqs.items() if v},
