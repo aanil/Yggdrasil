@@ -3,6 +3,7 @@ import asyncio
 import logging
 
 from lib.utils.common import YggdrasilUtilities as Ygg
+from lib.couchdb.manager import ProjectDBManager
 from lib.utils.config_loader import configs as ygg_configs
 from lib.utils.logging_utils import configure_logging
 from lib.couchdb_feed import fetch_data_from_couchdb
@@ -14,10 +15,12 @@ configure_logging(debug=True)
 # Define asynchronous functions for task handling
 async def process_couchdb_changes():
     tasks = []
+    pdm = ProjectDBManager()
+
     while True:
         try:
             # Fetch data from CouchDB and call the appropriate module
-            async for data, module_loc, module_options in fetch_data_from_couchdb():
+            async for data, module_loc in pdm.fetch_changes():
                 try:
                     # Dynamically load the module
                     # module = Ygg.load_module(module_loc)
