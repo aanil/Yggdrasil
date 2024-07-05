@@ -4,8 +4,8 @@ import argparse
 
 from lib.utils.config_loader import ConfigLoader
 from lib.utils.common import YggdrasilUtilities as Ygg
+from lib.couchdb.manager import ProjectDBManager
 from lib.utils.logging_utils import configure_logging, custom_logger
-from lib.utils.couch_utils import couch_login
 
 # Configure logging
 configure_logging(debug=True)
@@ -19,7 +19,12 @@ def process_document(doc_id):
     Args:
         doc_id (str): The ID of the document to process.
     """
-    document = fetch_document_from_db(doc_id)
+    # Initialize the ProjectDBManager
+    pdm = ProjectDBManager()
+
+    # Fetch the document using the ProjectDBManager
+    document = pdm.fetch_document_by_id(doc_id)
+    # document = fetch_document_from_db(doc_id)
 
     if not document:
         logging.error(f"Document with ID {doc_id} not found.")
@@ -42,29 +47,6 @@ def process_document(doc_id):
             logging.warning(f"Failed to load module '{module_loc}'.")
     except Exception as e:
         logging.error(f"Error while processing document: {e}", exc_info=True)
-
-
-def fetch_document_from_db(doc_id):
-    """
-    Fetches a document from the database by its ID using Yggdrasil's CouchDB utilities.
-
-    Args:
-        doc_id (str): The ID of the document to fetch.
-
-    Returns:
-        dict: The retrieved document, or None if not found.
-    """
-    try:
-        couch = couch_login()
-        database = couch['projects']
-        document = database[doc_id]
-        return document
-    except KeyError:
-        logging.error(f'Document with ID {doc_id} not found in the database.')
-        return None
-    except Exception as e:
-        logging.error(f'Error while accessing database: {e}')
-        return None
 
 
 def get_module_location(document):
