@@ -6,7 +6,6 @@ from lib.utils.common import YggdrasilUtilities as Ygg
 from lib.couchdb.manager import ProjectDBManager
 from lib.utils.config_loader import configs as ygg_configs
 from lib.utils.logging_utils import configure_logging
-from lib.couchdb_feed import fetch_data_from_couchdb
 
 #Call configure_logging to set up the logging environment
 configure_logging(debug=True)
