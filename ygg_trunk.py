@@ -21,23 +21,45 @@ async def process_couchdb_changes():
             # Fetch data from CouchDB and call the appropriate module
             async for data, module_loc in pdm.fetch_changes():
                 try:
-                    # Dynamically load the module
-                    # module = Ygg.load_module(module_loc)
-                    print(f">>> Module location: {module_loc}")
-                    RealmClass = Ygg.load_realm_class(module_loc)
+                    project_id = data.get('project_id')
 
-                    if RealmClass:
-                        # Call the module's process function
-                        realm = RealmClass(data)
-                        if realm.proceed:
-                            task = asyncio.create_task(realm.process())
-                            tasks.append(task)
-                            # print(f"Tasks ({realm.project_info['project_id']}): {tasks}")
-                            # module.process(data)
-                        else:
-                            logging.info(f"Skipping task creation due to missing required information. {data.get('project_id')}")
+                    # Check if the project exists
+                    existing_document = Ygg.check_project_exists(project_id)
+
+                    if existing_document is None:
+                        projects_reference = data.get('_id')
+                        method = data.get('details', {}).get('library_construction_method')
+
+                        # Create a new project if it doesn't exist
+                        Ygg.create_project(project_id, projects_reference, method)
+                        process_project = True
                     else:
-                        logging.warning(f"Failed to load module '{module_loc}' for '{data['details']['library_construction_method']}'.")
+                        # If the project exists, check if it is completed
+                        if existing_document.get('status') == 'completed':
+                            logging.info(f"Project with ID {project_id} is already completed. Skipping further processing.")
+                            process_project = False
+                        else:
+                            logging.info(f"Project with ID {project_id} is ongoing and will be processed.")
+                            process_project = True
+
+                    if process_project:  
+                        # Dynamically load the module
+                        # module = Ygg.load_module(module_loc)
+                        print(f">>> Module location: {module_loc}")
+                        RealmClass = Ygg.load_realm_class(module_loc)
+
+                        if RealmClass:
+                            # Call the module's process function
+                            realm = RealmClass(data)
+                            if realm.proceed:
+                                task = asyncio.create_task(realm.process())
+                                tasks.append(task)
+                                # print(f"Tasks ({realm.project_info['project_id']}): {tasks}")
+                                # module.process(data)
+                            else:
+                                logging.info(f"Skipping task creation due to missing required information. {data.get('project_id')}")
+                        else:
+                            logging.warning(f"Failed to load module '{module_loc}' for '{data['details']['library_construction_method']}'.")
                 except Exception as e:
                     logging.warning(f"Error while trying to load module: {e}", exc_info=True)
                     logging.error(f"Data causing the error: {data}")
