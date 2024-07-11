@@ -1,14 +1,19 @@
 import os
 import couchdb
 
+from typing import List, Dict, Any
+
 from lib.utils.config_loader import ConfigLoader
+from lib.couchdb.document import YggdrasilDocument
+from lib.utils.singleton_decorator import singleton
 from lib.utils.couch_utils import save_last_processed_seq, get_last_processed_seq, has_required_fields
 
 from lib.utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__.split('.')[-1])
 
-class CouchDBManager:
+@singleton
+class CouchDBConnectionManager:
     def __init__(self, db_url=None, db_user=None, db_password=None):
         # Load defaults from configuration file or environment
         self.db_config = ConfigLoader().load_config("main.json").get("couchdb", {})
@@ -17,44 +22,57 @@ class CouchDBManager:
         self.db_password = db_password or os.getenv("COUCH_PASS", self.db_config.get("default_password"))
 
         self.server = None
-        self.db = None
+        self.databases = {}
 
         self.connect_server()
 
 
     def connect_server(self):
         """Establishes a connection to the CouchDB server."""
-        try:
-            server_url = f"http://{self.db_user}:{self.db_password}@{self.db_url}"
-            self.server = couchdb.Server(server_url)
-            version = self.server.version()
-            logging.info(f"Connected to CouchDB server. Version: {version}")
-        except Exception as e:
-            logging.error(f"An error occurred while connecting to the CouchDB server: {e}")
-            raise ConnectionError("Failed to connect to CouchDB server")
+        if self.server is None:
+            try:
+                server_url = f"http://{self.db_user}:{self.db_password}@{self.db_url}"
+                self.server = couchdb.Server(server_url)
+                version = self.server.version()
+                logging.info(f"Connected to CouchDB server. Version: {version}")
+            except Exception as e:
+                logging.error(f"An error occurred while connecting to the CouchDB server: {e}")
+                raise ConnectionError("Failed to connect to CouchDB server")
+        else:
+            logging.info("Already connected to CouchDB server.")
 
 
-    def connect_to_db(self, db_name):
+    def connect_db(self, db_name):
         """Connect to a specific database on the established CouchDB server."""
-        if not self.server:
-            logging.error("Server is not connected. Please connect to server first.")
-            raise ConnectionError("Server not connected")
-        
-        try:
-            self.db = self.server[db_name]
-            logging.info(f"Connected to database: {db_name}")
-        except couchdb.http.ResourceNotFound:
-            logging.error(f"Database {db_name} does not exist.")
-            raise ConnectionError(f"Database {db_name} does not exist")
-        except Exception as e:
-            logging.error(f"Failed to connect to database {db_name}: {e}")
-            raise ConnectionError(f"Could not connect to database {db_name}")
+        if db_name not in self.databases:
+            if not self.server:
+                logging.error("Server is not connected. Please connect to server first.")
+                raise ConnectionError("Server not connected")
+            
+            try:
+                self.databases[db_name] = self.server[db_name]
+                logging.info(f"Connected to database: {db_name}")
+            except couchdb.http.ResourceNotFound:
+                logging.error(f"Database {db_name} does not exist.")
+                raise ConnectionError(f"Database {db_name} does not exist")
+            except Exception as e:
+                logging.error(f"Failed to connect to database {db_name}: {e}")
+                raise ConnectionError(f"Could not connect to database {db_name}")
+        else:
+            logging.info(f"Already connected to database: {db_name}")
+
+        return self.databases[db_name]
 
 
-class ProjectDBManager(CouchDBManager):
-    def __init__(self, db_url=None, db_user=None, db_password=None):
-        super().__init__(db_url=db_url, db_user=db_user, db_password=db_password)
-        self.connect_to_db("projects")
+class CouchDBHandler:
+    def __init__(self, db_name):
+        self.connection_manager = CouchDBConnectionManager()
+        self.db = self.connection_manager.connect_db(db_name)
+
+
+class ProjectDBManager(CouchDBHandler):
+    def __init__(self):
+        super().__init__('projects')
         self.module_registry = ConfigLoader().load_config("module_registry.json")
 
     async def fetch_changes(self):
@@ -132,16 +150,56 @@ class ProjectDBManager(CouchDBManager):
             return None
 
 
-class YggdrasilDBManager(CouchDBManager):
-    def __init__(self, db_url=None, db_user=None, db_password=None):
-        super().__init__(db_url=db_url, db_user=db_user, db_password=db_password)
-        self.connect_to_db("yggdrasil")
+class YggdrasilDBManager(CouchDBHandler):
+    def __init__(self):
+        super().__init__('yggdrasil')
 
-    # Methods to update and check sample and project statuses
-    def update_sample_status(self, sample_id, status):
-        # Implementation to update sample status
-        pass
+    def create_project(self, project_id: str, projects_reference: str, method: str) -> YggdrasilDocument:
+        new_document = YggdrasilDocument(
+            project_id=project_id,
+            projects_reference=projects_reference,
+            method=method
+        )
+        self.save_document(new_document)
+        logging.info(f"New project with ID {project_id} created successfully.")
+        return new_document
 
-    def check_project_status(self, project_id):
-        # Implementation to check the overall project status
-        pass
+
+    def save_document(self, document: YggdrasilDocument):
+        try:
+            self.db.save(document.to_dict())
+            logging.info(f"Document with ID {document._id} saved successfully in 'yggdrasil' DB.")
+        except Exception as e:
+            logging.error(f"Error saving document: {e}")
+
+
+    def get_document_by_project_id(self, project_id: str) -> Dict[str, Any]:
+        try:
+            document = self.db[project_id]
+            return document
+        except couchdb.http.ResourceNotFound:
+            logging.info(f"Project with ID {project_id} not found.")
+            return None
+        except Exception as e:
+            logging.error(f"Error while accessing project status: {e}")
+            return None
+
+
+    def update_sample_status(self, project_id: str, sample_id: str, status: str):
+        try:
+            document = self.get_document_by_project_id(project_id)
+            if document:
+                ygg_doc = YggdrasilDocument(
+                    project_id=document['project_id'],
+                    projects_reference=document['projects_reference'],
+                    method=document['method']
+                )
+                ygg_doc.samples = document['samples']
+                ygg_doc.update_sample_status(sample_id, status)
+                ygg_doc.check_project_completion()
+                self.save_document(ygg_doc)
+                logging.info(f"Updated status of sample {sample_id} in project {project_id} to {status}.")
+            else:
+                logging.error(f"Project with ID {project_id} not found.")
+        except Exception as e:
+            logging.error(f"Error while updating sample status: {e}")
