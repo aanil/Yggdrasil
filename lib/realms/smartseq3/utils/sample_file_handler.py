@@ -51,6 +51,7 @@ class SampleFileHandler:
         self.project_id = sample.project_info.get('project_id', None)
         self.project_name = sample.project_info.get('project_name', None) # TODO: Remove this if not used anywhere else / see todo above
         self.sample_ref = sample.project_info.get('ref_genome', None)
+        self.organism = sample.project_info.get('organism', None)
         self.config = sample.config
 
         # Define sample folder structure
@@ -109,18 +110,21 @@ class SampleFileHandler:
         return True
 
 
-    def locate_ref_paths(self, ref_gen):
+    def locate_ref_paths(self):
         """
         Maps a reference genome to its STAR index and GTF file paths and validate their existence.
-
-        Args:
-            ref_gen (str): Reference genome identifier, e.g. "Zebrafish (Danio rerio, GRCz10)".
 
         Returns:
             dict or None: Dictionary containing paths to the index and GTF files, or None if files are missing.
         """
         try:
-            species_key = ref_gen.split(',')[0].split('(')[1].strip().lower()
+            species_key = self.sample_ref.split(',')[0].split('(')[1].strip().lower()
+
+            # Check if the species_key has an arbitrary value"
+            if species_key == '-' or species_key == 'other':
+                # If so, use self.organism as the species key
+                species_key = self.organism.strip().lower()
+
             idx_path = Path(self.config['gen_refs'][species_key]['idx_path'])
             gtf_path = Path(self.config['gen_refs'][species_key]['gtf_path'])
 

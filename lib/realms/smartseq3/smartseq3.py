@@ -5,6 +5,7 @@ from pathlib import Path
 # from datetime import datetime
 
 from lib.utils.sjob_manager import SlurmJobManager
+from lib.couchdb.manager import YggdrasilDBManager
 from tests.mocks.mock_sjob_manager import MockSlurmJobManager
 
 from lib.realms.smartseq3.utils.ss3_utils import SS3Utils
@@ -71,6 +72,7 @@ class SmartSeq3(RealmTemplate):
                 "library_prep_option": self.doc.get('details', {}).get('library_prep_option'),
                 "contact": self.doc.get('contact'),  # Is this an email or a name?
                 "ref_genome": self.doc.get('reference_genome'),
+                "organism": self.doc.get('organism'),
                 "sequencing_setup": self.doc.get('details', {}).get('sequencing_setup'),
             }
 
@@ -409,11 +411,11 @@ class SS3Sample():
         if seq_setup:
             read_setup = SS3Utils.transform_seq_setup(seq_setup)
 
-        ref_gen = self.project_info.get('ref_genome', '')
+        # ref_gen = self.project_info.get('ref_genome', '')
 
         # NOTE: Might break if the reference genome naming format is odd.
         # TODO: Might need to make more robust or even map the ref genomes to their paths
-        ref_paths = self.file_handler.locate_ref_paths(ref_gen)
+        ref_paths = self.file_handler.locate_ref_paths()
 
         if self.barcode is None:
             logging.warning(f"Barcode not available for sample {self.id}")
