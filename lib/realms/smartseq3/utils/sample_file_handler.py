@@ -118,15 +118,33 @@ class SampleFileHandler:
             dict or None: Dictionary containing paths to the index and GTF files, or None if files are missing.
         """
         try:
-            species_key = self.sample_ref.split(',')[0].split('(')[1].strip().lower()
+            species_key = None
 
-            # Check if the species_key has an arbitrary value"
-            if species_key == '-' or species_key == 'other':
-                # If so, use self.organism as the species key
-                species_key = self.organism.strip().lower()
+            # Check if sample_ref is provided and valid
+            if self.sample_ref and self.sample_ref != "Other (-, -)":
+                species_key = self.sample_ref.split(',')[0].split('(')[1].strip().lower()
 
-            idx_path = Path(self.config['gen_refs'][species_key]['idx_path'])
-            gtf_path = Path(self.config['gen_refs'][species_key]['gtf_path'])
+            # If sample_ref is None or indicates an unspecified reference, use self.organism
+            if not species_key or species_key == '-' or species_key == 'other':
+                # If so, use self.organism as the species key, ensuring it's not None
+                if self.organism:
+                    species_key = self.organism.strip().lower()
+                else:
+                    logging.warning(f"Organism is None for {self.sample_id}. Handle manually.")
+                    return None
+
+            # Validate species_key before proceeding
+            if not species_key:
+                logging.warning(f"Invalid species_key for {self.sample_id}. Handle manually.")
+                return None
+
+            # Attempt to retrieve paths, handle KeyError if species_key is not in config
+            try:
+                idx_path = Path(self.config['gen_refs'][species_key]['idx_path'])
+                gtf_path = Path(self.config['gen_refs'][species_key]['gtf_path'])
+            except KeyError:
+                logging.warning(f"Reference for {species_key} species not found in config. Handle {self.sample_id} manually.")
+                return None
 
             # Check the existence of reference files
             if not idx_path.exists() or not gtf_path.exists():
@@ -138,8 +156,8 @@ class SampleFileHandler:
                 'gen_path': idx_path,
                 'gtf_path': gtf_path
             }
-        except KeyError:
-            logging.warning(f"Reference for {species_key} species not found in config. Handle {self.sample_id} manually.")
+        except (IndexError, AttributeError) as e:
+            logging.error(f"Error parsing sample_ref or accessing organism: {str(e)}. Handle {self.sample_id} manually.")
             return None
 
 
