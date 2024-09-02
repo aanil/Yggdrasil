@@ -72,7 +72,7 @@ class SmartSeq3(RealmTemplate):
                 "library_prep_option": self.doc.get('details', {}).get('library_prep_option'),
                 "contact": self.doc.get('contact'),  # Is this an email or a name?
                 "ref_genome": self.doc.get('reference_genome'),
-                "organism": self.doc.get('organism'),
+                "organism": self.doc.get('details', {}).get('organism'),
                 "sequencing_setup": self.doc.get('details', {}).get('sequencing_setup'),
             }
 
