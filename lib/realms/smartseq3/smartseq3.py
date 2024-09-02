@@ -416,6 +416,9 @@ class SS3Sample():
         # NOTE: Might break if the reference genome naming format is odd.
         # TODO: Might need to make more robust or even map the ref genomes to their paths
         ref_paths = self.file_handler.locate_ref_paths()
+        if not ref_paths:
+            logging.warning(f"Reference paths not found for sample {self.id}. Skipping...")
+            return None
 
         if self.barcode is None:
             logging.warning(f"Barcode not available for sample {self.id}")
