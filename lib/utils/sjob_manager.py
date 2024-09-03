@@ -197,7 +197,7 @@ class SlurmJobManager:
         logging.debug(f"[{sample.id}] Job {job_id} submitted for monitoring.")
         while True:
             status = await self._job_status(job_id)
-            if status in ["COMPLETED", "FAILED", "CANCELLED", "TIMEOUT"]:
+            if status in ["COMPLETED", "FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_ME+"]:
                 # logging.info(f"Job {job_id} status: {status}")
                 self.check_status(job_id, status, sample)
                 break
@@ -254,6 +254,6 @@ class SlurmJobManager:
             logging.info(f"Sample {sample.id} processing completed.")
             sample.post_process()
             sample.status = "completed"
-        elif status in ["FAILED", "CANCELLED", "TIMEOUT"]:
+        elif status in ["FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_ME+"]:
             sample.status = "failed"
             logging.info(f"Sample {sample.id} processing failed.")
