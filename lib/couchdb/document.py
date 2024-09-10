@@ -62,6 +62,8 @@ class YggdrasilDocument:
 
     def check_project_completion(self):
         # Check if all samples are completed and update the project status
+        # TODO: There will be cases where samples are "aborted". These samples
+        # should be considered as "completed" for the project status
         if all(sample["status"] == "completed" for sample in self.samples):
             self.status = "completed"
             self.end_date = datetime.datetime.now().isoformat()
