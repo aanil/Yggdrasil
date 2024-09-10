@@ -4,7 +4,7 @@ import argparse
 
 from lib.utils.config_loader import ConfigLoader
 from lib.utils.common import YggdrasilUtilities as Ygg
-from lib.couchdb.manager import ProjectDBManager
+from lib.couchdb.manager import ProjectDBManager, YggdrasilDBManager
 from lib.utils.logging_utils import configure_logging, custom_logger
 
 # Configure logging
@@ -19,8 +19,9 @@ def process_document(doc_id):
     Args:
         doc_id (str): The ID of the document to process.
     """
-    # Initialize the ProjectDBManager
+    # Initialize the ProjectDBManager and YggdrasilDBManager
     pdm = ProjectDBManager()
+    ydm = YggdrasilDBManager()
 
     # Fetch the document using the ProjectDBManager
     document = pdm.fetch_document_by_id(doc_id)
@@ -33,14 +34,14 @@ def process_document(doc_id):
     project_id = document.get('project_id')
 
     # Check if the project exists in the yggdrasil database
-    existing_document = Ygg.check_project_exists(project_id)
+    existing_document = ydm.check_project_exists(project_id)
 
     if existing_document is None:
         projects_reference = document.get('_id')
         method = document.get('details', {}).get('library_construction_method')
 
         # Create a new project if it doesn't exist
-        Ygg.create_project(project_id, projects_reference, method)
+        ydm.create_project(project_id, projects_reference, method)
         process_project = True
     else:
         # If the project exists, check if it is completed
