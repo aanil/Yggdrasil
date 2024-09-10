@@ -1,7 +1,7 @@
 import os
 import couchdb
 
-from typing import List, Dict, Any
+from typing import Optional, Dict, Any
 
 from lib.utils.config_loader import ConfigLoader
 from lib.couchdb.document import YggdrasilDocument
@@ -203,3 +203,13 @@ class YggdrasilDBManager(CouchDBHandler):
                 logging.error(f"Project with ID {project_id} not found.")
         except Exception as e:
             logging.error(f"Error while updating sample status: {e}")
+
+
+    def check_project_exists(self, project_id: str) -> Optional[Dict[str, Any]]:
+        existing_document = self.get_document_by_project_id(project_id)
+        if existing_document:
+            logging.info(f"Project with ID {project_id} exists.")
+            return existing_document
+        else:
+            logging.info(f"Project with ID {project_id} does not exist.")
+            return None
