@@ -124,24 +124,3 @@ class YggdrasilUtilities:
             str or None: The value of the environment variable or the default value.
         """
         return os.environ.get(variable_name, default)
-
-
-######### TODO: POTENTIALLY MOVE FUNCTIONS BELOW TO A SEPARATE UTILITIES CLASS ##################
-
-    def check_project_exists(project_id: str) -> bool:
-        from lib.couchdb.manager import YggdrasilDBManager
-        db_manager = YggdrasilDBManager()
-        existing_document = db_manager.get_document_by_project_id(project_id)
-        if existing_document:
-            logging.info(f"Project with ID {project_id} exists.")
-            return existing_document
-        else:
-            logging.info(f"Project with ID {project_id} does not exist.")
-            return None
-        
-    def create_project(project_id: str, projects_reference: str, method: str): # -> YggdrasilDocument:
-        from lib.couchdb.manager import YggdrasilDBManager
-        db_manager = YggdrasilDBManager()
-        new_document = db_manager.create_project(project_id, projects_reference, method)
-        logging.info(f"New project with ID {project_id} created successfully.")
-        return new_document
