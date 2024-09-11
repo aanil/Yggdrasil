@@ -14,26 +14,24 @@ class RealmTemplate(ABC):
     world tree, contributing to the overarching narrative and functionality of the application.
     """
 
-    def __init__(self):
+    def __init__(self, doc, yggdrasil_db_manager):
         self.sjob_manager = SlurmJobManager()
+        self.doc = doc
+        self.yggdrasil_db_manager = yggdrasil_db_manager
 
     @abstractmethod
-    def pre_process(self, doc):
+    def pre_process(self):
         """
-        Pre-process the document. This method should be implemented by each realm to handle 
+        This method should be implemented by each realm to handle 
         preliminary processing specific to its requirements.
-
-        :param doc: The document to be pre-processed.
         """
         pass
 
     @abstractmethod
-    def process(self, doc):
+    def process(self):
         """
-        Process the document. This method needs to be implemented by each concrete realm class,
+        This method needs to be implemented by each concrete realm class,
         defining how each document's journey unfolds.
-
-        :param doc: The document to be processed.
         """
         pass
 
