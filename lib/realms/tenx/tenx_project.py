@@ -7,9 +7,8 @@ from lib.couchdb.manager import YggdrasilDBManager
 from lib.utils.realm_template import RealmTemplate
 from lib.utils.config_loader import ConfigLoader
 
-from lib.realms.tenx.sample import TenXCompositeSample
-from lib.realms.tenx.sample import TenXOriginalSample
-from lib.realms.tenx.sample import TenXSubsample
+from lib.realms.tenx.lab_sample import TenXLabSample
+from lib.realms.tenx.run_sample import TenXRunSample
 
 
 class TenXProject(RealmTemplate):
@@ -145,59 +144,71 @@ class TenXProject(RealmTemplate):
             return None
 
 
-    def extract_subsamples_old_case(self):
-        """
-        Extract subsamples for an old case based on known suffixes in the sample ID.
+    # def extract_subsamples_old_case(self):
+    #     """
+    #     Extract subsamples for an old case based on known suffixes in the sample ID.
         
-        Args:
-            sample_data (dict): Dictionary of all samples from the project document.
+    #     Args:
+    #         sample_data (dict): Dictionary of all samples from the project document.
         
-        Returns:
-            dict: A dictionary grouping original samples with their corresponding subsamples.
-        """
-        subsample_groups = {}
-        # known_suffixes = self.config.get('old_suffixes', [])
-        sample_data = self.doc.get('samples', {})
+    #     Returns:
+    #         dict: A dictionary grouping original samples with their corresponding subsamples.
+    #     """
+    #     subsample_groups = {}
+    #     # known_suffixes = self.config.get('old_suffixes', [])
+    #     sample_data = self.doc.get('samples', {})
 
-        for sample_id, sample_info in sample_data.items():
-            # Check if the sample is aborted
-            status_manual = sample_info.get('details', {}).get('status_(manual)', '').lower()
-            if status_manual == 'aborted':
-                logging.info(f"Sample {sample_id} is marked as 'Aborted' and will be skipped.")
-                continue  # Skip this sample
+    #     for sample_id, sample_info in sample_data.items():
+    #         # Check if the sample is aborted
+    #         status_manual = sample_info.get('details', {}).get('status_(manual)', '').lower()
+    #         if status_manual == 'aborted':
+    #             logging.info(f"Sample {sample_id} is marked as 'Aborted' and will be skipped.")
+    #             continue  # Skip this sample
 
-            feature, original_sample_id = self.identify_feature_old(sample_info)
+    #         feature, original_sample_id = self.identify_feature_old(sample_info)
             
-            if feature:
-                logging.info(f"Found subsample {sample_id} with feature {feature.upper()}")
-                # This is a subsample, find its original sample (e.g., X3_24_025 for X3_24_025_HTO)
-                # TODO: This will not work in cases such as X3_24_025_HTO_rerun. Find a more robust way
-                # original_sample_id = sample_info.get('customer_name', '').replace(f"_{feature.upper()}", '')
-                if original_sample_id not in subsample_groups:
-                    subsample_groups[original_sample_id] = []
+    #         if feature:
+    #             logging.info(f"Found subsample {sample_id} with feature {feature.upper()}")
+    #             # This is a subsample, find its original sample (e.g., X3_24_025 for X3_24_025_HTO)
+    #             # TODO: This will not work in cases such as X3_24_025_HTO_rerun. Find a more robust way
+    #             # original_sample_id = sample_info.get('customer_name', '').replace(f"_{feature.upper()}", '')
+    #             if original_sample_id not in subsample_groups:
+    #                 subsample_groups[original_sample_id] = []
 
-                # Add subsample to its corresponding original sample group
-                subsample_groups[original_sample_id].append(TenXSubsample(sample_id, feature, sample_info, self.project_info))
-            else:
-                logging.info(f"Found original sample {sample_id}")
-                # If it's an original sample (no known suffix), ensure it's in the group
-                if sample_id not in subsample_groups:
-                    subsample_groups[sample_id] = []  # No subsamples found yet
+    #             # Add subsample to its corresponding original sample group
+    #             subsample_groups[original_sample_id].append(TenXSubsample(sample_id, feature, sample_info, self.project_info))
+    #         else:
+    #             logging.info(f"Found original sample {sample_id}")
+    #             library_prep_option = self.project_info.get('library_prep_option')
+    #             feature = self.get_default_feature(library_prep_option)
+    #             # If it's an original sample (no known suffix), ensure it's in the group
+    #             if sample_id not in subsample_groups:
+    #                 subsample_groups[sample_id] = []  # No subsamples found yet
 
-        # Create a list of TenXSample (or Original/CompositeSample) instances
-        tenx_samples = []
-        for original_sample_id, subsamples in subsample_groups.items():
-            if subsamples:
-                # Create a CompositeSample if there are subsamples
-                tenx_samples.append(TenXCompositeSample(original_sample_id, subsamples, self.project_info, self.config, self.ydm))
-            else:
-                # Create an OriginalSample if there are no subsamples
-                tenx_samples.append(TenXOriginalSample(original_sample_id, sample_data[original_sample_id], self.project_info, self.config, self.ydm))
+    #     # Create a list of TenXSample (or Original/CompositeSample) instances
+    #     tenx_samples = []
+    #     for original_sample_id, subsamples in subsample_groups.items():
+    #         if subsamples:
+    #             # Create a CompositeSample if there are subsamples
+    #             tenx_samples.append(TenXCompositeSample(original_sample_id, subsamples, self.project_info, self.config, self.ydm))
+    #         else:
+    #             # Create an OriginalSample if there are no subsamples
+    #             tenx_samples.append(TenXOriginalSample(original_sample_id, sample_data[original_sample_id], self.project_info, self.config, self.ydm))
 
-        return tenx_samples
+    #     return tenx_samples
     
 
-    def identify_feature_old(self, sample_info):
+    def get_default_feature(self, library_prep_id):
+        patterns = ["3' GEX", "5' GEX", "3GEX", "5GEX", "VDJ"]
+        if any(pattern in library_prep_id for pattern in patterns):
+            return 'gex'
+        elif 'ATAC' in library_prep_id:
+            return 'atac'
+        else:
+            return 'unknown'
+
+
+    def identify_feature_old_case(self, sample_info):
         feature_map = self.config['feature_map']['old_format']
         customer_name = sample_info.get('customer_name', '')
         for assay_suffix, feature in feature_map.items():
@@ -208,60 +219,117 @@ class TenXProject(RealmTemplate):
         return None, None
 
 
-    # TODO: Delete this
-    def identify_feature_mix(self, sample_id, sample_info={}):
-        feature_map = self.config['feature_map'][self.case_type]
-        if self.case_type == 'old_format':
-            # Extract suffix from customer_name
-            customer_name = sample_info.get('customer_name', '')
-            for assay, feature in feature_map.items():
-                if customer_name.endswith(f"_{assay}"):
-                    return feature
-        elif self.case_type == 'new_format':
-            # Extract last digit from sample_id
-            assay_digit = sample_id[-1]
-            feature = feature_map.get(assay_digit)
-            return feature
-        return None  # Feature not identified
-
-
-    def identify_feature(self, sample_id):
+    def identify_feature_new_case(self, sample_id):
         feature_map = self.config['feature_map']['new_format']
         assay_digit = sample_id[-1]
         feature = feature_map.get(assay_digit)
         return feature
 
 
-    # TODO: TEST THIS VIGOOROUSLY! No examples exist for this case yet.
-    def extract_subsamples_new_case(self):
-        subsample_groups = {}
-        sample_data = self.doc.get('samples', {})
+    # # TODO: TEST THIS VIGOOROUSLY! No examples exist for this case yet.
+    # def extract_subsamples_new_case(self):
+    #     subsample_groups = {}
+    #     sample_data = self.doc.get('samples', {})
 
+    #     for sample_id, sample_info in sample_data.items():
+    #         # Check if the sample is aborted
+    #         status_manual = sample_info.get('details', {}).get('status_(manual)', '').lower()
+    #         if status_manual == 'aborted':
+    #             logging.info(f"Sample {sample_id} is marked as 'Aborted' and will be skipped.")
+    #             continue  # Skip this sample
+
+    #         feature = self.identify_feature(sample_id, 'new_format')
+    #         if feature:
+    #             original_sample_id = sample_id[:-1]  # Remove the assay digit
+    #             subsample = TenXSubsample(sample_id, feature, sample_info, self.project_info)
+    #             if original_sample_id not in subsample_groups:
+    #                 subsample_groups[original_sample_id] = []
+    #             subsample_groups[original_sample_id].append(subsample)
+    #         else:
+    #             # logging.warning(f"No special assay identified for sample {sample_id}")
+    #             logging.info(f"Found original sample {sample_id}")
+    #             library_prep_method = self.project_info.get('library_prep_method')
+    #             feature = self.get_default_feature(library_prep_method)
+
+    #     # Create TenXCompositeSample instances
+    #     tenx_samples = []
+    #     for original_sample_id, subsamples in subsample_groups.items():
+    #         if len(subsamples) > 1:
+    #             tenx_samples.append(TenXCompositeSample(original_sample_id, subsamples, self.project_info, self.config, self.ydm))
+    #         else:
+    #             tenx_samples.append(TenXOriginalSample(original_sample_id, subsamples[0].sample_data, self.project_info, self.config, self.ydm))
+    #     return tenx_samples
+
+    def filter_aborted_samples(self, sample_data):
+        return {
+            sample_id: sample_info
+            for sample_id, sample_info in sample_data.items()
+            if sample_info.get('details', {}).get('status_(manual)', '').lower() != 'aborted'
+        }
+
+
+    def identify_feature_and_original_id_old(self, sample_id, sample_info):
+        feature, original_sample_id = self.identify_feature_old_case(sample_info)
+        if feature:
+            return feature, original_sample_id
+        else:
+            # Handle original samples without features
+            library_prep_option = self.project_info.get('library_prep_option')
+            feature = self.get_default_feature(library_prep_option)
+            original_sample_id = sample_id
+            return feature, original_sample_id
+
+
+    def identify_feature_and_original_id_new(self, sample_id):
+        feature, original_sample_id = self.identify_feature_new_case(sample_id)
+        if feature:
+            return feature, original_sample_id
+        else:
+            library_prep_method = self.project_info.get('library_prep_method')
+            feature = self.get_default_feature(library_prep_method)
+            original_sample_id = sample_id
+            return feature, original_sample_id
+
+
+    def create_lab_samples(self, sample_data):
+        lab_samples = {}
         for sample_id, sample_info in sample_data.items():
-            # Check if the sample is aborted
-            status_manual = sample_info.get('details', {}).get('status_(manual)', '').lower()
-            if status_manual == 'aborted':
-                logging.info(f"Sample {sample_id} is marked as 'Aborted' and will be skipped.")
-                continue  # Skip this sample
-
-            feature = self.identify_feature(sample_id, 'new_format')
-            if feature:
-                original_sample_id = sample_id[:-1]  # Remove the assay digit
-                subsample = TenXSubsample(sample_id, feature, sample_info, self.project_info)
-                if original_sample_id not in subsample_groups:
-                    subsample_groups[original_sample_id] = []
-                subsample_groups[original_sample_id].append(subsample)
+            if self.case_type == 'old_format':
+                feature, original_sample_id = self.identify_feature_and_original_id_old(sample_id, sample_info)
             else:
-                logging.warning(f"No special assay identified for sample {sample_id}")
+                feature, original_sample_id = self.identify_feature_and_original_id_new(sample_id)
 
-        # Create TenXCompositeSample instances
-        tenx_samples = []
-        for original_sample_id, subsamples in subsample_groups.items():
-            if len(subsamples) > 1:
-                tenx_samples.append(TenXCompositeSample(original_sample_id, subsamples, self.project_info, self.config, self.ydm))
-            else:
-                tenx_samples.append(TenXOriginalSample(original_sample_id, subsamples[0].sample_data, self.project_info, self.config, self.ydm))
-        return tenx_samples
+            lab_sample = TenXLabSample(sample_id, feature, sample_info, self.project_info)
+            lab_samples[sample_id] = (lab_sample, original_sample_id)
+        return lab_samples
+
+
+    def group_lab_samples(self, lab_samples):
+        groups = {}
+        for lab_sample, original_sample_id in lab_samples.values():
+            groups.setdefault(original_sample_id, []).append(lab_sample)
+        return groups
+
+
+    def create_run_samples(self, grouped_lab_samples):
+        run_samples = []
+        for original_sample_id, lab_samples in grouped_lab_samples.items():
+            run_sample = TenXRunSample(original_sample_id, lab_samples, self.project_info, self.config, self.ydm)
+            run_samples.append(run_sample)
+        return run_samples
+
+
+    def extract_samples(self):
+        sample_data = self.doc.get('samples', {})
+        # Step 1: Filter aborted samples
+        sample_data = self.filter_aborted_samples(sample_data)
+        # Step 2: Create lab samples
+        lab_samples = self.create_lab_samples(sample_data)
+        # Step 3: Group lab samples by original sample ID
+        grouped_lab_samples = self.group_lab_samples(lab_samples)
+        # Step 4: Create run samples
+        run_samples = self.create_run_samples(grouped_lab_samples)
+        return run_samples
 
 
     def pre_process(self):
@@ -276,11 +344,11 @@ class TenXProject(RealmTemplate):
         """
         logging.info(f"Processing TenX project {self.project_info['project_name']}")
         self.status = "processing"
-        
-        # Extract the samples from the project document
-        # self.samples = self.extract_samples()
-        if self.case_type == "old_format":
-            self.samples = self.extract_subsamples_old_case()
+
+
+        self.samples = self.extract_samples()
+
+        logging.info(f"Samples: {[sample.sample_id for sample in self.samples]}")
 
         if not self.samples:
             logging.warning("No samples found for processing. Returning...")
