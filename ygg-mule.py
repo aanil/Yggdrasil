@@ -60,7 +60,7 @@ def process_document(doc_id):
         try:
             RealmClass = Ygg.load_realm_class(module_loc)
             if RealmClass:
-                realm = RealmClass(document)
+                realm = RealmClass(document, ydm)
                 if realm.proceed:
                     asyncio.run(realm.process())
                     logging.info("Processing complete.")
@@ -72,6 +72,7 @@ def process_document(doc_id):
             logging.error(f"Error while processing document: {e}", exc_info=True)
 
 
+# TODO: If the module registry doesn’t change often, consider caching it to avoid reloading it every time
 def get_module_location(document):
     """
     Retrieves the module location based on the library construction method from the document.
