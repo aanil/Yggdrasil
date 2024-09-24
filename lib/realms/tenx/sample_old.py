@@ -1,7 +1,11 @@
 import csv
 import glob
 import logging
+import subprocess
 from pathlib import Path
+
+
+from lib.utils.slurm_utils import generate_slurm_script
 
 from lib.utils.config_loader import ConfigLoader
 from lib.couchdb.manager import YggdrasilDBManager
@@ -133,7 +137,7 @@ class TenXCompositeSample(TenXSampleBase):
 class TenXOriginalSample(TenXSampleBase):
     # decision_table = ConfigLoader().load_config("10x_decision_table.json")
 
-    def __init__(self, sample_id, sample_data, project_info, config, yggdrasil_db_manager):
+    def __init__(self, sample_id, feature, sample_data, project_info, config, yggdrasil_db_manager):
         """
         Represents an original sample.
 
@@ -147,6 +151,7 @@ class TenXOriginalSample(TenXSampleBase):
          # Call the base class __init__
         super().__init__(sample_id, project_info, config, yggdrasil_db_manager)
 
+        self.feature = feature
         self.sample_data = sample_data
 
 
@@ -156,7 +161,70 @@ class TenXOriginalSample(TenXSampleBase):
         """
         logging.info(f"Processing sample {self.sample_id} ({self.sample_data.get('customer_name', '')})")
 
-        # Generate input files (if needed)
+        # TODO: Correct below steps. Current step: Step 1
+
+        # Step 1: Gather necessary information
+        library_prep_method = self.project_info.get('library_prep_method')
+        features = [self.feature]
+        pipeline_info = self.get_pipeline_info(library_prep_method, features)
+        if not pipeline_info:
+            logging.error(f"No pipeline information found for sample {self.sample_id}")
+            self.status = "failed"
+            return
+        
+        pipeline_exec = pipeline_info.get('cellranger_exec')
+        pipeline_cmd = pipeline_info.get('pipeline')
+        additional_files = pipeline_info.get('additional_files', [])
+
+
+        ref_genome = self.config.get('ref_genome')
+        slurm_template_path = self.config.get('slurm_template_path')
+
+        if not all([pipeline_info, ref_genome, slurm_template_path]):
+            logging.error("Missing configuration for cellranger path, reference genome, or Slurm template. Skipping...")
+            # TODO: distinguish between failed sample and yggdrasil derived failure
+            self.status = "failed"
+            # TODO: notify admin to check configuration (on Slack?)
+            return
+
+        # Collect FASTQ directories
+        fastq_dirs = self.sample_data.get('fastq_dirs')
+        if not fastq_dirs:
+            logging.error(f"No FASTQ directories found for sample {self.sample_id}")
+            self.status = "failed"
+            return
+
+        # Flatten the list of FASTQ paths
+        fastq_paths = [str(path) for paths in fastq_dirs.values() for path in paths]
+
+        # Step 2: Create arguments dictionary for the Slurm script
+        args_dict = {
+            'sample_id': self.sample_id,
+            'cellranger_path': cellranger_path,
+            'ref_genome': ref_genome,
+            'fastq_paths': '\n'.join(fastq_paths),
+            'output_dir': str(self.file_handler.sample_dir),
+            'sample_name': self.sample_id,
+            # Add additional parameters if needed
+        }
+
+        # Step 3: Generate the Slurm script
+        slurm_script_path = self.file_handler.sample_dir / f"{self.sample_id}_cellranger_count.sh"
+        success = generate_slurm_script(args_dict, slurm_template_path, slurm_script_path)
+        if not success:
+            logging.error(f"Failed to generate Slurm script for sample {self.sample_id}")
+            self.status = "failed"
+            return
+        
+        # Step 4: Submit the Slurm script
+        try:
+            subprocess.run(['sbatch', str(slurm_script_path)], check=True)
+            logging.info(f"Submitted Slurm job for sample {self.sample_id}")
+            self.status = "submitted"
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Failed to submit Slurm job for sample {self.sample_id}: {e}")
+            self.status = "failed"
+            return
 
         self.status = "processing"
 
