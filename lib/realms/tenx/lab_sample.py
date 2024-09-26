@@ -5,6 +5,10 @@ from pathlib import Path
 
 from lib.utils.config_loader import ConfigLoader
 
+from lib.utils.logging_utils import custom_logger
+
+logging = custom_logger(__name__.split('.')[-1])
+
 class TenXLabSample:
     config = ConfigLoader().load_config("10x_config.json")
 
@@ -26,7 +30,7 @@ class TenXLabSample:
         self.fastq_dirs = self.locate_fastq_dirs()
         self.reference_genome = self.get_reference_genome()
 
-        logging.debug(f"Reference genome for sample {self.lab_sample_id}: {self.reference_genome}")
+        # logging.debug(f"Reference genome for sample {self.lab_sample_id}: {self.reference_genome}")
 
 
     def _get_all_flowcells(self):
