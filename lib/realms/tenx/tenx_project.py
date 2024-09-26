@@ -11,6 +11,10 @@ from lib.utils.config_loader import ConfigLoader
 from lib.realms.tenx.lab_sample import TenXLabSample
 from lib.realms.tenx.run_sample import TenXRunSample
 
+from lib.utils.logging_utils import custom_logger
+
+logging = custom_logger(__name__.split('.')[-1])
+
 
 class TenXProject(RealmTemplate):
     """
@@ -137,19 +141,6 @@ class TenXProject(RealmTemplate):
             logging.warning(f"Missing required project information: {missing_keys}.")
             return False
 
-        # NOTE: Might need this later, or might not.
-        # sample_required_fields = self.config.get("sample_required_fields", [])
-        # Check sample-specific required fields
-        # samples = self.doc.get('samples', {})
-        # for sample_id, sample_data in samples.items():
-        #     for field in sample_required_fields:
-        #         if not self._is_field(field, sample_data):
-        #             logging.warning(f"Missing required sample information '{field}' in sample '{sample_id}'.")
-
-        #             if "total_reads_(m)" in field:
-        #                 # TODO: Send this message as a notification on Slack
-        #                 logging.warning("Consider running 'Aggregate Reads' in LIMS.")
-        #             return False
         return True
     
 
@@ -390,7 +381,7 @@ class TenXProject(RealmTemplate):
 
         self.samples = self.extract_samples()
 
-        logging.info(f"Samples: {[sample.run_sample_id for sample in self.samples]}")
+        logging.info(f"Samples to be processed: {[sample.run_sample_id for sample in self.samples]}")
 
         if not self.samples:
             logging.warning("No samples found for processing. Returning...")
