@@ -29,7 +29,7 @@ class SampleFileHandler:
         Args:
             sample (object): The sample object containing sample data and project information.
         """
-        self.sample_id = sample.sample_id
+        self.sample_id = sample.run_sample_id
         self.project_id = sample.project_info.get('project_id', None)
         self.project_name = sample.project_info.get('project_name', None) # TODO: Remove this if not used anywhere else / see todo above
         self.sample_ref = sample.project_info.get('ref_genome', None)

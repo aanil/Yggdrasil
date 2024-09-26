@@ -1,3 +1,4 @@
+import re
 import asyncio
 import logging
 from pathlib import Path
@@ -34,6 +35,13 @@ class TenXProject(RealmTemplate):
         if self.proceed:
             # Extract metadata from project document
             self.project_info = self._extract_project_info()
+
+            if not self.determine_organism():
+                # TODO: Send this message as a notification (maybe on Slack?)
+                logging.error("Project organism could not be determined. Handle manually!")
+                self.proceed = False
+                return
+            
             self.project_dir = self.ensure_project_directory()  # Ensure project directory is created
             self.samples = []  # List of TenXSample instances
             self.case_type = self.project_info.get("case_type")
@@ -56,9 +64,9 @@ class TenXProject(RealmTemplate):
                 "customer_reference": self.doc.get('customer_project_reference', ''),
                 "library_prep_method": details.get('library_construction_method', ''),
                 "library_prep_option": details.get('library_prep_option', ''),
+                "reference_genome": self.doc.get('reference_genome', ''),
                 "organism": details.get('organism', ''),
-                "contact": self.doc.get('contact', ''),
-                "reference_genome": self.doc.get('reference_genome', '')
+                "contact": self.doc.get('contact', '')
             }
 
             # Determine case type based on library_prep_option
@@ -78,6 +86,40 @@ class TenXProject(RealmTemplate):
         except Exception as e:
             logging.error(f"Error occurred while extracting project information: {e}")
             return {}
+
+
+    def determine_organism(self):
+        """
+        Determines the organism for the project by parsing the 'reference_genome' field first,
+        then falling back to the 'organism' field. Updates 'project_info' with the organism.
+        """
+        # Try to extract organism from 'reference_genome' field
+        reference_genome = self.project_info.get('reference_genome', '').strip()
+        if reference_genome and reference_genome.lower() != 'other (-, -)':
+            # Split at '(' and take the first part
+            organism = reference_genome.split('(')[0].strip().lower()
+            # Validate organism
+            if self.is_supported_organism(organism):
+                self.project_info['organism'] = organism
+                return True
+        # If 'reference_genome' is not usable, try 'organism' field
+        organism = self.project_info.get('organism', '').strip().lower()
+        if organism and self.is_supported_organism(organism):
+            self.project_info['organism'] = organism
+            return True
+        # If neither field is usable, log an error
+        logging.error(f"Organism '{organism}' not specified or unsupported for project '{self.project_info['project_name']}'")
+        self.status = "failed"
+        return False
+
+
+    def is_supported_organism(self, organism):
+        """
+        Checks if the given organism is supported based on the 'gex' references in the configuration.
+        """
+        reference_mapping = self.config.get('reference_mapping', {})
+        gex_organisms = reference_mapping.get('gex', {}).keys()
+        return organism in gex_organisms
 
 
     def _check_required_fields(self):
@@ -348,7 +390,7 @@ class TenXProject(RealmTemplate):
 
         self.samples = self.extract_samples()
 
-        logging.info(f"Samples: {[sample.sample_id for sample in self.samples]}")
+        logging.info(f"Samples: {[sample.run_sample_id for sample in self.samples]}")
 
         if not self.samples:
             logging.warning("No samples found for processing. Returning...")
