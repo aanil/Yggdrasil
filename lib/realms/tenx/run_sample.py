@@ -1,12 +1,21 @@
 import csv
-import logging
+
+from lib.base.sample_base import SampleBase
 
 from lib.realms.tenx.utils.sample_file_handler import SampleFileHandler
 from lib.realms.tenx.utils.tenx_utils import TenXUtils
 
-from lib.utils.slurm_utils import generate_slurm_script
+from tests.mocks.mock_sjob_manager import MockSlurmJobManager
+from lib.utils.sjob_manager import SlurmJobManager
 
-class TenXRunSample:
+from lib.utils.slurm_utils import generate_slurm_script
+from lib.utils.logging_utils import custom_logger
+
+logging = custom_logger(__name__.split('.')[-1])
+
+DEBUG = True
+
+class TenXRunSample(SampleBase):
     def __init__(self, sample_id, lab_samples, project_info, config, yggdrasil_db_manager, **kwargs):
         self.run_sample_id = sample_id
         self.lab_samples = lab_samples
@@ -16,12 +25,30 @@ class TenXRunSample:
 
         # self.decision_table = TenXUtils.load_decision_table("10x_decision_table.json")
         self.feature_to_library_type = self.config.get('feature_to_library_type', {})
-        self.status = "initialized"
+        self._status = "initialized"
         self.file_handler = SampleFileHandler(self)
 
         self.features = self._collect_features()
         self.pipeline_info = self._get_pipeline_info()
         self.reference_genomes = self.collect_reference_genomes()
+
+        if DEBUG:
+            self.sjob_manager = MockSlurmJobManager()
+        else:
+            self.sjob_manager = SlurmJobManager()
+
+    @property
+    def id(self):
+        return self.run_sample_id
+    
+    @property
+    def status(self):
+        return self._status
+    
+    @status.setter
+    def status(self, value):
+        self._status = value
+
 
     def collect_reference_genomes(self):
         """
@@ -75,29 +102,31 @@ class TenXRunSample:
         """
         Process the sample.
         """
-        logging.info(f"Processing sample {self.run_sample_id}")
+        logging.info("\n")
+        logging.info(f"[{self.run_sample_id}] Processing...")
 
         # Step 1: Verify that all subsamples have FASTQ files
         # TODO: Also check any other requirements
         missing_fq_labsamples = [lab_sample.lab_sample_id for lab_sample in self.lab_samples if not lab_sample.fastq_dirs]
         if missing_fq_labsamples:
-            logging.error(f"Run-sample {self.run_sample_id} is missing FASTQ files for lab-samples: {missing_fq_labsamples}. Skipping...")
+            logging.error(f"[{self.run_sample_id}] Missing FASTQ files for lab-samples: {missing_fq_labsamples}. Skipping...")
             self.status = "failed"
             return
 
         # Step 4: Determine the pipeline and additional files required
         if not self.pipeline_info:
-            logging.error(f"No pipeline information found for sample {self.run_sample_id}")
+            logging.error(f"[{self.run_sample_id}] No pipeline information found. Skipping...")
             self.status = "failed"
             return
 
         pipeline = self.pipeline_info.get('pipeline')
         pipeline_exec = self.pipeline_info.get('pipeline_exec')
 
-        logging.info(f"Pipeline: {pipeline}")
-        logging.info(f"Pipeline executable: {pipeline_exec}")
+        logging.debug(f"[{self.run_sample_id}] Pipeline: {pipeline}")
+        logging.debug(f"[{self.run_sample_id}] Pipeline executable: {pipeline_exec}")
 
-        logging.info(f"Generating required files for sample {self.run_sample_id}")
+        logging.info(f"[{self.run_sample_id}] Generating required files...")
+        # TODO: Register generated files in the file handler
         if self.pipeline_info.get('libraries_csv'):
             self.generate_libraries_csv()
         if self.pipeline_info.get('feature_ref'):
@@ -114,15 +143,28 @@ class TenXRunSample:
             'cellranger_command': cellranger_command
         }
 
-        logging.debug(f"Slurm metadata: {slurm_metadata}")
+        # logging.debug(f"Slurm metadata: {slurm_metadata}")
         
         slurm_template_path = self.config.get('slurm_template')
         if not generate_slurm_script(slurm_metadata, slurm_template_path, self.file_handler.slurm_script_path):
-            logging.error(f"Failed to generate SLURM script for sample {self.run_sample_id}")
+            logging.error(f"[{self.run_sample_id}] Failed to generate SLURM script.")
             return None
 
-            
+        # Step 5: Submit the SLURM script
+        # Submit the job
+        logging.debug(f"[{self.run_sample_id}] Slurm script created. Submitting job...")
         self.status = "processing"
+        self.job_id = await self.sjob_manager.submit_job(self.file_handler.slurm_script_path)
+
+
+        if self.job_id:
+            logging.debug(f"[{self.run_sample_id}] Job submitted with ID: {self.job_id}")
+            # Wait here for the monitoring to complete before exiting the process method
+            await self.sjob_manager.monitor_job(self.job_id, self)
+            logging.debug(f"[{self.run_sample_id}] Job {self.job_id} monitoring complete.")
+        else:
+            logging.error(f"[{self.run_sample_id}] Failed to submit job.")
+            return None
 
 
 
@@ -172,7 +214,7 @@ class TenXRunSample:
 
 
     def generate_libraries_csv(self):
-        logging.info(f"Generating library CSV for sample {self.run_sample_id}")
+        logging.info(f"[{self.run_sample_id}] Generating library CSV")
         library_csv_path = self.file_handler.base_dir / f'{self.run_sample_id}_libraries.csv'
 
         with open(library_csv_path, 'w', newline='') as csvfile:
@@ -181,7 +223,7 @@ class TenXRunSample:
             for lab_sample in self.lab_samples:
                 feature_type = self.feature_to_library_type.get(lab_sample.feature)
                 if not feature_type:
-                    logging.error(f"Feature type not found for feature '{lab_sample.feature}' in sample '{lab_sample.sample_id}'")
+                    logging.error(f"[{self.run_sample_id}] Feature type not found for feature '{lab_sample.feature}' in sample '{lab_sample.sample_id}'")
                     continue
                 # Write one row per FASTQ directory
                 for paths in lab_sample.fastq_dirs.values():
@@ -193,9 +235,12 @@ class TenXRunSample:
                         })
 
     def generate_feature_reference_csv(self):
-        logging.info(f"Generating feature reference CSV for composite sample {self.run_sample_id}")
+        logging.info(f"[{self.run_sample_id}] Generating feature reference CSV")
         pass
 
     def generate_multi_sample_csv(self):
-        logging.info(f"Generating multi-sample CSV for composite sample {self.run_sample_id}")
+        logging.info(f"[{self.run_sample_id}] Generating multi-sample CSV")
         pass
+
+    def post_process(self):
+        logging.info(f"[{self.run_sample_id}] Post-processing...")
