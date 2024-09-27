@@ -382,6 +382,7 @@ class TenXProject(RealmTemplate):
         self.samples = self.extract_samples()
 
         logging.info(f"Samples to be processed: {[sample.run_sample_id for sample in self.samples]}")
+        logging.info(f"Sample features: {[sample.features for sample in self.samples]}")
 
         if not self.samples:
             logging.warning("No samples found for processing. Returning...")
