@@ -13,12 +13,13 @@ from lib.realms.smartseq3.utils.ss3_utils import SS3Utils
 from lib.realms.smartseq3.utils.sample_file_handler import SampleFileHandler
 from lib.realms.smartseq3.report.report_generator import Smartseq3ReportGenerator
 
-from lib.utils.logging_utils import custom_logger
+from lib.base.sample_base import SampleBase
 from lib.utils.realm_template import RealmTemplate
 from lib.utils.config_loader import ConfigLoader
 from lib.utils.ngi_report_generator import generate_ngi_report
 from lib.utils.slurm_utils import generate_slurm_script
 from lib.realms.smartseq3.utils.yaml_utils import write_yaml
+from lib.utils.logging_utils import custom_logger
 
 
 DEBUG = True
@@ -253,7 +254,7 @@ class SmartSeq3(RealmTemplate):
 
 
 
-class SS3Sample():
+class SS3Sample(SampleBase):
     """
     Class representing a sample in a SmartSeq3 project.
 
@@ -282,7 +283,7 @@ class SS3Sample():
             config (dict): Configuration settings.
         """
         # TODO: self.id must be demanded by a template class
-        self.id = sample_id
+        self._id = sample_id
         self.sample_data = sample_data
         self.project_info = project_info
 
@@ -295,7 +296,7 @@ class SS3Sample():
         self.config = config
         # self.job_id = None
         # TODO: Currently not used much, but should be used if we write to a database
-        self.status = "pending"  # other statuses: "processing", "completed", "failed"
+        self._status = "pending"  # other statuses: "processing", "completed", "failed"
         self.metadata = None
 
         # Define the parent project directory
@@ -312,6 +313,20 @@ class SS3Sample():
 
         # Initialize SampleFileHandler
         self.file_handler = SampleFileHandler(self)
+
+
+    @property
+    def id(self):
+        return self._id
+    
+    @property
+    def status(self):
+        return self._status
+    
+    @status.setter
+    def status(self, value):
+        self._status = value
+
 
     async def process(self):
         """
