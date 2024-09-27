@@ -96,9 +96,14 @@ def get_module_location(document):
         if module_config:
             # Return the module location
             return module_config["module"]
-        else:
-            logging.warning(f"No module configuration found for method '{method}'.")
-            return None
+        
+        # If no exact match, check for prefix matches
+        for registered_method, config in module_registry.items():
+            if config.get("prefix") and method.startswith(registered_method):
+                return config["module"]
+            
+        logging.warning(f"No module configuration found for method '{method}'.")
+        return None
     except KeyError as e:
         logging.error(f'Error accessing module location: {e}')
         return None

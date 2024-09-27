@@ -89,10 +89,17 @@ class ProjectDBManager(CouchDBHandler):
                         module_loc = module_config["module"]
                         yield (change, module_loc)
                     else:
-                        # The majority of the tasks will not have a module configured.
-                        # If you log this, expect to see many messages!
-                        # logging.warning(f"No module configured for task type '{method}'.")
-                        pass
+                        # No exact match, check for prefix matches
+                        for registered_method, config in self.module_registry.items():
+                            if config.get("prefix") and method.startswith(registered_method):
+                                module_loc = config["module"]
+                                yield (change, module_loc)
+                                break
+                        else:
+                            # The majority of the tasks will not have a module configured.
+                            # If you log this, expect to see many messages!
+                            # logging.warning(f"No module configured for task type '{method}'.")
+                            pass
                 except Exception as e:
                     # logging.error(f"Error while processing incoming CouchDB data")
                     # logging.debug(f"Error: {e}")
