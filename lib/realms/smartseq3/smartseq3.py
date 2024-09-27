@@ -39,14 +39,15 @@ class SmartSeq3(RealmTemplate):
 
     config = ConfigLoader().load_config("ss3_config.json")
 
-    def __init__(self, doc):
+    def __init__(self, doc, yggdrasil_db_manager):
         """
         Initialize a SmartSeq3 project instance.
 
         Args:
-            doc (dict): Document containing project data.
+            doc (dict): Document containing project metadata.
         """
         self.doc = doc
+        self.ydm = yggdrasil_db_manager
         self.proceed = self._check_required_fields()
 
         # TODO: What if I return None if not self.proceed?
