@@ -152,6 +152,9 @@ class TenXRunSample(SampleBase):
 
         # Step 5: Submit the SLURM script
         # Submit the job
+        if not self.pipeline_info.get('submit'):
+            logging.info(f"[{self.run_sample_id}] According to decision table, we should not submit. Handle manually!")
+            return
         logging.debug(f"[{self.run_sample_id}] Slurm script created. Submitting job...")
         self.status = "processing"
         self.job_id = await self.sjob_manager.submit_job(self.file_handler.slurm_script_path)
