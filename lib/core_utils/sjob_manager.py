@@ -1,11 +1,12 @@
 import re
 import asyncio
 import subprocess
+from typing import Any, Optional
 
 from lib.core_utils.config_loader import configs
 from lib.core_utils.logging_utils import custom_logger
 
-logging = custom_logger(__name__.split('.')[-1])
+logging = custom_logger(__name__.split(".")[-1])
 
 # import asyncio
 # import logging
@@ -118,54 +119,60 @@ logging = custom_logger(__name__.split('.')[-1])
 #################################################################################################
 
 class SlurmJobManager:
-    """
-    Manages the submission and monitoring of Slurm jobs.
+    """Manages the submission and monitoring of Slurm jobs.
 
     Attributes:
-        polling_interval (float): Interval for polling job status.
-        command_timeout (float): Timeout for Slurm commands.
+        polling_interval (float): Interval for polling job status in seconds.
+        command_timeout (float): Timeout for Slurm commands in seconds.
     """
-    def __init__(self, polling_interval=10.0, command_timeout=8.0):
-        """
-        Initialize the SlurmJobManager with specified polling interval and command timeout.
+
+    def __init__(self, polling_interval: float = 10.0, command_timeout: float = 8.0) -> None:
+        """Initialize the SlurmJobManager with specified polling interval and command timeout.
 
         Args:
-            polling_interval (float): Interval for polling job status. Defaults to 10.0 seconds.
-            command_timeout (float): Timeout for Slurm commands. Defaults to 8.0 seconds.
+            polling_interval (float, optional): Interval for polling job status in seconds.
+                Defaults to 10.0 seconds.
+            command_timeout (float, optional): Timeout for Slurm commands in seconds.
+                Defaults to 8.0 seconds.
         """
-        self.polling_interval = configs.get("job_monitor_poll_interval", polling_interval)
-        self.command_timeout = command_timeout
+        self.polling_interval: float = configs.get("job_monitor_poll_interval", polling_interval)
+        self.command_timeout: float = command_timeout
 
-
-    async def submit_job(self, script_path):
-        """
-        Submits a Slurm job using the specified script.
+    async def submit_job(self, script_path: str) -> Optional[str]:
+        """Submit a Slurm job using the specified script.
 
         Args:
             script_path (str): Path to the Slurm script.
 
         Returns:
-            str: The job ID if submission is successful, None otherwise.
+            Optional[str]: The job ID if submission is successful, None otherwise.
         """
         sbatch_command = ["sbatch", script_path]
         try:
-            result = await asyncio.create_subprocess_exec(
+            process = await asyncio.create_subprocess_exec(
                 *sbatch_command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(result.communicate(), self.command_timeout)
+            stdout, stderr = await asyncio.wait_for(process.communicate(), self.command_timeout)
 
-            if result.returncode != 0:
-                logging.error("Error submitting job. Details: %s", stderr.decode())
+            if process.returncode != 0:
+                logging.error(f"Error submitting job. Details: {stderr.decode()}")
                 return None
 
             match = re.search(r'\d+', stdout.decode())
             job_id = match.group() if match else None
 
+            # NOTE: Improved logic in case it's needed in the future
+            # stdout_decoded = stdout.decode().strip()
+            # match = re.search(r"Submitted batch job (\d+)", stdout_decoded)
+            # job_id = match.group(1) if match else None
+
             if job_id:
                 logging.info(f"Job submitted with ID: {job_id}")
                 return job_id
+            else:
+                logging.error(f"Failed to parse job ID from sbatch output: {stdout.decode().strip()}")
         except asyncio.TimeoutError:
             logging.error("Timeout while submitting job.")
         except Exception as e:
@@ -173,26 +180,15 @@ class SlurmJobManager:
 
         return None
 
-    # async def monitor_job(self, job_id, callback=None):
-    #     while True:
-    #         status = await self._job_status(job_id)
-    #         if status in ["COMPLETED", "FAILED", "CANCELLED"]:
-    #             logging.info(f"Job {job_id} status: {status}")
-    #             if callback:
-    #                 callback(job_id, status)
-    #             break
-    #         await asyncio.sleep(self.polling_interval)
+    async def monitor_job(self, job_id: str, sample: Any) -> None:
+        """Monitor the specified job and handle its status accordingly.
 
-    async def monitor_job(self, job_id, sample):
-        """
-        Monitors the specified job and delegates status handling to the check_status method.
-
-        This method continuously checks the status of a Slurm job until it completes or fails.
-        Depending on the final status, it calls the check_status method to handle the sample accordingly.
+        Continuously checks the status of a Slurm job until it completes or fails.
+        Depending on the final status, it calls the `check_status` method to handle the sample.
 
         Args:
             job_id (str): The job ID.
-            sample (object): The sample object with id attribute.
+            sample (Any): The sample object with `id` attribute.
         """
         logging.debug(f"[{sample.id}] Job {job_id} submitted for monitoring.")
         while True:
@@ -203,16 +199,14 @@ class SlurmJobManager:
                 break
             await asyncio.sleep(self.polling_interval)
 
-
-    async def _job_status(self, job_id):
-        """
-        Retrieves the status of a Slurm job.
+    async def _job_status(self, job_id: str) -> Optional[str]:
+        """Retrieve the status of a Slurm job.
 
         Args:
             job_id (str): The job ID.
 
         Returns:
-            str: The status of the job.
+            Optional[str]: The status of the job, or None if unable to retrieve.
         """
         sacct_command = f"sacct -n -X -o State -j {job_id}"
         try:
@@ -238,16 +232,13 @@ class SlurmJobManager:
         return None
     
     @staticmethod
-    def check_status(job_id, status, sample):
-        """
-        Monitors the specified job and delegates status handling to the check_status method.
-
-        This method continuously checks the status of a Slurm job until it completes or fails.
-        Depending on the final status, it calls the check_status method to handle the sample accordingly.
+    def check_status(job_id: str, status: str, sample: Any) -> None:
+        """Check the status of a job and update the sample accordingly.
 
         Args:
             job_id (str): The job ID.
-            sample (object): The sample object with id attribute.
+            status (str): The status of the job.
+            sample (object): The sample object with `id` and `status` attributes.
         """
         logging.debug(f"Job {job_id} status: {status}")
         if status == "COMPLETED":
