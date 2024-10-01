@@ -1,7 +1,7 @@
 import logging
 
-from lib.utils.config_loader import ConfigLoader
-from lib.utils.couch_utils import get_db_changes, couch_login
+from lib.core_utils.config_loader import ConfigLoader
+from lib.core_utils.couch_utils import get_db_changes, couch_login
 # from lib.utils.config_utils import get_module_registry
 # from lib.branches.ss3_branch.smartseq3 import smartseq3
 
