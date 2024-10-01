@@ -1,6 +1,6 @@
 
 from abc import ABC, abstractmethod
-from lib.utils.sjob_manager import SlurmJobManager
+from lib.core_utils.sjob_manager import SlurmJobManager
 
 class RealmTemplate(ABC):
     """

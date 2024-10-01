@@ -3,30 +3,29 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from lib.utils.config_loader import configs
+from lib.core_utils.config_loader import configs
 
 # Suppress logging for specific noisy libraries
-logging.getLogger('matplotlib').setLevel(logging.WARNING)
-logging.getLogger('numba').setLevel(logging.WARNING)
-logging.getLogger('h5py').setLevel(logging.WARNING)
-logging.getLogger('PIL').setLevel(logging.WARNING)
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
+logging.getLogger("numba").setLevel(logging.WARNING)
+logging.getLogger("h5py").setLevel(logging.WARNING)
+logging.getLogger("PIL").setLevel(logging.WARNING)
 
 
-def configure_logging(debug=False):
-    """
-    Set up logging for the Yggdrasil application.
+def configure_logging(debug: bool = False) -> None:
+    """Set up logging for the Yggdrasil application.
 
-    This function configures the logging environment for the Yggdrasil application.
-    It creates a log directory if it doesn't exist, sets the log file's path with a
-    timestamp, and defines the log format and log level.
+    Configures the logging environment by creating a log directory if it doesn't exist,
+    setting the log file's path with a timestamp, and defining the log format and log level.
 
     Args:
-        debug (bool): If True, log messages will also be printed to the console.
+        debug (bool, optional): If True, log messages will also be printed to the console.
+            Defaults to False.
 
     Returns:
         None
     """
-    log_dir = Path(configs['yggdrasil_log_dir'])
+    log_dir = Path(configs["yggdrasil_log_dir"])
     log_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
@@ -43,9 +42,8 @@ def configure_logging(debug=False):
     logging.basicConfig(level=log_level, format=log_format, handlers=handlers)
 
 
-def custom_logger(module_name):
-    """
-    Create a custom logger for the specified module.
+def custom_logger(module_name: str) -> logging.Logger:
+    """Create a custom logger for the specified module.
     
     Args:
         module_name (str): The name of the module for which the logger is created.

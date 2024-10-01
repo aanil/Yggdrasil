@@ -2,8 +2,8 @@ import re
 import asyncio
 import subprocess
 
-from lib.utils.config_loader import configs
-from lib.utils.logging_utils import custom_logger
+from lib.core_utils.config_loader import configs
+from lib.core_utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__.split('.')[-1])
 
