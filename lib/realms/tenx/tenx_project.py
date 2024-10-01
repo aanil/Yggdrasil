@@ -5,13 +5,13 @@ from pathlib import Path
 
 from lib.couchdb.manager import YggdrasilDBManager
 
-from lib.utils.realm_template import RealmTemplate
-from lib.utils.config_loader import ConfigLoader
+from lib.core_utils.realm_template import RealmTemplate
+from lib.core_utils.config_loader import ConfigLoader
 
 from lib.realms.tenx.lab_sample import TenXLabSample
 from lib.realms.tenx.run_sample import TenXRunSample
 
-from lib.utils.logging_utils import custom_logger
+from lib.core_utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__.split('.')[-1])
 

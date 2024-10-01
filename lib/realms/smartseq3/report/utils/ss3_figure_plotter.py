@@ -5,7 +5,7 @@ from io import BytesIO
 
 from lib.realms.smartseq3.report.utils.bivariate_plate_map import BivariatePlateMap
 
-from lib.utils.logging_utils import custom_logger
+from lib.core_utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__.split('.')[-1])
 

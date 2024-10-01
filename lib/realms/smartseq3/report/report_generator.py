@@ -11,7 +11,7 @@ from lib.realms.smartseq3.report.utils.report_utils import get_image, add_figure
 from lib.realms.smartseq3.report.utils.ss3_figure_plotter import SS3FigurePlotter
 from lib.realms.smartseq3.report.utils.ss3_data_collector import SS3DataCollector
 
-from lib.utils.logging_utils import custom_logger
+from lib.core_utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__.split('.')[-1])
 

@@ -12,7 +12,7 @@ from PIL import Image as PILImage
 from io import BytesIO
 from pdf2image import convert_from_path
 
-from lib.utils.logging_utils import custom_logger
+from lib.core_utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__)
 

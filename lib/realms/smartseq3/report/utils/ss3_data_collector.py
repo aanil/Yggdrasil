@@ -6,7 +6,7 @@ from pandas.errors import EmptyDataError
 
 from lib.realms.smartseq3.utils.ss3_utils import SS3Utils
 
-from lib.utils.logging_utils import custom_logger
+from lib.core_utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__.split('.')[-1])
 

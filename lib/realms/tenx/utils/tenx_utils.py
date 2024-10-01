@@ -2,7 +2,7 @@ import csv
 import json
 import logging
 from pathlib import Path
-from lib.utils.common import YggdrasilUtilities as Ygg
+from lib.core_utils.common import YggdrasilUtilities as Ygg
 
 
 class TenXUtils():

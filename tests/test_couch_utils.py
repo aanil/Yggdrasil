@@ -3,7 +3,7 @@ import asyncio
 
 from pathlib import Path
 from unittest.mock import patch, MagicMock, mock_open
-from lib.utils.couch_utils import couch_login, get_db_changes, save_last_processed_seq, get_last_processed_seq, has_required_fields
+from lib.core_utils.couch_utils import couch_login, get_db_changes, save_last_processed_seq, get_last_processed_seq, has_required_fields
 
 class TestCouchUtils(unittest.TestCase):
 

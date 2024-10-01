@@ -2,7 +2,7 @@ import unittest
 import asyncio
 import subprocess
 from unittest.mock import patch, AsyncMock, MagicMock
-from lib.utils.sjob_manager import SlurmJobManager
+from lib.core_utils.sjob_manager import SlurmJobManager
 
 class MockSample:
     def __init__(self, id):

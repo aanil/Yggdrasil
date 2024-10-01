@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from lib.utils.common import YggdrasilUtilities
+from lib.core_utils.common import YggdrasilUtilities
 from pathlib import Path
 
 class TestYggdrasilUtilities(unittest.TestCase):
@@ -53,7 +53,7 @@ class TestYggdrasilUtilities(unittest.TestCase):
     def test_get_path_file_exists(self, mock_exists):
         # Your input needed: Adjust the file path according to your project structure
         mock_exists.return_value = True
-        expected_path = Path("/home/anastasios/Documents/git/Yggdrasil/configurations/config.json")  # Replace with actual expected path
+        expected_path = Path("/home/anastasios/Documents/git/Yggdrasil/yggdrasil_workspace/common/configurations/config.json")  # Replace with actual expected path
 
         result = YggdrasilUtilities.get_path('config.json')
 

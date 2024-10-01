@@ -5,9 +5,9 @@ import subprocess
 from pathlib import Path
 
 
-from lib.utils.slurm_utils import generate_slurm_script
+from lib.core_utils.slurm_utils import generate_slurm_script
 
-from lib.utils.config_loader import ConfigLoader
+from lib.core_utils.config_loader import ConfigLoader
 from lib.couchdb.manager import YggdrasilDBManager
 from lib.realms.tenx.utils.sample_file_handler import SampleFileHandler
 from lib.realms.tenx.utils.tenx_utils import TenXUtils

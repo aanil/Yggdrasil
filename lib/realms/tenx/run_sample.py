@@ -6,10 +6,10 @@ from lib.realms.tenx.utils.sample_file_handler import SampleFileHandler
 from lib.realms.tenx.utils.tenx_utils import TenXUtils
 
 from tests.mocks.mock_sjob_manager import MockSlurmJobManager
-from lib.utils.sjob_manager import SlurmJobManager
+from lib.core_utils.sjob_manager import SlurmJobManager
 
-from lib.utils.slurm_utils import generate_slurm_script
-from lib.utils.logging_utils import custom_logger
+from lib.core_utils.slurm_utils import generate_slurm_script
+from lib.core_utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__.split('.')[-1])
 

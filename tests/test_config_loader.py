@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, mock_open
-from lib.utils.config_loader import ConfigLoader
+from lib.core_utils.config_loader import ConfigLoader
 from pathlib import Path
 import types
 
