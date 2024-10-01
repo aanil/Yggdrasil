@@ -1,7 +1,7 @@
 
 import unittest
 from unittest.mock import mock_open, patch
-from lib.core_utils.slurm_utils import generate_slurm_script
+from lib.module_utils.slurm_utils import generate_slurm_script
 
 class TestGenerateSlurmScript(unittest.TestCase):
     def test_generate_slurm_script(self):

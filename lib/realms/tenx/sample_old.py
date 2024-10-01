@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 
-from lib.core_utils.slurm_utils import generate_slurm_script
+from lib.module_utils.slurm_utils import generate_slurm_script
 
 from lib.core_utils.config_loader import ConfigLoader
 from lib.couchdb.manager import YggdrasilDBManager
