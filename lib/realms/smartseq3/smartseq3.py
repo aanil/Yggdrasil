@@ -4,7 +4,7 @@ import asyncio
 from pathlib import Path
 # from datetime import datetime
 
-from lib.core_utils.sjob_manager import SlurmJobManager
+from lib.module_utils.sjob_manager import SlurmJobManager
 from lib.couchdb.manager import YggdrasilDBManager
 from tests.mocks.mock_sjob_manager import MockSlurmJobManager
 
