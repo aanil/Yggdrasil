@@ -13,8 +13,8 @@ from lib.realms.smartseq3.utils.ss3_utils import SS3Utils
 from lib.realms.smartseq3.utils.sample_file_handler import SampleFileHandler
 from lib.realms.smartseq3.report.report_generator import Smartseq3ReportGenerator
 
-from lib.base.sample_base import SampleBase
-from lib.core_utils.realm_template import RealmTemplate
+from lib.base.abstract_sample import AbstractSample
+from lib.base.abstract_project import AbstractProject
 from lib.core_utils.config_loader import ConfigLoader
 from lib.module_utils.ngi_report_generator import generate_ngi_report
 from lib.module_utils.slurm_utils import generate_slurm_script
@@ -25,7 +25,7 @@ from lib.core_utils.logging_utils import custom_logger
 DEBUG = True
 logging = custom_logger("SmartSeq3")
 
-class SmartSeq3(RealmTemplate):
+class SmartSeq3(AbstractProject):
     """
     Class representing a SmartSeq3 project.
 
@@ -254,7 +254,7 @@ class SmartSeq3(RealmTemplate):
 
 
 
-class SS3Sample(SampleBase):
+class SS3Sample(AbstractSample):
     """
     Class representing a sample in a SmartSeq3 project.
 

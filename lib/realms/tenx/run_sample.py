@@ -1,6 +1,6 @@
 import csv
 
-from lib.base.sample_base import SampleBase
+from lib.base.abstract_sample import AbstractSample
 
 from lib.realms.tenx.utils.sample_file_handler import SampleFileHandler
 from lib.realms.tenx.utils.tenx_utils import TenXUtils
@@ -11,11 +11,11 @@ from lib.module_utils.sjob_manager import SlurmJobManager
 from lib.module_utils.slurm_utils import generate_slurm_script
 from lib.core_utils.logging_utils import custom_logger
 
-logging = custom_logger(__name__.split('.')[-1])
+logging = custom_logger(__name__.split(".")[-1])
 
 DEBUG = True
 
-class TenXRunSample(SampleBase):
+class TenXRunSample(AbstractSample):
     def __init__(self, sample_id, lab_samples, project_info, config, yggdrasil_db_manager, **kwargs):
         self.run_sample_id = sample_id
         self.lab_samples = lab_samples

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from lib.couchdb.manager import YggdrasilDBManager
 
-from lib.core_utils.realm_template import RealmTemplate
+from lib.base.abstract_project import AbstractProject
 from lib.core_utils.config_loader import ConfigLoader
 
 from lib.realms.tenx.lab_sample import TenXLabSample
@@ -13,10 +13,10 @@ from lib.realms.tenx.run_sample import TenXRunSample
 
 from lib.core_utils.logging_utils import custom_logger
 
-logging = custom_logger(__name__.split('.')[-1])
+logging = custom_logger(__name__.split(".")[-1])
 
 
-class TenXProject(RealmTemplate):
+class TenXProject(AbstractProject):
     """
     Class representing a SmartSeq3 project.
     """
