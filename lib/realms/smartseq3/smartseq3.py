@@ -16,7 +16,7 @@ from lib.realms.smartseq3.report.report_generator import Smartseq3ReportGenerato
 from lib.base.sample_base import SampleBase
 from lib.core_utils.realm_template import RealmTemplate
 from lib.core_utils.config_loader import ConfigLoader
-from lib.core_utils.ngi_report_generator import generate_ngi_report
+from lib.module_utils.ngi_report_generator import generate_ngi_report
 from lib.module_utils.slurm_utils import generate_slurm_script
 from lib.realms.smartseq3.utils.yaml_utils import write_yaml
 from lib.core_utils.logging_utils import custom_logger
