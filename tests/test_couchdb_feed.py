@@ -30,7 +30,7 @@
 
 import unittest
 from unittest.mock import MagicMock, patch
-from lib.couchdb_feed import fetch_data_from_couchdb
+from trashcan.couchdb_feed import fetch_data_from_couchdb
 
 class TestCouchDBFeed(unittest.TestCase):
 
