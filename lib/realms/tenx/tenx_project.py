@@ -1,13 +1,9 @@
-import re
 import asyncio
-import logging
 from pathlib import Path
-
-from lib.couchdb.manager import YggdrasilDBManager
+from typing import Any, Dict, List, Tuple, Optional
 
 from lib.base.abstract_project import AbstractProject
 from lib.core_utils.config_loader import ConfigLoader
-
 from lib.realms.tenx.lab_sample import TenXLabSample
 from lib.realms.tenx.run_sample import TenXRunSample
 
@@ -18,117 +14,136 @@ logging = custom_logger(__name__.split(".")[-1])
 
 class TenXProject(AbstractProject):
     """
-    Class representing a SmartSeq3 project.
+    Class representing a TenX project.
     """
 
-    config = ConfigLoader().load_config("10x_config.json")
+    config: Dict[str, Any] = ConfigLoader().load_config("10x_config.json")
 
-    def __init__(self, doc, yggdrasil_db_manager):
+    def __init__(self, doc: Dict[str, Any], yggdrasil_db_manager: Any) -> None:
         """
         Initialize a TenXProject instance.
 
         Args:
-            doc (dict): Document containing project metadata.
+            doc (Dict[str, Any]): Document containing project metadata.
+            yggdrasil_db_manager (Any): Yggdrasil database manager instance.
         """
-        self.doc = doc  # Document with project details
-        self.ydm = yggdrasil_db_manager  # YggdrasilDBManager instance
+        super().__init__(doc, yggdrasil_db_manager)
+        self.doc: Dict[str, Any] = doc
+        self.ydm: Any = yggdrasil_db_manager
 
         # TODO: Might need to check required fields for each different method, if they differ
-        self.proceed = self._check_required_fields()  # Check if required fields are present
+        self.proceed: bool = self._check_required_fields()
 
         if self.proceed:
             # Extract metadata from project document
-            self.project_info = self._extract_project_info()
+            self.project_info: Dict[str, Any] = self._extract_project_info()
 
             if not self.determine_organism():
-                # TODO: Send this message as a notification (maybe on Slack?)
+                # TODO: Send this message as a notification (e.g. on Slack)
                 logging.error("Project organism could not be determined. Handle manually!")
                 self.proceed = False
                 return
             
-            self.project_dir = self.ensure_project_directory()  # Ensure project directory is created
-            self.samples = []  # List of TenXSample instances
-            self.case_type = self.project_info.get("case_type")
+            self.project_dir: Optional[Path] = self.ensure_project_directory()
+            self.samples: List[TenXRunSample] = []
+            self.case_type: str = self.project_info.get("case_type", "unknown")
             logging.info(f"Case type: {self.case_type}")
         
-            self.status = "initialized"
+            self.status: str = "initialized"
 
-    def _extract_project_info(self):
+    def _extract_project_info(self) -> Dict[str, Any]:
         """
         Extracts relevant project information from the document.
         
         Returns:
-            dict: A dictionary containing extracted project info.
+            Dict[str, Any]: A dictionary containing extracted project info.
         """
         try:
-            details = self.doc.get('details', {})
-            project_info = {
-                "project_name": self.doc.get('project_name', '').replace(".", "__"),
-                "project_id": self.doc.get('project_id', 'Unknown_Project'),
-                "customer_reference": self.doc.get('customer_project_reference', ''),
-                "library_prep_method": details.get('library_construction_method', ''),
-                "library_prep_option": details.get('library_prep_option', ''),
-                "reference_genome": self.doc.get('reference_genome', ''),
-                "organism": details.get('organism', ''),
-                "contact": self.doc.get('contact', '')
+            details = self.doc.get("details", {})
+            project_info: Dict[str, Any] = {
+                "project_name": self.doc.get("project_name", "").replace(".", "__"),
+                "project_id": self.doc.get("project_id", "Unknown_Project"),
+                "customer_reference": self.doc.get("customer_project_reference", ""),
+                "library_prep_method": details.get("library_construction_method", ""),
+                "library_prep_option": details.get("library_prep_option", ""),
+                "reference_genome": self.doc.get("reference_genome", ""),
+                "organism": details.get("organism", ""),
+                "contact": self.doc.get("contact", "")
             }
 
             # Determine case type based on library_prep_option
             if project_info["library_prep_option"]:
-                project_info["case_type"] = "old_format"  # Old case, because library_prep_option is populated
+                # Old case, because library_prep_option is populated
+                project_info["case_type"] = "old_format"
             else:
-                project_info["case_type"] = "new_format"  # New case, because library_prep_option is empty or missing
+                # New case, because library_prep_option is empty or missing
+                project_info["case_type"] = "new_format"
+
                 # Add new UDFs for the new case
-                project_info.update({
-                    "hashing": details.get('library_prep_option_single_cell_hashing', 'None'),
-                    "cite": details.get('library_prep_option_single_cell_cite', 'None'),
-                    "vdj": details.get('library_prep_option_single_cell_vdj', 'None'),
-                    "feature": details.get('library_prep_option_single_cell_feature', 'None')
-                })
+                # TODO: Examine this is still needed. Probably not anymore!
+                project_info.update(
+                    {
+                        "hashing": details.get("library_prep_option_single_cell_hashing", "None"),
+                        "cite": details.get("library_prep_option_single_cell_cite", "None"),
+                        "vdj": details.get("library_prep_option_single_cell_vdj", "None"),
+                        "feature": details.get("library_prep_option_single_cell_feature", "None")
+                    }
+                )
 
             return project_info
         except Exception as e:
             logging.error(f"Error occurred while extracting project information: {e}")
             return {}
 
+    def determine_organism(self) -> bool:
+        """Determine the organism for the project.
+        
+        Tries to parse the 'reference_genome' field first, then falls back to the 'organism' field.
+        Updates 'project_info' with the organism.
 
-    def determine_organism(self):
-        """
-        Determines the organism for the project by parsing the 'reference_genome' field first,
-        then falling back to the 'organism' field. Updates 'project_info' with the organism.
+        Returns:
+            bool: True if organism is determined successfully, False otherwise.
         """
         # Try to extract organism from 'reference_genome' field
-        reference_genome = self.project_info.get('reference_genome', '').strip()
-        if reference_genome and reference_genome.lower() != 'other (-, -)':
+        reference_genome = self.project_info.get("reference_genome", "").strip()
+        if reference_genome and reference_genome.lower() != "other (-, -)":
             # Split at '(' and take the first part
-            organism = reference_genome.split('(')[0].strip().lower()
+            organism = reference_genome.split("(")[0].strip().lower()
             # Validate organism
             if self.is_supported_organism(organism):
-                self.project_info['organism'] = organism
+                self.project_info["organism"] = organism
                 return True
         # If 'reference_genome' is not usable, try 'organism' field
-        organism = self.project_info.get('organism', '').strip().lower()
+        organism = self.project_info.get("organism", "").strip().lower()
         if organism and self.is_supported_organism(organism):
-            self.project_info['organism'] = organism
+            self.project_info["organism"] = organism
             return True
         # If neither field is usable, log an error
-        logging.error(f"Organism '{organism}' not specified or unsupported for project '{self.project_info['project_name']}'")
+        logging.error(
+            f"Organism '{organism}' not specified or unsupported for project "
+            f"'{self.project_info.get('project_name', 'Unknown_Project')}'."
+        )
         self.status = "failed"
         return False
 
+    def is_supported_organism(self, organism: str) -> bool:
+        """
+        Checks if the given organism is supported.
+        
+        Currently based only on the 'gex' references in the configuration.
 
-    def is_supported_organism(self, organism):
+        Args:
+            organism (str): The organism to check.
+
+        Returns:
+            bool: True if organism is supported, False otherwise.
         """
-        Checks if the given organism is supported based on the 'gex' references in the configuration.
-        """
-        reference_mapping = self.config.get('reference_mapping', {})
-        gex_organisms = reference_mapping.get('gex', {}).keys()
+        reference_mapping = self.config.get("reference_mapping", {})
+        gex_organisms = reference_mapping.get("gex", {}).keys()
         return organism in gex_organisms
 
-
-    def _check_required_fields(self):
-        """
-        Checks if the document contains all required fields.
+    def _check_required_fields(self) -> bool:
+        """Check if the document contains all required fields.
 
         Returns:
             bool: True if all required fields are present, False otherwise.
@@ -143,15 +158,17 @@ class TenXProject(AbstractProject):
 
         return True
     
+    def _is_field(self, field_path: str, data: Dict[str, Any]) -> bool:
+        """Checks if the document contains all required fields.
 
-    def _is_field(self, field_path, data):
-        """
-        Checks if the document contains all required fields.
+        Args:
+            field_path (str): The path to the required field.
+            data (Dict[str, Any]): The dictionary to check.
 
         Returns:
-            bool: True if all required fields are present, False otherwise.
+            bool: True if the field exists, False otherwise.
         """
-        keys = field_path.split('.')
+        keys = field_path.split(".")
         for key in keys:
             if isinstance(data, dict) and key in data:
                 data = data[key]
@@ -159,91 +176,51 @@ class TenXProject(AbstractProject):
                 return False
         return True
 
-
-    def ensure_project_directory(self):
-        """
-        Ensures that the project directory exists. Creates it if necessary.
+    def ensure_project_directory(self) -> Optional[Path]:
+        """Ensures that the project directory exists. Creates it if necessary.
 
         Returns:
-            Path: The Path object of the project directory.
+            Optional[Path]: The Path object of the project directory, or None if creation fails.
         """
         try:
-            project_base_dir = Path(self.config['10x_dir'])
-            project_dir = project_base_dir / self.project_info['project_name']
+            project_base_dir = Path(self.config["10x_dir"])
+            project_dir = project_base_dir / self.project_info["project_name"]
             project_dir.mkdir(parents=True, exist_ok=True)
             return project_dir
         except Exception as e:
             logging.error(f"Failed to create project directory: {e}")
             return None
 
+    def get_default_feature(self, library_prep_id: str) -> str:
+        """Get a default feature based on the library preparation ID.
 
-    # def extract_subsamples_old_case(self):
-    #     """
-    #     Extract subsamples for an old case based on known suffixes in the sample ID.
-        
-    #     Args:
-    #         sample_data (dict): Dictionary of all samples from the project document.
-        
-    #     Returns:
-    #         dict: A dictionary grouping original samples with their corresponding subsamples.
-    #     """
-    #     subsample_groups = {}
-    #     # known_suffixes = self.config.get('old_suffixes', [])
-    #     sample_data = self.doc.get('samples', {})
+        Args:
+            library_prep_id (str): The library preparation ID.
 
-    #     for sample_id, sample_info in sample_data.items():
-    #         # Check if the sample is aborted
-    #         status_manual = sample_info.get('details', {}).get('status_(manual)', '').lower()
-    #         if status_manual == 'aborted':
-    #             logging.info(f"Sample {sample_id} is marked as 'Aborted' and will be skipped.")
-    #             continue  # Skip this sample
-
-    #         feature, original_sample_id = self.identify_feature_old(sample_info)
-            
-    #         if feature:
-    #             logging.info(f"Found subsample {sample_id} with feature {feature.upper()}")
-    #             # This is a subsample, find its original sample (e.g., X3_24_025 for X3_24_025_HTO)
-    #             # TODO: This will not work in cases such as X3_24_025_HTO_rerun. Find a more robust way
-    #             # original_sample_id = sample_info.get('customer_name', '').replace(f"_{feature.upper()}", '')
-    #             if original_sample_id not in subsample_groups:
-    #                 subsample_groups[original_sample_id] = []
-
-    #             # Add subsample to its corresponding original sample group
-    #             subsample_groups[original_sample_id].append(TenXSubsample(sample_id, feature, sample_info, self.project_info))
-    #         else:
-    #             logging.info(f"Found original sample {sample_id}")
-    #             library_prep_option = self.project_info.get('library_prep_option')
-    #             feature = self.get_default_feature(library_prep_option)
-    #             # If it's an original sample (no known suffix), ensure it's in the group
-    #             if sample_id not in subsample_groups:
-    #                 subsample_groups[sample_id] = []  # No subsamples found yet
-
-    #     # Create a list of TenXSample (or Original/CompositeSample) instances
-    #     tenx_samples = []
-    #     for original_sample_id, subsamples in subsample_groups.items():
-    #         if subsamples:
-    #             # Create a CompositeSample if there are subsamples
-    #             tenx_samples.append(TenXCompositeSample(original_sample_id, subsamples, self.project_info, self.config, self.ydm))
-    #         else:
-    #             # Create an OriginalSample if there are no subsamples
-    #             tenx_samples.append(TenXOriginalSample(original_sample_id, sample_data[original_sample_id], self.project_info, self.config, self.ydm))
-
-    #     return tenx_samples
-    
-
-    def get_default_feature(self, library_prep_id):
+        Returns:
+            str: The default feature ('gex', 'atac', or 'unknown').
+        """
         patterns = ["3' GEX", "5' GEX", "3GEX", "5GEX", "VDJ"]
         if any(pattern in library_prep_id for pattern in patterns):
-            return 'gex'
-        elif 'ATAC' in library_prep_id:
-            return 'atac'
+            return "gex"
+        elif "ATAC" in library_prep_id:
+            return "atac"
         else:
-            return 'unknown'
+            return "unknown"
 
+    def identify_feature_old_case(
+            self, sample_info: Dict[str, Any]
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Identify feature and original sample ID for old format cases.
 
-    def identify_feature_old_case(self, sample_info):
-        feature_map = self.config['feature_map']['old_format']
-        customer_name = sample_info.get('customer_name', '')
+        Args:
+            sample_info (Dict[str, Any]): The sample information.
+
+        Returns:
+            Tuple[Optional[str], Optional[str]]: A tuple containing the feature and original sample ID.
+        """
+        feature_map = self.config["feature_map"]["old_format"]
+        customer_name = sample_info.get("customer_name", "")
         for assay_suffix, feature in feature_map.items():
             suffix_with_underscore = f"_{assay_suffix}"
             if suffix_with_underscore in customer_name:
@@ -251,83 +228,93 @@ class TenXProject(AbstractProject):
                 return feature, original_sample_id
         return None, None
 
+    def identify_feature_new_case(self, sample_id: str) -> Optional[str]:
+        """Identify feature and original sample ID for new format cases.
 
-    def identify_feature_new_case(self, sample_id):
-        feature_map = self.config['feature_map']['new_format']
+        Args:
+            sample_id (str): The sample ID.
+
+        Returns:
+            Optional[str]: The feature if found, None otherwise.
+        """
+        feature_map = self.config["feature_map"]["new_format"]
         assay_digit = sample_id[-1]
-        feature = feature_map.get(assay_digit)
+        feature = feature_map.get(assay_digit, None)
         return feature
 
+    def filter_aborted_samples(self, sample_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Filter out aborted samples from the sample data.
 
-    # # TODO: TEST THIS VIGOOROUSLY! No examples exist for this case yet.
-    # def extract_subsamples_new_case(self):
-    #     subsample_groups = {}
-    #     sample_data = self.doc.get('samples', {})
+        Args:
+            sample_data (Dict[str, Any]): The original sample data.
 
-    #     for sample_id, sample_info in sample_data.items():
-    #         # Check if the sample is aborted
-    #         status_manual = sample_info.get('details', {}).get('status_(manual)', '').lower()
-    #         if status_manual == 'aborted':
-    #             logging.info(f"Sample {sample_id} is marked as 'Aborted' and will be skipped.")
-    #             continue  # Skip this sample
-
-    #         feature = self.identify_feature(sample_id, 'new_format')
-    #         if feature:
-    #             original_sample_id = sample_id[:-1]  # Remove the assay digit
-    #             subsample = TenXSubsample(sample_id, feature, sample_info, self.project_info)
-    #             if original_sample_id not in subsample_groups:
-    #                 subsample_groups[original_sample_id] = []
-    #             subsample_groups[original_sample_id].append(subsample)
-    #         else:
-    #             # logging.warning(f"No special assay identified for sample {sample_id}")
-    #             logging.info(f"Found original sample {sample_id}")
-    #             library_prep_method = self.project_info.get('library_prep_method')
-    #             feature = self.get_default_feature(library_prep_method)
-
-    #     # Create TenXCompositeSample instances
-    #     tenx_samples = []
-    #     for original_sample_id, subsamples in subsample_groups.items():
-    #         if len(subsamples) > 1:
-    #             tenx_samples.append(TenXCompositeSample(original_sample_id, subsamples, self.project_info, self.config, self.ydm))
-    #         else:
-    #             tenx_samples.append(TenXOriginalSample(original_sample_id, subsamples[0].sample_data, self.project_info, self.config, self.ydm))
-    #     return tenx_samples
-
-    def filter_aborted_samples(self, sample_data):
+        Returns:
+            Dict[str, Any]: Sample data excluding aborted samples.
+        """
         return {
             sample_id: sample_info
             for sample_id, sample_info in sample_data.items()
-            if sample_info.get('details', {}).get('status_(manual)', '').lower() != 'aborted'
+            if sample_info.get("details", {}).get("status_(manual)", "").lower() != "aborted"
         }
 
+    def identify_feature_and_original_id_old(
+            self, sample_id: str, sample_info: Dict[str, Any]
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Identify feature and original sample ID for old format samples.
 
-    def identify_feature_and_original_id_old(self, sample_id, sample_info):
+        Args:
+            sample_id (str): The sample ID.
+            sample_info (Dict[str, Any]): The sample information.
+
+        Returns:
+            Tuple[Optional[str], Optional[str]]: A tuple containing the feature and original sample ID.
+        """
         feature, original_sample_id = self.identify_feature_old_case(sample_info)
         if feature:
             return feature, original_sample_id
         else:
             # Handle original samples without features
-            library_prep_option = self.project_info.get('library_prep_option')
+            library_prep_option = self.project_info.get("library_prep_option")
             feature = self.get_default_feature(library_prep_option)
             original_sample_id = sample_id
             return feature, original_sample_id
 
+    def identify_feature_and_original_id_new(
+            self, sample_id: str
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Identify feature and original sample ID for new format samples.
 
-    def identify_feature_and_original_id_new(self, sample_id):
+        Args:
+            sample_id (str): The sample ID.
+
+        Returns:
+            Tuple[Optional[str], Optional[str]]: A tuple containing the feature and
+                original sample ID.
+        """
         feature, original_sample_id = self.identify_feature_new_case(sample_id)
         if feature:
             return feature, original_sample_id
         else:
-            library_prep_method = self.project_info.get('library_prep_method')
+            library_prep_method = self.project_info.get("library_prep_method", "")
             feature = self.get_default_feature(library_prep_method)
             original_sample_id = sample_id
             return feature, original_sample_id
 
+    def create_lab_samples(
+            self, sample_data: Dict[str, Any]
+    ) -> Dict[str, Tuple[TenXLabSample, str]]:
+        """Create lab samples from the sample data.
 
-    def create_lab_samples(self, sample_data):
+        Args:
+            sample_data (Dict[str, Any]): The sample data.
+
+        Returns:
+            Dict[str, Tuple[TenXLabSample, str]]: A dictionary mapping sample IDs
+                to lab sample instances and original IDs.
+        """
         lab_samples = {}
         for sample_id, sample_info in sample_data.items():
-            if self.case_type == 'old_format':
+            if self.case_type == "old_format":
                 feature, original_sample_id = self.identify_feature_and_original_id_old(sample_id, sample_info)
             else:
                 feature, original_sample_id = self.identify_feature_and_original_id_new(sample_id)
@@ -336,24 +323,46 @@ class TenXProject(AbstractProject):
             lab_samples[sample_id] = (lab_sample, original_sample_id)
         return lab_samples
 
+    def group_lab_samples(
+            self, lab_samples: Dict[str, Tuple[TenXLabSample, str]]
+    ) -> Dict[str, List[TenXLabSample]]:
+        """Group lab samples by original sample ID.
 
-    def group_lab_samples(self, lab_samples):
+        Args:
+            lab_samples (Dict[str, Tuple[TenXLabSample, str]]): The lab samples.
+
+        Returns:
+            Dict[str, List[TenXLabSample]]: A dictionary grouping lab samples by original sample ID.
+        """
         groups = {}
         for lab_sample, original_sample_id in lab_samples.values():
             groups.setdefault(original_sample_id, []).append(lab_sample)
         return groups
 
+    def create_run_samples(
+            self, grouped_lab_samples: Dict[str, List[TenXLabSample]]
+    ) -> List[TenXRunSample]:
+        """Create run samples from grouped lab samples.
 
-    def create_run_samples(self, grouped_lab_samples):
+        Args:
+            grouped_lab_samples (Dict[str, List[TenXLabSample]]): Grouped lab samples.
+
+        Returns:
+            List[TenXRunSample]: A list of run sample instances.
+        """
         run_samples = []
         for original_sample_id, lab_samples in grouped_lab_samples.items():
             run_sample = TenXRunSample(original_sample_id, lab_samples, self.project_info, self.config, self.ydm)
             run_samples.append(run_sample)
         return run_samples
 
+    def extract_samples(self) -> List[TenXRunSample]:
+        """Extract and prepare samples for processing.
 
-    def extract_samples(self):
-        sample_data = self.doc.get('samples', {})
+        Returns:
+            List[TenXRunSample]: A list of run sample instances ready for processing.
+        """
+        sample_data = self.doc.get("samples", {})
         # Step 1: Filter aborted samples
         sample_data = self.filter_aborted_samples(sample_data)
         # Step 2: Create lab samples
@@ -364,20 +373,14 @@ class TenXProject(AbstractProject):
         run_samples = self.create_run_samples(grouped_lab_samples)
         return run_samples
 
-
-    def pre_process(self):
-        """
-        Perform any pre-processing steps required before processing the project.
-        """
+    def pre_process(self) -> None:
+        """Perform any pre-processing steps required before processing the project."""
         pass
 
     async def process(self):
-        """
-        Process the TenX project by handling its samples.
-        """
+        """Process the TenX project by handling its samples."""
         logging.info(f"Processing TenX project {self.project_info['project_name']}")
         self.status = "processing"
-
 
         self.samples = self.extract_samples()
 
@@ -395,13 +398,13 @@ class TenXProject(AbstractProject):
         logging.info(f"All samples processed for project {self.project_info['project_name']}")
         self.finalize_project()
 
-    def create_slurm_job(self, data):
+    def create_slurm_job(self, data: Any) -> None:
         pass
 
-    def post_process(self, result):
+    def post_process(self, result: Any) -> None:
         pass
 
-    def finalize_project(self):
+    def finalize_project(self) -> None:
         """
         Finalize the project by handling post-processing steps (e.g., report generation).
         """
