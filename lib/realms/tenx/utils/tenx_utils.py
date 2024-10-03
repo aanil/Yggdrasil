@@ -1,26 +1,18 @@
-import csv
 import json
-import logging
-from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 from lib.core_utils.common import YggdrasilUtilities as Ygg
 
+from lib.core_utils.logging_utils import custom_logger
 
-class TenXUtils():
+logging = custom_logger(__name__.split(".")[-1])
 
-    # TODO: Should this be here as a static method?
-    # @staticmethod
-    # def generate_library_csv(library_csv_path):
-    #     with open(library_csv_path, 'w') as csvfile:
-    #         writer = csv.writer(csvfile)
-    #         writer.writerow(['fastqs', 'sample', 'library_type'])
-    #         for subsample in self.subsamples:
-    #             fastq_paths = subsample.fastq_dirs  # Assuming this is a list of paths
-    #             fastqs = ','.join(map(str, fastq_paths))
-    #             writer.writerow([fastqs, subsample.sample_id, subsample.assay])
 
+class TenXUtils:
+    """Utility class for TenX processing."""
 
     @staticmethod
-    def load_decision_table(file_name):
+    def load_decision_table(file_name: str) -> List[Dict[str, Any]]:
         """
         Load the decision table JSON file.
 
@@ -28,7 +20,8 @@ class TenXUtils():
             file_name (str): The name of the decision table JSON file.
 
         Returns:
-            list: The loaded decision table as a list of dictionaries.
+            List[Dict[str, Any]]: The loaded decision table as a list of dictionaries.
+                Empty list if the file is not found or an error occurs.
         """
         config_file = Ygg.get_path(file_name)
         if config_file is None:
@@ -49,13 +42,30 @@ class TenXUtils():
             logging.error(f"Unexpected error loading decision table '{file_name}': {e}")
             return []
         
-
     @staticmethod
-    def get_pipeline_info(library_prep_method, features):
+    def get_pipeline_info(
+        library_prep_method: str,
+        features: List[str]
+    ) -> Optional[Dict[str, Any]]:
+        """Get pipeline information based on library prep method and features.
+
+        Args:
+            library_prep_method (str): The library prep method.
+            features (List[str]): List of features associated with the sample.
+
+        Returns:
+            Optional[Dict[str, Any]]: A dictionary containing pipeline information if found,
+                None otherwise.
+        """
         for entry in TenXUtils.load_decision_table("10x_decision_table.json"):
             if (
-                entry['library_prep_method'] == library_prep_method and
-                set(entry['features']) == set(features)
+                entry.get("library_prep_method") == library_prep_method
+                and
+                set(entry.get("features", [])) == set(features)
             ):
                 return entry
+        logging.warning(
+            f"No pipeline information found for library_prep_method '{library_prep_method}' "
+            f"and features '{features}'."
+        )
         return None
