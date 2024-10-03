@@ -1,11 +1,9 @@
 import logging
+from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-
-from io import BytesIO
-from pathlib import Path
 
 
 class BivariatePlateMap:
@@ -33,10 +31,27 @@ class BivariatePlateMap:
         fig_name (str): Filename for saving the plot.
         output_dir (Path): Directory for saving the plot.
     """
-    def __init__(self, data, color_values=None, size_values=None, well_values=None,
-                 color_map="RdYlBu", title="", color_title = "", size_title="",
-                 x_label="", y_label="", figsize=(10, 7), output_dir=None, fig_name=None,
-                 radius_min=10, radius_max=200, log_size=False, log_color=False):
+
+    def __init__(
+        self,
+        data,
+        color_values=None,
+        size_values=None,
+        well_values=None,
+        color_map="RdYlBu",
+        title="",
+        color_title="",
+        size_title="",
+        x_label="",
+        y_label="",
+        figsize=(10, 7),
+        output_dir=None,
+        fig_name=None,
+        radius_min=10,
+        radius_max=200,
+        log_size=False,
+        log_color=False,
+    ):
         """
         Initializes the BivariatePlateMap with the provided data and parameters.
         """
@@ -55,8 +70,25 @@ class BivariatePlateMap:
         self.radius_max = radius_max
         self.log_size = log_size
         self.log_color = log_color
-        self.rows = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P']
-        self.columns = [str(i+1) for i in range(24)]
+        self.rows = [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E",
+            "F",
+            "G",
+            "H",
+            "I",
+            "J",
+            "K",
+            "L",
+            "M",
+            "N",
+            "O",
+            "P",
+        ]
+        self.columns = [str(i + 1) for i in range(24)]
         self.fig_name = fig_name
         self.output_dir = Path(output_dir) if output_dir else Path.cwd()
 
@@ -108,7 +140,9 @@ class BivariatePlateMap:
         # print(value_scale.min())
 
         # Scatter plot with variable dot sizes and colors
-        sc = self.ax.scatter(x.flat, y.flat, s=R.flat, c=layout.flat, cmap=self.color_map)
+        sc = self.ax.scatter(
+            x.flat, y.flat, s=R.flat, c=layout.flat, cmap=self.color_map
+        )
 
         # Configure plot aesthetics
         self._configure_plot_aesthetics()
@@ -124,7 +158,6 @@ class BivariatePlateMap:
 
         return plt.gcf()
 
-
     def _create_layout_matrix(self):
         """
         Creates a layout matrix representing the well plate based on the input data.
@@ -139,12 +172,12 @@ class BivariatePlateMap:
         # Iterate over the DataFrame and populate the layout and value_scale matrices
         for _, row in self.data.iterrows():
             well_id = row[self.well_values]
-            
+
             # Skip this iteration of the loop if well_id is NaN
             if pd.isna(well_id):
                 # TODO: Log or even better - raise an exception
                 # logging.warning(f"Skipping NaN at index {_}")
-                logging.warning((f"Skipping NaN at index {_}"))
+                logging.warning(f"Skipping NaN at index {_}")
                 continue
 
             row_label, col_label = well_id[0], int(well_id[1:])
@@ -157,23 +190,26 @@ class BivariatePlateMap:
                 value_scale[row_index, col_index] = row[self.size_values]
 
         return layout, value_scale
-    
 
     def _configure_plot_aesthetics(self):
         """
         Configures the aesthetics of the plate map plot, including tick labels, grid lines, and axis limits.
         """
         # Set Major ticks
-        self.ax.set(xticks=np.arange(len(self.columns)), yticks=np.arange(len(self.rows)),
-                    xticklabels=self.columns, yticklabels=self.rows)
+        self.ax.set(
+            xticks=np.arange(len(self.columns)),
+            yticks=np.arange(len(self.rows)),
+            xticklabels=self.columns,
+            yticklabels=self.rows,
+        )
 
         # Set Minor ticks for grid lines
         self.ax.set_xticks(np.arange(len(self.columns) + 1) - 0.5, minor=True)
         self.ax.set_yticks(np.arange(len(self.rows) + 1) - 0.5, minor=True)
 
         # Hide Minor ticks and show grid lines on Minor Grid
-        self.ax.tick_params(axis='both', which='minor', length=0)
-        self.ax.grid(which='minor')
+        self.ax.tick_params(axis="both", which="minor", length=0)
+        self.ax.grid(which="minor")
 
         # Set the plot limits
         self.ax.set_xlim(-0.5, len(self.columns) - 0.5)
@@ -182,7 +218,6 @@ class BivariatePlateMap:
         # Invert Y axis and place X axis ticks at the top to resemble a plate layout
         self.ax.invert_yaxis()
         self.ax.xaxis.tick_top()
-
 
     def _add_colorbar(self, scatter_plot, label):
         """
@@ -199,7 +234,6 @@ class BivariatePlateMap:
         cbar.ax.set_ylabel(label)
 
         # Optional / additional customization can be added here, like colorbar position, orientation, etc.
-
 
     def _add_size_legend(self, value_scale, label):
         """
@@ -219,12 +253,16 @@ class BivariatePlateMap:
         # min_threshold = (self.radius_min / self.radius_max) * (max_size - min_size) + min_size
 
         # Calculate the point size for the median value
-        Rmid = (mid_size - min_size) / (max_size - min_size) * (self.radius_max - self.radius_min) + self.radius_min
+        Rmid = (mid_size - min_size) / (max_size - min_size) * (
+            self.radius_max - self.radius_min
+        ) + self.radius_min
 
         # Create dummy scatter plots for legend
-        legend_dots = [plt.scatter([], [], s=self.radius_min, edgecolors='none', color='black'),
-                    plt.scatter([], [], s=Rmid, edgecolors='none', color='black'),
-                    plt.scatter([], [], s=self.radius_max, edgecolors='none', color='black')]
+        legend_dots = [
+            plt.scatter([], [], s=self.radius_min, edgecolors="none", color="black"),
+            plt.scatter([], [], s=Rmid, edgecolors="none", color="black"),
+            plt.scatter([], [], s=self.radius_max, edgecolors="none", color="black"),
+        ]
 
         # Define labels for each size
         # TODO: Not correct - even if the dot size is scaled, the value should be the same as the original value
@@ -232,13 +270,23 @@ class BivariatePlateMap:
         labels = [str(min_size), str(mid_size), str(max_size)]
 
         # Create the legend with these dummy scatter plots
-        self.ax.legend(legend_dots, labels, title=label, ncol=3, loc=8, frameon=False,
-                    labelspacing=1.0, title_fontsize='medium', fontsize=12, handletextpad=1,
-                    borderpad=1.0, bbox_to_anchor=(0.5, -0.20))
+        self.ax.legend(
+            legend_dots,
+            labels,
+            title=label,
+            ncol=3,
+            loc=8,
+            frameon=False,
+            labelspacing=1.0,
+            title_fontsize="medium",
+            fontsize=12,
+            handletextpad=1,
+            borderpad=1.0,
+            bbox_to_anchor=(0.5, -0.20),
+        )
 
         # Adjust layout to accommodate the legend
         plt.tight_layout()
-
 
     # def _add_size_legend(self, value_scale, label=""):
     #     """
@@ -262,20 +310,19 @@ class BivariatePlateMap:
     #     max_value_label = str(int(np.max(value_scale)))
 
     #     # Create dummy scatter plots for legend
-    #     legend_dots = [plt.scatter([], [], s=size, edgecolors='none', color='black') 
+    #     legend_dots = [plt.scatter([], [], s=size, edgecolors='none', color='black')
     #                 for size in [min_dot_size, mid_dot_size, max_dot_size]]
 
     #     # Define labels for each size
     #     labels = [min_value_label, str(round(mid_value)), max_value_label]
 
     #     # Create the legend with these dummy scatter plots
-    #     self.ax.legend(legend_dots, labels, title=label, loc='lower center', 
-    #                 bbox_to_anchor=(0.5, -0.1), frameon=False, labelspacing=1.5, 
+    #     self.ax.legend(legend_dots, labels, title=label, loc='lower center',
+    #                 bbox_to_anchor=(0.5, -0.1), frameon=False, labelspacing=1.5,
     #                 title_fontsize='medium', fontsize='small', scatterpoints=1, ncol=3)
 
     #     # Adjust layout to accommodate the legend
     #     plt.tight_layout()
-
 
     # def _scale_to_radius(self, value, value_scale):
     #     """
@@ -291,9 +338,6 @@ class BivariatePlateMap:
     #     # Scale the value to a proportion of the range
     #     proportion = (value - np.min(value_scale)) / (np.max(value_scale) - np.min(value_scale))
     #     return proportion * (self.radius_max - self.radius_min) + self.radius_min
-
-
-
 
     # def generate_plot(self, log_transform=True, dot_size_range=(10, 200), legend_title='Value'):
     #     """
@@ -362,7 +406,7 @@ class BivariatePlateMap:
     #               f"Max: {self.value_scale.max()}"]
 
     #     # Create the legend and add it to the plot
-    #     legend = self.ax.legend([min_point, mid_point, max_point], labels, loc=8, 
+    #     legend = self.ax.legend([min_point, mid_point, max_point], labels, loc=8,
     #                             bbox_to_anchor=(0.5, -0.2), title=title, ncol=3,
     #                             handletextpad=1, borderpad = 1.8, frameon=False,
     #                             fontsize=12)
