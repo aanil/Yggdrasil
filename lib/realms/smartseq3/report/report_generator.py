@@ -1,19 +1,31 @@
-import json
 import datetime
+import json
 
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, ListFlowable, ListItem, PageBreak #, Image
+from reportlab.lib.enums import TA_JUSTIFY
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.lib.enums import TA_JUSTIFY
-
-from lib.realms.smartseq3.report.utils.report_utils import get_image, add_figures, check_high_nan_percentage
-from lib.realms.smartseq3.report.utils.ss3_figure_plotter import SS3FigurePlotter
-from lib.realms.smartseq3.report.utils.ss3_data_collector import SS3DataCollector
+from reportlab.platypus import (
+    ListFlowable,
+    ListItem,
+    PageBreak,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+)  # , Image
 
 from lib.core_utils.logging_utils import custom_logger
+from lib.realms.smartseq3.report.utils.report_utils import (
+    add_figures,
+    check_high_nan_percentage,
+    get_image,
+)
+from lib.realms.smartseq3.report.utils.ss3_data_collector import SS3DataCollector
+from lib.realms.smartseq3.report.utils.ss3_figure_plotter import SS3FigurePlotter
 
-logging = custom_logger(__name__.split('.')[-1])
+logging = custom_logger(__name__.split(".")[-1])
+
 
 class Smartseq3ReportGenerator:
     """
@@ -53,11 +65,10 @@ class Smartseq3ReportGenerator:
             StyleSheet1: The stylesheet used for formatting the report.
         """
         style = getSampleStyleSheet()
-        style.add(ParagraphStyle(name='Justify', alignment=TA_JUSTIFY))
+        style.add(ParagraphStyle(name="Justify", alignment=TA_JUSTIFY))
 
         return style
 
-    
     def collect_stats(self):
         """
         Collect statistics for the report.
@@ -76,11 +87,12 @@ class Smartseq3ReportGenerator:
 
         result = check_high_nan_percentage(self.stats, 10)
         if result:
-            logging.warning(f"High number of NaNs detected ({result}%). Double check the given Barcode Set.")
+            logging.warning(
+                f"High number of NaNs detected ({result}%). Double check the given Barcode Set."
+            )
             return False
 
         return True
-
 
     def create_graphs(self):
         """
@@ -89,8 +101,16 @@ class Smartseq3ReportGenerator:
         Returns:
             bool: True if graphs are created successfully, False otherwise.
         """
-        plotter = SS3FigurePlotter(self.sample.id, self.stats, self.file_handler.plots_dir)    # TODO: fix class to handle absense of out_dir
-        self.biv_plot = plotter.create_bivariate_plate_map("readspercell", "genecounts", "reads/cell", "Number of Genes", return_fig=True)
+        plotter = SS3FigurePlotter(
+            self.sample.id, self.stats, self.file_handler.plots_dir
+        )  # TODO: fix class to handle absense of out_dir
+        self.biv_plot = plotter.create_bivariate_plate_map(
+            "readspercell",
+            "genecounts",
+            "reads/cell",
+            "Number of Genes",
+            return_fig=True,
+        )
         self.rvf_plot = plotter.reads_vs_frags(return_fig=True)
         self.uvc_plot = plotter.umi_tagged_vs_count(return_fig=True)
 
@@ -101,8 +121,7 @@ class Smartseq3ReportGenerator:
             logging.error("Failed to create graphs.")
             return False
 
-
-    def render(self, format='PDF'):
+    def render(self, format="PDF"):
         """
         Render the report in the specified format.
 
@@ -112,13 +131,12 @@ class Smartseq3ReportGenerator:
         Returns:
             None
         """
-        if format.upper() == 'PDF':
+        if format.upper() == "PDF":
             return self._render_pdf()
-        elif format.upper() == 'HTML':
+        elif format.upper() == "HTML":
             return self._render_html()
         else:
             raise ValueError("Unsupported format. Choose 'PDF' or 'HTML'.")
-
 
     # TODO: Probably there's a better place for this path (use config_loader?)
     def _fetch_settings(self):
@@ -131,7 +149,6 @@ class Smartseq3ReportGenerator:
         with open("lib/realms/smartseq3/report/report_settings.json") as f:
             return json.load(f)
 
-
     def _prepare_overview_data(self):
         """
         Prepare overview data for the report.
@@ -139,23 +156,22 @@ class Smartseq3ReportGenerator:
         Returns:
             list: A list of lists containing overview data.
         """
-        
+
         self.meta = self.data_collector.collect_meta(self.stats)
 
         # Prepare data for the overview section
         return [
-            ['Project ID', self.sample.project_info['project_name'].replace('__', '.')],
-            ['Plate ID', self.sample.metadata['plate']],
-            ['Barcode Set', self.sample.metadata.get('barcode', "--")],
+            ["Project ID", self.sample.project_info["project_name"].replace("__", ".")],
+            ["Plate ID", self.sample.metadata["plate"]],
+            ["Barcode Set", self.sample.metadata.get("barcode", "--")],
             # ['Illumina Reagent kit', self.sample.project_info['sequencing_setup']],
-            ['Flowcell ID', self.sample.flowcell_id.split('_')[-1][1:]],
-            ['Genome', self.sample.project_info.get('ref_genome', None)],
-            ['zUMIs version', self.meta.get('zUMIs_version', None)],
-            ['Total number of sequenced reads', self.meta.get("total_reads", 0)],
-            ['Filtered number of reads', self.meta.get("filtered_reads", 0)],
-            ['Average sequence depth per cell', self.meta.get("avg_readspercell", 0)]
+            ["Flowcell ID", self.sample.flowcell_id.split("_")[-1][1:]],
+            ["Genome", self.sample.project_info.get("ref_genome", None)],
+            ["zUMIs version", self.meta.get("zUMIs_version", None)],
+            ["Total number of sequenced reads", self.meta.get("total_reads", 0)],
+            ["Filtered number of reads", self.meta.get("filtered_reads", 0)],
+            ["Average sequence depth per cell", self.meta.get("avg_readspercell", 0)],
         ]
-    
 
     def _render_html(self):
         """
@@ -166,7 +182,6 @@ class Smartseq3ReportGenerator:
         """
         # TODO: Specific rendering for HTML
         pass
-
 
     def _render_pdf(self):
         """
@@ -180,13 +195,16 @@ class Smartseq3ReportGenerator:
 
         doc = SimpleDocTemplate(
             str(self.file_handler.report_fpath),
-            pagesize=A4, topMargin=72, rightMargin=72, leftMargin=72, bottomMargin=18
+            pagesize=A4,
+            topMargin=72,
+            rightMargin=72,
+            leftMargin=72,
+            bottomMargin=18,
         )
 
         report_elements = self._build_report_elements(settings, overview_data)
         doc.build(report_elements)
         logging.info(f"Created Report at: {self.file_handler.report_fpath}")
-
 
     def _build_report_elements(self, settings, overview_data):
         """
@@ -217,7 +235,9 @@ class Smartseq3ReportGenerator:
         """
         header_elements = []
         # Add logo
-        header_elements.append(get_image(f"{settings['logo']}", 8*cm, hAlign='CENTER'))
+        header_elements.append(
+            get_image(f"{settings['logo']}", 8 * cm, hAlign="CENTER")
+        )
         header_elements.append(Spacer(1, 30))
 
         # Add title
@@ -261,20 +281,35 @@ class Smartseq3ReportGenerator:
         text = '<font style = "font-family:Lato" size=12><b>References</b><br/></font>'
         body_elements.append(Paragraph(text, self.style["Justify"]))
         body_elements.append(Spacer(1, 3))
-        body_elements.append(ListFlowable([
-                                ListItem(Paragraph(f'<font style = "font-family:Lora" size=10>{settings["ref1"]}</font>', self.style["Normal"]), spaceBefore=5),
-                                ListItem(Paragraph(f'<font style = "font-family:Lora" size=10>{settings["ref2"]}</font>', self.style["Normal"]), spaceBefore=5),
-                            ],
-                                bulletType='bullet',
-                                leftIndent=10
-                            ))
-        
+        body_elements.append(
+            ListFlowable(
+                [
+                    ListItem(
+                        Paragraph(
+                            f'<font style = "font-family:Lora" size=10>{settings["ref1"]}</font>',
+                            self.style["Normal"],
+                        ),
+                        spaceBefore=5,
+                    ),
+                    ListItem(
+                        Paragraph(
+                            f'<font style = "font-family:Lora" size=10>{settings["ref2"]}</font>',
+                            self.style["Normal"],
+                        ),
+                        spaceBefore=5,
+                    ),
+                ],
+                bulletType="bullet",
+                leftIndent=10,
+            )
+        )
+
         body_elements.append(PageBreak())
 
         # Add overview section
         text = '<font style = "font-family:Lato" size=12><b>Overview of single-cell transcriptome data</b><br/><br/></font>'
         body_elements.append(Paragraph(text, self.style["Justify"]))
-        table = Table(overview_data, hAlign='LEFT')
+        table = Table(overview_data, hAlign="LEFT")
         body_elements.append(table)
         body_elements.append(Spacer(1, 30))
 
@@ -310,11 +345,15 @@ class Smartseq3ReportGenerator:
         body_elements.append(Paragraph(text, self.style["Justify"]))
         body_elements.append(Spacer(1, 15))
 
-        text = f'<font style = "font-family:Lora" size=10>{settings["data_descr1"]}</font>'
+        text = (
+            f'<font style = "font-family:Lora" size=10>{settings["data_descr1"]}</font>'
+        )
         body_elements.append(Paragraph(text, self.style["Justify"]))
         body_elements.append(Spacer(1, 10))
 
-        text = f'<font style = "font-family:Lora" size=10>{settings["data_descr2"]}</font>'
+        text = (
+            f'<font style = "font-family:Lora" size=10>{settings["data_descr2"]}</font>'
+        )
         body_elements.append(Paragraph(text, self.style["Justify"]))
         body_elements.append(Spacer(1, 10))
 
@@ -322,18 +361,34 @@ class Smartseq3ReportGenerator:
         text = f'<font style = "font-family:Lora" size=10>{parts[0]}</font>'
         body_elements.append(Paragraph(text, self.style["Normal"]))
 
-        body_elements.append(ListFlowable([
-                                ListItem(Paragraph(f'<font style = "font-family:Lora" size=10>{parts[1]}</font>', self.style["Normal"]), spaceBefore=5, leftIndent=35),
-                                ListItem(Paragraph(f'<font style = "font-family:Lora" size=10>{parts[2]}</font>', self.style["Normal"]), spaceBefore=5, leftIndent=35),
-                            ],
-                                bulletType='bullet',
-                                leftIndent=10
-                            ))
-        
+        body_elements.append(
+            ListFlowable(
+                [
+                    ListItem(
+                        Paragraph(
+                            f'<font style = "font-family:Lora" size=10>{parts[1]}</font>',
+                            self.style["Normal"],
+                        ),
+                        spaceBefore=5,
+                        leftIndent=35,
+                    ),
+                    ListItem(
+                        Paragraph(
+                            f'<font style = "font-family:Lora" size=10>{parts[2]}</font>',
+                            self.style["Normal"],
+                        ),
+                        spaceBefore=5,
+                        leftIndent=35,
+                    ),
+                ],
+                bulletType="bullet",
+                leftIndent=10,
+            )
+        )
+
         body_elements.append(PageBreak())
 
         return body_elements
-    
 
     def _add_graphs(self, settings):
         """
@@ -352,32 +407,40 @@ class Smartseq3ReportGenerator:
         graph_elements.append(Paragraph(text, self.style["Justify"]))
         graph_elements.append(Spacer(1, 15))
 
-        text = f'<font style = "font-family:Lora" size=10>{settings["fig_descr"]}</font>'
+        text = (
+            f'<font style = "font-family:Lora" size=10>{settings["fig_descr"]}</font>'
+        )
         graph_elements.append(Paragraph(text, self.style["Justify"]))
         graph_elements.append(Spacer(1, 30))
 
         # Gather figure information
         fig_info = {
-                'fig1':{'size': [800, 18],
-                        'title': 'Figure 1: Features summary',
-                        'source': self.file_handler.features_plot_fpath,
-                        'legend': settings['fig1']},
-                'fig2':{'size': [600, 16],
-                        'title': 'Figure 2: Number of sequenced reads and genes per well',
-                        'source': self.biv_plot,
-                        'legend': settings['fig2']},
-                'fig3':{'size': [500, 15],
-                        'title': 'Figure 3: Proportion of UMI fragments and total number of sequenced reads per cell',
-                        'source': self.rvf_plot,
-                        'legend': settings['fig3']},
-                'fig4':{'size': [500, 15],
-                        'title': 'Figure 4: Number of UMIs vs number of genes',
-                        'source': self.uvc_plot,
-                        'legend': settings['fig4']},
-                }
-        
+            "fig1": {
+                "size": [800, 18],
+                "title": "Figure 1: Features summary",
+                "source": self.file_handler.features_plot_fpath,
+                "legend": settings["fig1"],
+            },
+            "fig2": {
+                "size": [600, 16],
+                "title": "Figure 2: Number of sequenced reads and genes per well",
+                "source": self.biv_plot,
+                "legend": settings["fig2"],
+            },
+            "fig3": {
+                "size": [500, 15],
+                "title": "Figure 3: Proportion of UMI fragments and total number of sequenced reads per cell",
+                "source": self.rvf_plot,
+                "legend": settings["fig3"],
+            },
+            "fig4": {
+                "size": [500, 15],
+                "title": "Figure 4: Number of UMIs vs number of genes",
+                "source": self.uvc_plot,
+                "legend": settings["fig4"],
+            },
+        }
+
         graph_elements = add_figures(graph_elements, self.style, fig_info)
 
-
         return graph_elements
-

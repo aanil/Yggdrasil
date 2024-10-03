@@ -1,22 +1,21 @@
-import pandas as pd
-
+from io import BytesIO
 from pathlib import Path
 
-from reportlab.lib.utils import ImageReader
-from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.units import cm
-from reportlab.platypus import Image, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import ParagraphStyle
-from PIL import Image as PILImage
-
-from io import BytesIO
+import pandas as pd
 from pdf2image import convert_from_path
+from PIL import Image as PILImage
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.lib.utils import ImageReader
+from reportlab.platypus import Image, PageBreak, Paragraph, Spacer
 
 from lib.core_utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__)
 
-def get_image(path, width=1*cm, **kwargs):
+
+def get_image(path, width=1 * cm, **kwargs):
     """
     Create a ReportLab Image object with the correct aspect ratio.
 
@@ -33,7 +32,7 @@ def get_image(path, width=1*cm, **kwargs):
     return Image(path, width=width, height=(width * aspect), **kwargs)
 
 
-def get_image_from_bytes(buf, width=1*cm, **kwargs):
+def get_image_from_bytes(buf, width=1 * cm, **kwargs):
     """
     Create a ReportLab Image object from a BytesIO buffer with the correct aspect ratio.
 
@@ -76,28 +75,32 @@ def add_figures(report, style, info):
     for key, info in info.items():
         # Add figure title
         title = f'<font style = "font-family:Lato" size=12><b>{info["title"]}</b><br/></font>'
-        report.append(Paragraph(title, ParagraphStyle(name='centered', alignment=TA_CENTER)))
+        report.append(
+            Paragraph(title, ParagraphStyle(name="centered", alignment=TA_CENTER))
+        )
 
         # Add some space
         report.append(Spacer(1, 5))
 
         # Check if the source is a BytesIO object or a file path
-        if isinstance(info['source'], BytesIO):
+        if isinstance(info["source"], BytesIO):
             # Load image from BytesIO
-            buf = info['source']
-        elif isinstance(info['source'], Path):
+            buf = info["source"]
+        elif isinstance(info["source"], Path):
             # Convert PDF page to image
-            pil_image = convert_from_path(info['source'], info['size'][0])[0]
+            pil_image = convert_from_path(info["source"], info["size"][0])[0]
             buf = BytesIO()
-            pil_image.save(buf, format='PNG')
+            pil_image.save(buf, format="PNG")
             buf.seek(0)
         else:
             logging.error(f"Unrecognized source type: {type(info['source'])}")
-            logging.debug(info['source'])
+            logging.debug(info["source"])
             continue
 
         # Add image to report using aspect ratio
-        report.append(get_image_from_bytes(buf, width=info['size'][1]*cm, hAlign='CENTER'))
+        report.append(
+            get_image_from_bytes(buf, width=info["size"][1] * cm, hAlign="CENTER")
+        )
 
         # Add space and legend
         report.append(Spacer(1, 10))
@@ -111,6 +114,7 @@ def add_figures(report, style, info):
         report.append(PageBreak())
 
     return report
+
 
 # NOTE: Replaced by the get_zumis_version in the ss3_data_collector.py
 # TODO: Fix and use this to automatically get zUMIs' version
@@ -154,20 +158,22 @@ def get_bc_wells(bc_set, bc_file, reagent="1.5"):
     Returns:
         pd.Series: Series where the index is barcodes and the values are corresponding well IDs.
     """
-    if reagent == '1.5':
-        target_col = 'XC'
-    elif reagent == '1.0':
-        target_col = 'XC_NovaSeq'
+    if reagent == "1.5":
+        target_col = "XC"
+    elif reagent == "1.0":
+        target_col = "XC_NovaSeq"
     else:
-        logging.error(f"No recognized reagent version: {reagent}. Currently supported versions: 1.0, 1.5")
+        logging.error(
+            f"No recognized reagent version: {reagent}. Currently supported versions: 1.0, 1.5"
+        )
         # TODO: Handle this error properly and possibly raise an exception
 
-    bc = pd.read_csv(bc_file, sep=',')
+    bc = pd.read_csv(bc_file, sep=",")
     bc = bc.set_index(target_col)
-    return bc.loc[ bc.loc[:, 'BCset'] == bc_set , 'WellID']
+    return bc.loc[bc.loc[:, "BCset"] == bc_set, "WellID"]
 
 
-def prepare_data(input_data, bc_wells, target_cols=['N', 'RG']) -> pd.DataFrame:
+def prepare_data(input_data, bc_wells, target_cols=["N", "RG"]) -> pd.DataFrame:
     """
     Prepare data for analysis by merging based on target columns.
 
@@ -183,14 +189,14 @@ def prepare_data(input_data, bc_wells, target_cols=['N', 'RG']) -> pd.DataFrame:
 
     # TODO: the loop is not correct. merge or join by using the barcode as indices
     # Could use the bc_wells barcodes, just to prevent missing barcodes when taken from `input_data`?
-    for t in input_data['type'].unique():
-        type_ext = input_data[input_data['type'] == t]
+    for t in input_data["type"].unique():
+        type_ext = input_data[input_data["type"] == t]
 
-        type_ext = type_ext.rename(columns={target_cols[0]:t}).drop(columns=['type'])
+        type_ext = type_ext.rename(columns={target_cols[0]: t}).drop(columns=["type"])
 
         if data.empty:
             data[target_cols[1]] = input_data[target_cols[1]].unique()
-        data = pd.merge(data, type_ext, on=[target_cols[1]], how='left')
+        data = pd.merge(data, type_ext, on=[target_cols[1]], how="left")
 
     data = data.fillna(0)
 
@@ -221,5 +227,5 @@ def check_high_nan_percentage(data, threshold_percent):
 
     if nan_percentage > threshold_percent:
         return nan_percentage
-    
+
     return False

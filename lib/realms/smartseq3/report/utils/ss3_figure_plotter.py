@@ -1,13 +1,12 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-
 from io import BytesIO
 
-from lib.realms.smartseq3.report.utils.bivariate_plate_map import BivariatePlateMap
+import matplotlib.pyplot as plt
+import pandas as pd
 
 from lib.core_utils.logging_utils import custom_logger
+from lib.realms.smartseq3.report.utils.bivariate_plate_map import BivariatePlateMap
 
-logging = custom_logger(__name__.split('.')[-1])
+logging = custom_logger(__name__.split(".")[-1])
 
 
 class SS3FigurePlotter:
@@ -24,8 +23,14 @@ class SS3FigurePlotter:
         self.outdir = outdir
         self.platename = platename
 
-
-    def create_bivariate_plate_map(self, color_title="", size_title="", log_color=True, fig_num='Fig2', return_fig=False):
+    def create_bivariate_plate_map(
+        self,
+        color_title="",
+        size_title="",
+        log_color=True,
+        fig_num="Fig2",
+        return_fig=False,
+    ):
         """
         Creates a bivariate plate map plot.
 
@@ -41,9 +46,9 @@ class SS3FigurePlotter:
         """
         # Process DataFrame to fit BivariatePlateMap requirements
         plot_data = pd.DataFrame()
-        plot_data['readspercell'] = self.data.loc[:, ('readspercell', 'TotalReads')]
-        plot_data['genecounts'] = self.data.loc[:, ('genecounts', 'Intron+Exon')]
-        plot_data['WellID'] = self.data.loc[:, ('bc_set', 'WellID')]
+        plot_data["readspercell"] = self.data.loc[:, ("readspercell", "TotalReads")]
+        plot_data["genecounts"] = self.data.loc[:, ("genecounts", "Intron+Exon")]
+        plot_data["WellID"] = self.data.loc[:, ("bc_set", "WellID")]
 
         # print(f"Initial gc: {plot_data['genecounts'].min()}")
         # print(f"Initial rpc: {plot_data['readspercell'].min()}")
@@ -51,14 +56,14 @@ class SS3FigurePlotter:
         # Create the BivariatePlateMap
         plate_map = BivariatePlateMap(
             data=plot_data,
-            color_values='readspercell',
-            size_values='genecounts',
-            well_values='WellID',
+            color_values="readspercell",
+            size_values="genecounts",
+            well_values="WellID",
             size_title=size_title,
             color_title=color_title,
             log_color=log_color,
             output_dir=self.outdir,
-            fig_name=f"{self.platename}_bivariate_plate_map.pdf"
+            fig_name=f"{self.platename}_bivariate_plate_map.pdf",
         )
 
         # Generate the plot
@@ -67,12 +72,14 @@ class SS3FigurePlotter:
         if plot:
             logging.info(f"Generated bivariate plate map for {self.platename}.")
         else:
-            logging.error(f"Failed to generate bivariate plate map for {self.platename}.")
+            logging.error(
+                f"Failed to generate bivariate plate map for {self.platename}."
+            )
 
         if return_fig:
             # Return the figure object
             buf = BytesIO()
-            plot.savefig(buf, format='PNG')
+            plot.savefig(buf, format="PNG")
             buf.seek(0)
             plate_map.save_plot()
             return buf
@@ -81,8 +88,7 @@ class SS3FigurePlotter:
             plt.savefig(f"{self.outdir}/{self.platename}_{fig_num}.pdf")
             plt.close()
 
-
-    def reads_vs_frags(self, fig_num='Fig5', return_fig=False):
+    def reads_vs_frags(self, fig_num="Fig5", return_fig=False):
         """
         Generates and saves a scatter plot of sequenced reads versus UMI fragments.
 
@@ -95,8 +101,8 @@ class SS3FigurePlotter:
         """
 
         # Extract UMI tagged and non-tagged counts from the data
-        umi_tagged = self.data.loc[:, ('BC_UMI_stats', 'nUMItag')]
-        non_tagged = self.data.loc[:, ('BC_UMI_stats', 'nNontagged')]
+        umi_tagged = self.data.loc[:, ("BC_UMI_stats", "nUMItag")]
+        non_tagged = self.data.loc[:, ("BC_UMI_stats", "nNontagged")]
 
         # Calculate the average sequenced reads and the percentage of UMI fragments
         seq_reads = (non_tagged + umi_tagged) / 2
@@ -104,7 +110,7 @@ class SS3FigurePlotter:
 
         # Set up the plot
         plt.figure(figsize=(8, 5))
-        plt.scatter(seq_reads, umi_frags, color='brown', alpha=0.5)
+        plt.scatter(seq_reads, umi_frags, color="brown", alpha=0.5)
         plt.semilogx()
 
         # Set plot title and labels
@@ -115,7 +121,7 @@ class SS3FigurePlotter:
         if return_fig:
             # Return the figure object
             buf = BytesIO()
-            plt.savefig(buf, format='PNG')
+            plt.savefig(buf, format="PNG")
             buf.seek(0)
             return buf
         else:
@@ -123,8 +129,7 @@ class SS3FigurePlotter:
             plt.savefig(f"{self.outdir}/{self.platename}_{fig_num}.pdf")
             plt.close()
 
-
-    def umi_tagged_vs_count(self, fig_num='Fig6', return_fig=False):
+    def umi_tagged_vs_count(self, fig_num="Fig6", return_fig=False):
         """
         Generates and saves a scatter plot of UMI genes detected versus UMI read counts.
 
@@ -137,12 +142,12 @@ class SS3FigurePlotter:
         """
 
         # Extract UMI genes detected and UMI read counts from the data
-        umi_genes_dt = self.data.loc[:, ('Loom', 'UMI_genes_detected')]
-        umi_rcounts = self.data.loc[:, ('Loom', 'UMI_read_counts')]
+        umi_genes_dt = self.data.loc[:, ("Loom", "UMI_genes_detected")]
+        umi_rcounts = self.data.loc[:, ("Loom", "UMI_read_counts")]
 
         # Set up the plot
         plt.figure(figsize=(8, 5))
-        plt.scatter(umi_genes_dt, umi_rcounts, color='brown', alpha=0.5)
+        plt.scatter(umi_genes_dt, umi_rcounts, color="brown", alpha=0.5)
 
         # Set plot title and labels
         plt.xlabel("Number of genes detected - UMI reads")
@@ -151,7 +156,7 @@ class SS3FigurePlotter:
         if return_fig:
             # Return the figure object
             buf = BytesIO()
-            plt.savefig(buf, format='PNG')
+            plt.savefig(buf, format="PNG")
             buf.seek(0)
             return buf
         else:
