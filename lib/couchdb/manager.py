@@ -1,14 +1,13 @@
 import os
+from typing import Any, AsyncGenerator, Dict, Optional, Tuple
+
 import couchdb
 
-from typing import AsyncGenerator, Dict, Any, Tuple, Optional
-
-from lib.couchdb.document import YggdrasilDocument
 from lib.core_utils.common import YggdrasilUtilities as Ygg
 from lib.core_utils.config_loader import ConfigLoader
-
-from lib.core_utils.singleton_decorator import singleton
 from lib.core_utils.logging_utils import custom_logger
+from lib.core_utils.singleton_decorator import singleton
+from lib.couchdb.document import YggdrasilDocument
 
 logging = custom_logger(__name__.split(".")[-1])
 
@@ -18,16 +17,20 @@ class CouchDBConnectionManager:
     """Manages connections to the CouchDB server and databases."""
 
     def __init__(
-            self,
-            db_url: Optional[str] = None,
-            db_user: Optional[str] = None,
-            db_password: Optional[str] = None
+        self,
+        db_url: Optional[str] = None,
+        db_user: Optional[str] = None,
+        db_password: Optional[str] = None,
     ) -> None:
         # Load defaults from configuration file or environment
         self.db_config = ConfigLoader().load_config("main.json").get("couchdb", {})
         self.db_url = db_url or self.db_config.get("url")
-        self.db_user = db_user or os.getenv("COUCH_USER", self.db_config.get("default_user"))
-        self.db_password = db_password or os.getenv("COUCH_PASS", self.db_config.get("default_password"))
+        self.db_user = db_user or os.getenv(
+            "COUCH_USER", self.db_config.get("default_user")
+        )
+        self.db_password = db_password or os.getenv(
+            "COUCH_PASS", self.db_config.get("default_password")
+        )
 
         self.server: Optional[couchdb.Server] = None
         self.databases: Dict[str, couchdb.Database] = {}
@@ -43,7 +46,9 @@ class CouchDBConnectionManager:
                 version = self.server.version()
                 logging.info(f"Connected to CouchDB server. Version: {version}")
             except Exception as e:
-                logging.error(f"An error occurred while connecting to the CouchDB server: {e}")
+                logging.error(
+                    f"An error occurred while connecting to the CouchDB server: {e}"
+                )
                 raise ConnectionError("Failed to connect to CouchDB server")
         else:
             logging.info("Already connected to CouchDB server.")
@@ -62,9 +67,11 @@ class CouchDBConnectionManager:
         """
         if db_name not in self.databases:
             if not self.server:
-                logging.error("Server is not connected. Please connect to server first.")
+                logging.error(
+                    "Server is not connected. Please connect to server first."
+                )
                 raise ConnectionError("Server not connected")
-            
+
             try:
                 self.databases[db_name] = self.server[db_name]
                 logging.info(f"Connected to database: {db_name}")
@@ -82,6 +89,7 @@ class CouchDBConnectionManager:
 
 class CouchDBHandler:
     """Base class for CouchDB operations."""
+
     def __init__(self, db_name: str) -> None:
         self.connection_manager = CouchDBConnectionManager()
         self.db = self.connection_manager.connect_db(db_name)
@@ -114,7 +122,9 @@ class ProjectDBManager(CouchDBHandler):
                     else:
                         # Check for prefix matches
                         for registered_method, config in self.module_registry.items():
-                            if config.get("prefix") and method.startswith(registered_method):
+                            if config.get("prefix") and method.startswith(
+                                registered_method
+                            ):
                                 module_loc = config["module"]
                                 yield (change, module_loc)
                                 break
@@ -123,13 +133,12 @@ class ProjectDBManager(CouchDBHandler):
                             # If you log this, expect to see many messages!
                             # logging.warning(f"No module configured for task type '{method}'.")
                             pass
-                except Exception as e:
+                except Exception as e:  # noqa: F841
                     # logging.error(f"Error processing change: {e}")
                     pass
 
     async def get_changes(
-            self,
-            last_processed_seq: Optional[str] = None
+        self, last_processed_seq: Optional[str] = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Fetch and yield document changes from a CouchDB database.
@@ -144,7 +153,9 @@ class ProjectDBManager(CouchDBHandler):
         if last_processed_seq is None:
             last_processed_seq = Ygg.get_last_processed_seq()
 
-        changes = self.db.changes(feed='continuous', include_docs=False, since=last_processed_seq)
+        changes = self.db.changes(
+            feed="continuous", include_docs=False, since=last_processed_seq
+        )
 
         for change in changes:
             try:
@@ -183,10 +194,7 @@ class YggdrasilDBManager(CouchDBHandler):
         super().__init__("yggdrasil")
 
     def create_project(
-            self,
-            project_id: str,
-            projects_reference: str,
-            method: str
+        self, project_id: str, projects_reference: str, method: str
     ) -> YggdrasilDocument:
         """Creates a new project document in the database.
 
@@ -199,9 +207,7 @@ class YggdrasilDBManager(CouchDBHandler):
             YggdrasilDocument: The newly created project document.
         """
         new_document = YggdrasilDocument(
-            project_id=project_id,
-            projects_reference=projects_reference,
-            method=method
+            project_id=project_id, projects_reference=projects_reference, method=method
         )
         self.save_document(new_document)
         logging.info(f"New project with ID '{project_id}' created successfully.")
@@ -210,7 +216,9 @@ class YggdrasilDBManager(CouchDBHandler):
     def save_document(self, document: YggdrasilDocument) -> None:
         try:
             self.db.save(document.to_dict())
-            logging.info(f"Document with ID '{document._id}' saved successfully in 'yggdrasil' DB.")
+            logging.info(
+                f"Document with ID '{document._id}' saved successfully in 'yggdrasil' DB."
+            )
         except Exception as e:
             logging.error(f"Error saving document: {e}")
 
@@ -233,7 +241,9 @@ class YggdrasilDBManager(CouchDBHandler):
             logging.error(f"Error accessing project: {e}")
             return None
 
-    def update_sample_status(self, project_id: str, sample_id: str, status: str) -> None:
+    def update_sample_status(
+        self, project_id: str, sample_id: str, status: str
+    ) -> None:
         """Updates the status of a sample within a project.
 
         Args:

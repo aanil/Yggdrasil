@@ -1,6 +1,7 @@
 import datetime
 from typing import Any, Dict, List, Optional
 
+
 class YggdrasilDocument:
     """Represents a Yggdrasil project document.
 
@@ -31,7 +32,9 @@ class YggdrasilDocument:
             method=data.get("method", ""),
         )
         instance.status = data.get("status", "ongoing")
-        instance.start_date = data.get("start_date", datetime.datetime.now().isoformat())
+        instance.start_date = data.get(
+            "start_date", datetime.datetime.now().isoformat()
+        )
         instance.end_date = data.get("end_date", "")
         instance.samples = data.get("samples", [])
         return instance
@@ -67,10 +70,12 @@ class YggdrasilDocument:
             "status": self.status,
             "start_date": self.start_date,
             "end_date": self.end_date,
-            "samples": self.samples
+            "samples": self.samples,
         }
 
-    def add_sample(self, sample_id: str, lib_prep_option: str, status: str = "pending") -> None:
+    def add_sample(
+        self, sample_id: str, lib_prep_option: str, status: str = "pending"
+    ) -> None:
         """Adds a new sample to the document.
 
         Args:
@@ -84,7 +89,7 @@ class YggdrasilDocument:
             "lib_prep_option": lib_prep_option,
             "start_time": "",
             "end_time": "",
-            "flowcell_ids_processed_for": []
+            "flowcell_ids_processed_for": [],
         }
         self.samples.append(sample)
 
@@ -107,7 +112,6 @@ class YggdrasilDocument:
         # Check if the project status needs to be updated
         self.check_project_completion()
 
-
     def get_sample(self, sample_id: str) -> Optional[Dict[str, Any]]:
         """Retrieves a specific sample by its ID.
 
@@ -121,7 +125,6 @@ class YggdrasilDocument:
             if sample["sample_id"] == sample_id:
                 return sample
         return None
-
 
     def check_project_completion(self) -> None:
         """Checks if all samples are completed and updates the project status.
