@@ -3,11 +3,11 @@ import asyncio
 import logging
 
 from lib.core_utils.common import YggdrasilUtilities as Ygg
-from lib.couchdb.manager import ProjectDBManager, YggdrasilDBManager
 from lib.core_utils.config_loader import configs as ygg_configs
 from lib.core_utils.logging_utils import configure_logging
+from lib.couchdb.manager import ProjectDBManager, YggdrasilDBManager
 
-#Call configure_logging to set up the logging environment
+# Call configure_logging to set up the logging environment
 configure_logging(debug=True)
 
 
@@ -22,28 +22,34 @@ async def process_couchdb_changes():
             # Fetch data from CouchDB and call the appropriate module
             async for data, module_loc in pdm.fetch_changes():
                 try:
-                    project_id = data.get('project_id')
+                    project_id = data.get("project_id")
 
                     # Check if the project exists
                     existing_document = ydm.check_project_exists(project_id)
 
                     if existing_document is None:
-                        projects_reference = data.get('_id')
-                        method = data.get('details', {}).get('library_construction_method')
+                        projects_reference = data.get("_id")
+                        method = data.get("details", {}).get(
+                            "library_construction_method"
+                        )
 
                         # Create a new project if it doesn't exist
                         ydm.create_project(project_id, projects_reference, method)
                         process_project = True
                     else:
                         # If the project exists, check if it is completed
-                        if existing_document.get('status') == 'completed':
-                            logging.info(f"Project with ID {project_id} is already completed. Skipping further processing.")
+                        if existing_document.get("status") == "completed":
+                            logging.info(
+                                f"Project with ID {project_id} is already completed. Skipping further processing."
+                            )
                             process_project = False
                         else:
-                            logging.info(f"Project with ID {project_id} is ongoing and will be processed.")
+                            logging.info(
+                                f"Project with ID {project_id} is ongoing and will be processed."
+                            )
                             process_project = True
 
-                    if process_project:  
+                    if process_project:
                         # Dynamically load the module
                         # module = Ygg.load_module(module_loc)
                         print(f">>> Module location: {module_loc}")
@@ -58,11 +64,17 @@ async def process_couchdb_changes():
                                 # print(f"Tasks ({realm.project_info['project_id']}): {tasks}")
                                 # module.process(data)
                             else:
-                                logging.info(f"Skipping task creation due to missing required information. {data.get('project_id')}")
+                                logging.info(
+                                    f"Skipping task creation due to missing required information. {data.get('project_id')}"
+                                )
                         else:
-                            logging.warning(f"Failed to load module '{module_loc}' for '{data['details']['library_construction_method']}'.")
+                            logging.warning(
+                                f"Failed to load module '{module_loc}' for '{data['details']['library_construction_method']}'."
+                            )
                 except Exception as e:
-                    logging.warning(f"Error while trying to load module: {e}", exc_info=True)
+                    logging.warning(
+                        f"Error while trying to load module: {e}", exc_info=True
+                    )
                     logging.error(f"Data causing the error: {data}")
 
                 # Limit the number of concurrent tasks if necessary
@@ -109,6 +121,7 @@ async def main():
 
     # Wait for both tasks to complete
     await asyncio.gather(couchdb_task)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

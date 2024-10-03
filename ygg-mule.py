@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-import asyncio
 import argparse
+import asyncio
 
-from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.common import YggdrasilUtilities as Ygg
-from lib.couchdb.manager import ProjectDBManager, YggdrasilDBManager
+from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import configure_logging, custom_logger
+from lib.couchdb.manager import ProjectDBManager, YggdrasilDBManager
 
 # Configure logging
 configure_logging(debug=True)
@@ -48,10 +48,14 @@ def process_document(doc_id):
         # Check the status of the existing project
         status = existing_document.get("status")
         if status == "completed":
-            logging.info(f"Project with ID {project_id} is already completed. Skipping processing.")
+            logging.info(
+                f"Project with ID {project_id} is already completed. Skipping processing."
+            )
             process_project = False
         else:
-            logging.info(f"Project with ID {project_id} is ongoing and will be processed.")
+            logging.info(
+                f"Project with ID {project_id} is ongoing and will be processed."
+            )
             process_project = True
 
     if process_project:
@@ -70,7 +74,9 @@ def process_document(doc_id):
                     asyncio.run(realm.process())
                     logging.info("Processing complete.")
                 else:
-                    logging.info(f"Skipping processing due to missing required information for project: {project_id}")
+                    logging.info(
+                        f"Skipping processing due to missing required information for project: {project_id}"
+                    )
             else:
                 logging.warning(f"Failed to load module '{module_loc}'.")
         except Exception as e:
@@ -92,18 +98,18 @@ def get_module_location(document):
         module_registry = ConfigLoader().load_config("module_registry.json")
 
         # Extract the library construction method from the document
-        method = document['details']['library_construction_method']
+        method = document["details"]["library_construction_method"]
 
         # Retrieve module configuration for the specified method
         module_config = module_registry.get(method)
         if module_config:
             return module_config["module"]
-        
+
         # If no exact match, check for prefix matches
         for registered_method, config in module_registry.items():
             if config.get("prefix") and method.startswith(registered_method):
                 return config["module"]
-            
+
         logging.warning(f"No module configuration found for method '{method}'.")
         return None
     except KeyError as e:
@@ -119,7 +125,9 @@ def main():
     logging.info("Ygg-Mule: Standalone Module Executor for Yggdrasil")
 
     # Set up argument parser
-    parser = argparse.ArgumentParser(description="Ygg-Mule: Standalone Module Executor for Yggdrasil")
+    parser = argparse.ArgumentParser(
+        description="Ygg-Mule: Standalone Module Executor for Yggdrasil"
+    )
     parser.add_argument("doc_id", type=str, help="Document ID to process")
 
     # Parse arguments
@@ -127,6 +135,7 @@ def main():
 
     # Process the document
     process_document(args.doc_id)
+
 
 if __name__ == "__main__":
     main()
