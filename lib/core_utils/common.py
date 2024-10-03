@@ -1,9 +1,9 @@
-import os
-import logging
 import importlib
-
+import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional, Type
+
 
 class YggdrasilUtilities:
     """
@@ -16,14 +16,18 @@ class YggdrasilUtilities:
         module_cache (Dict[str, Any]): Cache for loaded modules and classes.
         CONFIG_DIR (Path): Directory containing configuration files.
     """
+
     module_cache: Dict[str, Any] = {}
-    CONFIG_DIR: Path = Path(__file__).parent.parent.parent / "yggdrasil_workspace/common/configurations"
+    CONFIG_DIR: Path = (
+        Path(__file__).parent.parent.parent
+        / "yggdrasil_workspace/common/configurations"
+    )
 
     @staticmethod
     def load_realm_class(module_path: str) -> Optional[Type]:
         """
         Load a realm class from a module path and cache it for reuse.
-        
+
         The module path should include the full path to the class in the format
         'module.submodule.ClassName'.
 
@@ -37,7 +41,7 @@ class YggdrasilUtilities:
             return YggdrasilUtilities.module_cache[module_path]
 
         try:
-            module_name, class_name = module_path.rsplit('.', 1)
+            module_name, class_name = module_path.rsplit(".", 1)
             module = importlib.import_module(module_name)
             realm_class = getattr(module, class_name)
             YggdrasilUtilities.module_cache[module_path] = realm_class
@@ -66,10 +70,10 @@ class YggdrasilUtilities:
         except ImportError as e:
             logging.error(f"Failed to load module '{module_path}': {e}")
             return None
-        
+
     @staticmethod
     def get_path(file_name: str) -> Optional[Path]:
-        """ Get the full path to a specific configuration file.
+        """Get the full path to a specific configuration file.
 
         Args:
             file_name (str): The name of the configuration file.
@@ -100,7 +104,7 @@ class YggdrasilUtilities:
             Optional[str]: The value of the environment variable or the default value.
         """
         return os.environ.get(variable_name, default)
-    
+
     @staticmethod
     def get_last_processed_seq() -> str:
         """Retrieve the last processed sequence number from a file.
@@ -110,16 +114,16 @@ class YggdrasilUtilities:
         """
         seq_file = YggdrasilUtilities.get_path(".last_processed_seq")
 
-        if seq_file.is_file():
-            with open(seq_file, "r") as file:
+        if seq_file and seq_file.is_file():
+            with open(seq_file) as file:
                 return file.read().strip()
         else:
             # Otherwise return a default sequence value of your choice.
             # NOTE: Zero (0) means start from the beginning. Note ideal!
             # TODO: Read default sequence value from configuration file.
-            default_since = 0
+            default_since = "0"
             return default_since
-        
+
     @staticmethod
     def save_last_processed_seq(last_processed_seq: str) -> None:
         """Save the last processed sequence number to a file.
@@ -129,5 +133,6 @@ class YggdrasilUtilities:
         """
         seq_file = YggdrasilUtilities.get_path(".last_processed_seq")
 
-        with open(seq_file, "w") as file:
-            file.write(last_processed_seq)
+        if seq_file:
+            with open(seq_file, "w") as file:
+                file.write(last_processed_seq)
