@@ -8,11 +8,8 @@ logging = custom_logger(__name__)
 
 
 def generate_ngi_report(
-        project_path: str,
-        project_id: str,
-        user_name: str,
-        sample_list: List[str]
-    ) -> bool:
+    project_path: str, project_id: str, user_name: str, sample_list: List[str]
+) -> bool:
     """Generate an NGI report for a specified project using external reporting tools.
 
     Args:
@@ -26,7 +23,7 @@ def generate_ngi_report(
     """
     # Convert list of samples into a space-separated string for the command line
     samples_str = " ".join(sample_list)
-    
+
     # Command to activate the environment and run the NGI report generation
     activate_env_cmd = configs.get("activate_ngi_cmd")
     if not activate_env_cmd:
@@ -35,21 +32,21 @@ def generate_ngi_report(
             "NGI report will not be generated."
         )
         return False
-    
+
     report_cmd = (
         f"ngi_reports project_summary -d {project_path} -p {project_id} "
         f"-s '{user_name}' -y --no_txt --samples {samples_str}"
     )
     full_cmd = f"{activate_env_cmd} && {report_cmd}"
-    
+
     try:
         # Execute the combined command
         # NOTE: Perhaps use `check=False` to prevent raising
         #       CalledProcessError on non-zero exit codes
         process = subprocess.run(
-            full_cmd, shell=True, text=True, capture_output=True #, check=False
+            full_cmd, shell=True, text=True, capture_output=True  # , check=False
         )
-        
+
         # Check the outcome of the subprocess
         if process.returncode == 0:
             logging.info("NGI report generated successfully.")
@@ -64,5 +61,7 @@ def generate_ngi_report(
         return False
     except Exception as e:
         # Log any unexpected exceptions during the execution
-        logging.exception(f"An error occurred while generating the NGI report: {str(e)}")
+        logging.exception(
+            f"An error occurred while generating the NGI report: {str(e)}"
+        )
         return False

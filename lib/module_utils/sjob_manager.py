@@ -1,5 +1,5 @@
-import re
 import asyncio
+import re
 import subprocess
 from typing import Any, Optional
 
@@ -118,6 +118,7 @@ logging = custom_logger(__name__.split(".")[-1])
 ######### CLASS BELOW ASSUMES ACCESS TO THE HOST SYSTEM TO SUBMIT SLURM JOBS ####################
 #################################################################################################
 
+
 class SlurmJobManager:
     """Manages the submission and monitoring of Slurm jobs.
 
@@ -126,7 +127,9 @@ class SlurmJobManager:
         command_timeout (float): Timeout for Slurm commands in seconds.
     """
 
-    def __init__(self, polling_interval: float = 10.0, command_timeout: float = 8.0) -> None:
+    def __init__(
+        self, polling_interval: float = 10.0, command_timeout: float = 8.0
+    ) -> None:
         """Initialize the SlurmJobManager with specified polling interval and command timeout.
 
         Args:
@@ -135,7 +138,9 @@ class SlurmJobManager:
             command_timeout (float, optional): Timeout for Slurm commands in seconds.
                 Defaults to 8.0 seconds.
         """
-        self.polling_interval: float = configs.get("job_monitor_poll_interval", polling_interval)
+        self.polling_interval: float = configs.get(
+            "job_monitor_poll_interval", polling_interval
+        )
         self.command_timeout: float = command_timeout
 
     async def submit_job(self, script_path: str) -> Optional[str]:
@@ -154,13 +159,15 @@ class SlurmJobManager:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(process.communicate(), self.command_timeout)
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), self.command_timeout
+            )
 
             if process.returncode != 0:
                 logging.error(f"Error submitting job. Details: {stderr.decode()}")
                 return None
 
-            match = re.search(r'\d+', stdout.decode())
+            match = re.search(r"\d+", stdout.decode())
             job_id = match.group() if match else None
 
             # NOTE: Improved logic in case it's needed in the future
@@ -172,7 +179,9 @@ class SlurmJobManager:
                 logging.info(f"Job submitted with ID: {job_id}")
                 return job_id
             else:
-                logging.error(f"Failed to parse job ID from sbatch output: {stdout.decode().strip()}")
+                logging.error(
+                    f"Failed to parse job ID from sbatch output: {stdout.decode().strip()}"
+                )
         except asyncio.TimeoutError:
             logging.error("Timeout while submitting job.")
         except Exception as e:
@@ -227,10 +236,12 @@ class SlurmJobManager:
         except asyncio.TimeoutError:
             logging.error(f"Timeout while checking status of job {job_id}.")
         except Exception as e:
-            logging.error(f"Unexpected error while checking status of job {job_id}: {e}")
+            logging.error(
+                f"Unexpected error while checking status of job {job_id}: {e}"
+            )
 
         return None
-    
+
     @staticmethod
     def check_status(job_id: str, status: str, sample: Any) -> None:
         """Check the status of a job and update the sample accordingly.
