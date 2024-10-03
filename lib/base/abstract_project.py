@@ -1,8 +1,8 @@
-
 from abc import ABC, abstractmethod
 from typing import Any
 
 from lib.module_utils.sjob_manager import SlurmJobManager
+
 
 class AbstractProject(ABC):
     """Abstract base class for realm module projects in the Yggdrasil application.
@@ -11,7 +11,7 @@ class AbstractProject(ABC):
     Each realm (processing module) extends this template, defining its unique processing logic while adhering
     to the core structure laid out by this class.
 
-    This template outlines the common steps and sequences, while allowing flexibility for specific realm implementations. 
+    This template outlines the common steps and sequences, while allowing flexibility for specific realm implementations.
     It ensures that while each realm follows its own internal rules, they are all integral parts of Yggdrasil's tree
     structure, contributing to the overarching narrative and functionality of the application.
 
@@ -28,7 +28,7 @@ class AbstractProject(ABC):
             doc (Any): The document representing the project (data to be processed).
             yggdrasil_db_manager (Any): The database manager for Yggdrasil-specific database operations.
         """
-        self.sjob_manager: SlurmJobManager  = SlurmJobManager()
+        self.sjob_manager: SlurmJobManager = SlurmJobManager()
         self.doc: Any = doc
         self.yggdrasil_db_manager: Any = yggdrasil_db_manager
 
@@ -92,4 +92,3 @@ class AbstractProject(ABC):
             result (Any): The result from the Slurm job to be post-processed.
         """
         pass
-
