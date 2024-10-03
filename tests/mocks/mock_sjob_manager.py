@@ -5,7 +5,8 @@ import string
 
 from lib.core_utils.logging_utils import custom_logger
 
-logging = custom_logger(__name__.split('.')[-1])
+logging = custom_logger(__name__.split(".")[-1])
+
 
 class MockSlurmJobManager:
     def __init__(self, polling_interval=1.0, command_timeout=8.0):
@@ -14,7 +15,7 @@ class MockSlurmJobManager:
         self.jobs = {}  # Keep track of mock jobs
 
     async def submit_job(self, script_path):
-        mock_job_id = ''.join(random.choices(string.digits, k=4))
+        mock_job_id = "".join(random.choices(string.digits, k=4))
         self.jobs[mock_job_id] = "PENDING"
         # Simulate a delay before the job starts
         asyncio.create_task(self._start_job(mock_job_id))

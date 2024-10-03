@@ -1,7 +1,8 @@
-
 import unittest
 from unittest.mock import mock_open, patch
+
 from lib.module_utils.slurm_utils import generate_slurm_script
+
 
 class TestGenerateSlurmScript(unittest.TestCase):
     def test_generate_slurm_script(self):
@@ -19,13 +20,14 @@ class TestGenerateSlurmScript(unittest.TestCase):
         with patch("builtins.open", mock_open(read_data=template_content)) as mock_file:
             # Call the function under test
             generate_slurm_script(args_dict, template_fpath, output_fpath)
-            
+
             # Assert that the 'open' function was called with the correct arguments
             mock_file.assert_any_call(template_fpath, "r")
             mock_file.assert_any_call(output_fpath, "w")
-            
+
             # Assert that the 'write' method of the file object was called with the expected content
             mock_file().write.assert_called_once_with(expected_script_content)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
