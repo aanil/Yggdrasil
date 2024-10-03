@@ -16,10 +16,10 @@ def singleton(cls: Type[T]) -> Callable[..., T]:
         Callable[..., T]: A function that returns the singleton instance of the class.
     """
     instances: Dict[Type[T], T] = {}
-    
+
     def get_instance(*args: Any, **kwargs: Any) -> T:
         if cls not in instances:
             instances[cls] = cls(*args, **kwargs)
         return instances[cls]
-    
+
     return get_instance
