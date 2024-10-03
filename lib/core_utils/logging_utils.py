@@ -1,7 +1,7 @@
 import logging
-
 from datetime import datetime
 from pathlib import Path
+from typing import List, Union
 
 from lib.core_utils.config_loader import configs
 
@@ -35,6 +35,7 @@ def configure_logging(debug: bool = False) -> None:
     log_format = "%(asctime)s [%(name)s][%(levelname)s] %(message)s"
 
     # Configure logging with a file handler and optionally a console handler
+    handlers: List[Union[logging.FileHandler, logging.StreamHandler]] = []
     handlers = [logging.FileHandler(log_file)]
     if debug:
         handlers.append(logging.StreamHandler())
@@ -44,7 +45,7 @@ def configure_logging(debug: bool = False) -> None:
 
 def custom_logger(module_name: str) -> logging.Logger:
     """Create a custom logger for the specified module.
-    
+
     Args:
         module_name (str): The name of the module for which the logger is created.
 
