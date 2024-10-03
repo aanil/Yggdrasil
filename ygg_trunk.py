@@ -2,10 +2,10 @@
 import asyncio
 import logging
 
-from lib.utils.common import YggdrasilUtilities as Ygg
-from lib.couchdb.manager import ProjectDBManager
-from lib.utils.config_loader import configs as ygg_configs
-from lib.utils.logging_utils import configure_logging
+from lib.core_utils.common import YggdrasilUtilities as Ygg
+from lib.couchdb.manager import ProjectDBManager, YggdrasilDBManager
+from lib.core_utils.config_loader import configs as ygg_configs
+from lib.core_utils.logging_utils import configure_logging
 
 #Call configure_logging to set up the logging environment
 configure_logging(debug=True)
@@ -15,6 +15,7 @@ configure_logging(debug=True)
 async def process_couchdb_changes():
     tasks = []
     pdm = ProjectDBManager()
+    ydm = YggdrasilDBManager()
 
     while True:
         try:
@@ -24,14 +25,14 @@ async def process_couchdb_changes():
                     project_id = data.get('project_id')
 
                     # Check if the project exists
-                    existing_document = Ygg.check_project_exists(project_id)
+                    existing_document = ydm.check_project_exists(project_id)
 
                     if existing_document is None:
                         projects_reference = data.get('_id')
                         method = data.get('details', {}).get('library_construction_method')
 
                         # Create a new project if it doesn't exist
-                        Ygg.create_project(project_id, projects_reference, method)
+                        ydm.create_project(project_id, projects_reference, method)
                         process_project = True
                     else:
                         # If the project exists, check if it is completed
@@ -50,7 +51,7 @@ async def process_couchdb_changes():
 
                         if RealmClass:
                             # Call the module's process function
-                            realm = RealmClass(data)
+                            realm = RealmClass(data, ydm)
                             if realm.proceed:
                                 task = asyncio.create_task(realm.process())
                                 tasks.append(task)
