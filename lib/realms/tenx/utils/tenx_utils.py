@@ -2,7 +2,6 @@ import json
 from typing import Any, Dict, List, Optional
 
 from lib.core_utils.common import YggdrasilUtilities as Ygg
-
 from lib.core_utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__.split(".")[-1])
@@ -29,7 +28,7 @@ class TenXUtils:
             return []
 
         try:
-            with open(config_file, "r") as f:
+            with open(config_file) as f:
                 decision_table = json.load(f)
                 if not isinstance(decision_table, list):
                     logging.error(f"Decision table '{file_name}' is not a list.")
@@ -41,11 +40,10 @@ class TenXUtils:
         except Exception as e:
             logging.error(f"Unexpected error loading decision table '{file_name}': {e}")
             return []
-        
+
     @staticmethod
     def get_pipeline_info(
-        library_prep_method: str,
-        features: List[str]
+        library_prep_method: str, features: List[str]
     ) -> Optional[Dict[str, Any]]:
         """Get pipeline information based on library prep method and features.
 
@@ -58,11 +56,9 @@ class TenXUtils:
                 None otherwise.
         """
         for entry in TenXUtils.load_decision_table("10x_decision_table.json"):
-            if (
-                entry.get("library_prep_method") == library_prep_method
-                and
-                set(entry.get("features", [])) == set(features)
-            ):
+            if entry.get("library_prep_method") == library_prep_method and set(
+                entry.get("features", [])
+            ) == set(features):
                 return entry
         logging.warning(
             f"No pipeline information found for library_prep_method '{library_prep_method}' "
