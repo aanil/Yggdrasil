@@ -1,6 +1,6 @@
 import json
-import types
 import logging
+import types
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
@@ -79,7 +79,7 @@ class ConfigLoader:
             return self._config
 
         try:
-            with open(config_file, "r") as f:
+            with open(config_file) as f:
                 config = json.load(f)
                 # TODO: Perform validation and error checking on the loaded data if needed.
                 self._config = types.MappingProxyType(config)
@@ -94,7 +94,6 @@ class ConfigLoader:
             raise
 
         return self._config
-
 
 
 # Instantiate ConfigLoader when the module is imported
