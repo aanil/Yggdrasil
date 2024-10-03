@@ -25,20 +25,21 @@
 #     except Exception as e:
 #         logging.error(f"Error while collecting flowcell IDs: {e}")
 #         return []
-import pandas as pd
-
 from datetime import datetime
+
+import pandas as pd
 
 from lib.core_utils.logging_utils import custom_logger
 
-logging = custom_logger(__name__.split('.')[-1])
+logging = custom_logger(__name__.split(".")[-1])
 
-class SS3Utils():
+
+class SS3Utils:
     """
     Utility class for SmartSeq3-related operations, including sequence setup transformations,
     flowcell date parsing, barcode file creation, and well ID extraction.
     """
-    
+
     @staticmethod
     def transform_seq_setup(seq_setup_str):
         """
@@ -50,15 +51,14 @@ class SS3Utils():
         Returns:
             dict: A dictionary with formatted strings for each read type.
         """
-        r1, i1, i2, r2 = seq_setup_str.split('-')
+        r1, i1, i2, r2 = seq_setup_str.split("-")
 
         return {
-            'R1': (f"cDNA(23-{r1})", "UMI(12-19)"),
-            'R2': f"cDNA(1-{r2})",
-            'I1': f"BC(1-{i1})",
-            'I2': f"BC(1-{i2})"
+            "R1": (f"cDNA(23-{r1})", "UMI(12-19)"),
+            "R2": f"cDNA(1-{r2})",
+            "I1": f"BC(1-{i1})",
+            "I2": f"BC(1-{i2})",
         }
-    
 
     @staticmethod
     def parse_fc_date(flowcell_id):
@@ -71,8 +71,8 @@ class SS3Utils():
         Returns:
             datetime.date: A date object representing the date of the flowcell or None if parsing fails.
         """
-        date_formats = ['%Y%m%d', '%y%m%d']
-        date_str = flowcell_id.split('_')[0]
+        date_formats = ["%Y%m%d", "%y%m%d"]
+        date_str = flowcell_id.split("_")[0]
         for fmt in date_formats:
             try:
                 return datetime.strptime(date_str, fmt).date()
@@ -80,7 +80,6 @@ class SS3Utils():
                 continue
         logging.error(f"Could not parse date for flowcell {flowcell_id}.")
         return None
-
 
     @staticmethod
     def create_barcode_file(bc_set, bc_lookup_fpath, save_as):
@@ -107,16 +106,15 @@ class SS3Utils():
             bc = bc.reset_index()
 
             # Attempt to save the barcode data to file
-            bc['XC'].to_csv(save_as, index=False, header=False)
+            bc["XC"].to_csv(save_as, index=False, header=False)
             logging.info("Barcode file created successfully.")
             return True
         except Exception as e:
             logging.error(f"Failed to create barcode file: {e}")
             return False
 
-
     @staticmethod
-    def extract_well_ids(barcode_set, barcode_lookup_fpath, reagent='1.5'):
+    def extract_well_ids(barcode_set, barcode_lookup_fpath, reagent="1.5"):
         """
         Extracts well IDs corresponding to a given barcode set.
 
@@ -127,22 +125,24 @@ class SS3Utils():
 
         Returns:
             pandas.Series: A Series where the index is barcodes and the values are corresponding well IDs.
-            
+
         The function reads the barcode lookup CSV file and filters the data to get well IDs for the specified barcode set.
         If an unsupported reagent version is provided, it logs a warning and defaults to using '1.5'.
         """
         # Determine the target column based on reagent version
-        if reagent == '1.5':
-            target_col = 'XC'
-        elif reagent == '1.0':
-            target_col = 'XC_NovaSeq'
+        if reagent == "1.5":
+            target_col = "XC"
+        elif reagent == "1.0":
+            target_col = "XC_NovaSeq"
         else:
-            logging.warning(f"Unsupported reagent version '{reagent}'. Using default '1.5'.")
-            target_col = 'XC'
+            logging.warning(
+                f"Unsupported reagent version '{reagent}'. Using default '1.5'."
+            )
+            target_col = "XC"
 
         try:
             # Read the CSV file
-            bc_data = pd.read_csv(barcode_lookup_fpath, sep=',')
+            bc_data = pd.read_csv(barcode_lookup_fpath, sep=",")
         except Exception as e:
             logging.error(f"Error reading barcode lookup file: {e}")
             return None
@@ -150,6 +150,6 @@ class SS3Utils():
         # Filter data to get well IDs for the specified barcode set
         # Set the target column as index for efficient lookup
         bc_data.set_index(target_col, inplace=True)
-        well_ids = bc_data.loc[bc_data.loc[:, 'BCset'] == barcode_set, 'WellID']
+        well_ids = bc_data.loc[bc_data.loc[:, "BCset"] == barcode_set, "WellID"]
 
         return well_ids

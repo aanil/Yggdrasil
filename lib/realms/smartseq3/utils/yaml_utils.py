@@ -1,11 +1,12 @@
 from pathlib import Path
+
 from ruamel.yaml import YAML
 
 from lib.core_utils.logging_utils import custom_logger
 
-logging = custom_logger(__name__.split('.')[-1])
+logging = custom_logger(__name__.split(".")[-1])
 
-yaml=YAML()
+yaml = YAML()
 yaml.width = 200
 yaml.preserve_quotes = True
 
@@ -42,25 +43,29 @@ def write_yaml(config, args):
             - bc_file: Path to the barcode file.
             - out_yaml: Path to the output YAML file.
     """
-    template = parse_yaml(config['yaml_template'])
-    
-    template['project'] = args['plate']
-    template['sequence_files']['file1']['name'] = str(args['fastqs']['R1'])
-    template['sequence_files']['file2']['name'] = str(args['fastqs']['R2'])
-    template['sequence_files']['file3']['name'] = str(args['fastqs']['I1'])
-    template['sequence_files']['file4']['name'] = str(args['fastqs']['I2'])
+    template = parse_yaml(config["yaml_template"])
+
+    template["project"] = args["plate"]
+    template["sequence_files"]["file1"]["name"] = str(args["fastqs"]["R1"])
+    template["sequence_files"]["file2"]["name"] = str(args["fastqs"]["R2"])
+    template["sequence_files"]["file3"]["name"] = str(args["fastqs"]["I1"])
+    template["sequence_files"]["file4"]["name"] = str(args["fastqs"]["I2"])
 
     # Define the base definition according to read setup
-    template['sequence_files']['file1']['base_definition'][0] = args['read_setup']['R1'][0]
-    template['sequence_files']['file1']['base_definition'][1] = args['read_setup']['R1'][1]
-    template['sequence_files']['file2']['base_definition'][0] = args['read_setup']['R2']
-    template['sequence_files']['file3']['base_definition'] = args['read_setup']['I1']
-    template['sequence_files']['file4']['base_definition'] = args['read_setup']['I2']
+    template["sequence_files"]["file1"]["base_definition"][0] = args["read_setup"][
+        "R1"
+    ][0]
+    template["sequence_files"]["file1"]["base_definition"][1] = args["read_setup"][
+        "R1"
+    ][1]
+    template["sequence_files"]["file2"]["base_definition"][0] = args["read_setup"]["R2"]
+    template["sequence_files"]["file3"]["base_definition"] = args["read_setup"]["I1"]
+    template["sequence_files"]["file4"]["base_definition"] = args["read_setup"]["I2"]
 
-    template['reference']['STAR_index'] = str(args['ref']['gen_path'])
-    template['reference']['GTF_file'] = str(args['ref']['gtf_path'])
-    template['out_dir'] = str(args['outdir'])
-    template['barcodes']['barcode_file'] = str(args['bc_file'])
+    template["reference"]["STAR_index"] = str(args["ref"]["gen_path"])
+    template["reference"]["GTF_file"] = str(args["ref"]["gtf_path"])
+    template["out_dir"] = str(args["outdir"])
+    template["barcodes"]["barcode_file"] = str(args["bc_file"])
 
     # TODO: Do not exit. Notify user (through Slack?).
     # TODO: Make a backup of the existing file (e.g. by appending a timestamp, or suffixing _old#)
@@ -69,5 +74,5 @@ def write_yaml(config, args):
         logging.debug(f"Path: {args['out_yaml']}")
         logging.warning("Continuing to overwrite the file...")
 
-    with open(args["out_yaml"], 'w') as outfile:
+    with open(args["out_yaml"], "w") as outfile:
         yaml.dump(template, outfile)
