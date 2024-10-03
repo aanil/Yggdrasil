@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class AbstractSample(ABC):
     """Abstract base class representing a sample in the Yggdrasil application.
 
@@ -16,6 +17,7 @@ class AbstractSample(ABC):
         post_process(): Define post-processing actions for the sample after processing
             is complete.
     """
+
     @property
     @abstractmethod
     def id(self) -> str:
@@ -25,7 +27,7 @@ class AbstractSample(ABC):
             str: The unique ID of the sample.
         """
         pass
-    
+
     @property
     @abstractmethod
     def status(self) -> str:
@@ -35,7 +37,7 @@ class AbstractSample(ABC):
             str: The current status of the sample.
         """
         pass
-    
+
     @status.setter
     @abstractmethod
     def status(self, value: str) -> None:
@@ -45,7 +47,7 @@ class AbstractSample(ABC):
             value (str): The new status to set for the sample.
         """
         pass
-    
+
     @abstractmethod
     def post_process(self) -> None:
         """Define post-processing actions for the sample.
