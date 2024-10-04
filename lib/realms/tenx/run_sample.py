@@ -2,12 +2,11 @@ import csv
 from typing import Any, Dict, List, Optional
 
 from lib.base.abstract_sample import AbstractSample
+from lib.core_utils.logging_utils import custom_logger
 from lib.module_utils.sjob_manager import SlurmJobManager
+from lib.module_utils.slurm_utils import generate_slurm_script
 from lib.realms.tenx.utils.sample_file_handler import SampleFileHandler
 from lib.realms.tenx.utils.tenx_utils import TenXUtils
-
-from lib.module_utils.slurm_utils import generate_slurm_script
-from lib.core_utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__.split(".")[-1])
 
@@ -18,13 +17,13 @@ class TenXRunSample(AbstractSample):
     """Class representing a TenX run sample."""
 
     def __init__(
-            self,
-            sample_id: str,
-            lab_samples: List[Any],
-            project_info: Dict[str, Any],
-            config: Dict[str, Any],
-            yggdrasil_db_manager: Any,
-            **kwargs: Any
+        self,
+        sample_id: str,
+        lab_samples: List[Any],
+        project_info: Dict[str, Any],
+        config: Dict[str, Any],
+        yggdrasil_db_manager: Any,
+        **kwargs: Any,
     ) -> None:
         """Initialize a TenXRunSample instance.
 
@@ -43,13 +42,17 @@ class TenXRunSample(AbstractSample):
         self.ydm: Any = yggdrasil_db_manager
 
         # self.decision_table = TenXUtils.load_decision_table("10x_decision_table.json")
-        self.feature_to_library_type: Dict[str, Any] = self.config.get("feature_to_library_type", {})
+        self.feature_to_library_type: Dict[str, Any] = self.config.get(
+            "feature_to_library_type", {}
+        )
         self._status: str = "initialized"
         self.file_handler: SampleFileHandler = SampleFileHandler(self)
 
         self.features: List[str] = self._collect_features()
         self.pipeline_info: Optional[Dict[str, Any]] = self._get_pipeline_info()
-        self.reference_genomes: Optional[Dict[str, str]] = self.collect_reference_genomes()
+        self.reference_genomes: Optional[Dict[str, str]] = (
+            self.collect_reference_genomes()
+        )
 
         if DEBUG:
             # Use a mock SlurmJobManager for debugging purposes
@@ -67,7 +70,7 @@ class TenXRunSample(AbstractSample):
             str: The run sample ID.
         """
         return self.run_sample_id
-    
+
     @property
     def status(self) -> str:
         """Get the current status of the sample.
@@ -76,7 +79,7 @@ class TenXRunSample(AbstractSample):
             str: The current status.
         """
         return self._status
-    
+
     @status.setter
     def status(self, value: str) -> None:
         """Set the current status of the sample.
@@ -121,7 +124,9 @@ class TenXRunSample(AbstractSample):
                 else:
                     ref_genomes[ref_key] = lab_sample.reference_genome
             else:
-                logging.error(f"Lab sample {lab_sample.lab_sample_id} is missing a reference genome.")
+                logging.error(
+                    f"Lab sample {lab_sample.lab_sample_id} is missing a reference genome."
+                )
                 self.status = "failed"
                 return None
         return ref_genomes
@@ -142,7 +147,7 @@ class TenXRunSample(AbstractSample):
         Returns:
             List[str]: A list of unique features.
         """
-        features = [lab_sample.feature for lab_sample in self.lab_samples] 
+        features = [lab_sample.feature for lab_sample in self.lab_samples]
         return list(set(features))
 
     async def process(self):
@@ -167,7 +172,9 @@ class TenXRunSample(AbstractSample):
 
         # Step 2: Determine the pipeline and additional files required
         if not self.pipeline_info:
-            logging.error(f"[{self.run_sample_id}] No pipeline information found. Skipping...")
+            logging.error(
+                f"[{self.run_sample_id}] No pipeline information found. Skipping..."
+            )
             self.status = "failed"
             return
 
@@ -193,13 +200,15 @@ class TenXRunSample(AbstractSample):
             "sample_id": self.run_sample_id,
             "project_name": self.project_info.get("project_name", ""),
             "output_dir": str(self.file_handler.sample_dir),
-            "cellranger_command": cellranger_command
+            "cellranger_command": cellranger_command,
         }
 
         # logging.debug(f"Slurm metadata: {slurm_metadata}")
-        
+
         slurm_template_path = self.config.get("slurm_template", "")
-        if not generate_slurm_script(slurm_metadata, slurm_template_path, self.file_handler.slurm_script_path):
+        if not generate_slurm_script(
+            slurm_metadata, slurm_template_path, self.file_handler.slurm_script_path
+        ):
             logging.error(f"[{self.run_sample_id}] Failed to generate SLURM script.")
             return None
 
@@ -212,37 +221,63 @@ class TenXRunSample(AbstractSample):
             return
         logging.debug(f"[{self.run_sample_id}] Slurm script created. Submitting job...")
         self.status = "processing"
-        self.job_id: Optional[str] = await self.sjob_manager.submit_job(self.file_handler.slurm_script_path)
+        self.job_id: Optional[str] = await self.sjob_manager.submit_job(
+            self.file_handler.slurm_script_path
+        )
 
         if self.job_id:
-            logging.debug(f"[{self.run_sample_id}] Job submitted with ID: {self.job_id}")
+            logging.debug(
+                f"[{self.run_sample_id}] Job submitted with ID: {self.job_id}"
+            )
             # Wait here for the monitoring to complete before exiting the process method
             await self.sjob_manager.monitor_job(self.job_id, self)
-            logging.debug(f"[{self.run_sample_id}] Job {self.job_id} monitoring complete.")
+            logging.debug(
+                f"[{self.run_sample_id}] Job {self.job_id} monitoring complete."
+            )
         else:
             logging.error(f"[{self.run_sample_id}] Failed to submit job.")
             self.status = "failed"
             return None
 
     def assemble_cellranger_command(self) -> str:
+        """Assemble the Cell Ranger command based on the pipeline information.
+
+        Returns:
+            str: The assembled command string ready to be executed.
+        """
+        if self.pipeline_info is None:
+            raise ValueError("Pipeline information is missing.")
+
+        if self.reference_genomes is None:
+            raise ValueError("Reference genomes information is missing.")
+
         command_parts = [
             f"{self.pipeline_info['pipeline_exec']} {self.pipeline_info['pipeline']}",
         ]
-        
+
         required_args = self.pipeline_info.get("required_arguments", [])
         additional_args = self.pipeline_info.get("fixed_arguments", [])
-        
+
         # Mapping of argument names to their values
         arg_values: Dict[str, Any] = {
             "--id": self.run_sample_id,
             # '--transcriptome': self.config.get('gene_expression_reference'),
-            "--fastqs": ",".join([",".join(paths) for paths in self.lab_samples[0].fastq_dirs.values()]),
+            "--fastqs": ",".join(
+                [",".join(paths) for paths in self.lab_samples[0].fastq_dirs.values()]
+            ),
             "--sample": self.lab_samples[0].lab_sample_id,
-            "--libraries": str(self.file_handler.base_dir / f"{self.run_sample_id}_libraries.csv"),
-            "--feature-ref": str(self.file_handler.base_dir / f"{self.run_sample_id}_feature_reference.csv"),
-            "--csv": str(self.file_handler.base_dir / f"{self.run_sample_id}_multi.csv")
+            "--libraries": str(
+                self.file_handler.base_dir / f"{self.run_sample_id}_libraries.csv"
+            ),
+            "--feature-ref": str(
+                self.file_handler.base_dir
+                / f"{self.run_sample_id}_feature_reference.csv"
+            ),
+            "--csv": str(
+                self.file_handler.base_dir / f"{self.run_sample_id}_multi.csv"
+            ),
         }
-        
+
         # Add references based on the pipeline
         if self.pipeline_info.get("pipeline") == "count":
             if "gex" in self.reference_genomes:
@@ -261,22 +296,25 @@ class TenXRunSample(AbstractSample):
             value = arg_values.get(arg)
             if value:
                 command_parts.append(f"{arg}={value}")
-        
+
         # Include additional arguments
         command_parts.extend(additional_args)
-        
-        # Join all parts into a single command string
-        command = ' \\\n    '.join(command_parts)
-        return command
 
+        # Join all parts into a single command string
+        command = " \\\n    ".join(command_parts)
+        return command
 
     def generate_libraries_csv(self) -> None:
         """Generate the libraries CSV file required for processing."""
         logging.info(f"[{self.run_sample_id}] Generating library CSV")
-        library_csv_path = self.file_handler.base_dir / f"{self.run_sample_id}_libraries.csv"
+        library_csv_path = (
+            self.file_handler.base_dir / f"{self.run_sample_id}_libraries.csv"
+        )
 
         with open(library_csv_path, "w", newline="") as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=["fastqs", "sample", "library_type"])
+            writer = csv.DictWriter(
+                csvfile, fieldnames=["fastqs", "sample", "library_type"]
+            )
             writer.writeheader()
             for lab_sample in self.lab_samples:
                 feature_type = self.feature_to_library_type.get(lab_sample.feature)
@@ -289,11 +327,13 @@ class TenXRunSample(AbstractSample):
                 # Write one row per FASTQ directory
                 for paths in lab_sample.fastq_dirs.values():
                     for path in paths:
-                        writer.writerow({
-                            "fastqs": str(path),
-                            "sample": lab_sample.lab_sample_id,
-                            "library_type": feature_type
-                        })
+                        writer.writerow(
+                            {
+                                "fastqs": str(path),
+                                "sample": lab_sample.lab_sample_id,
+                                "library_type": feature_type,
+                            }
+                        )
 
     def generate_feature_reference_csv(self) -> None:
         """Generate the feature reference CSV file required for processing."""
