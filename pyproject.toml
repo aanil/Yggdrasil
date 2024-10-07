@@ -17,3 +17,4 @@ ignore = [
 [tool.mypy]
 ignore_missing_imports = true
 follow_imports = "skip"
+check_untyped_defs = false
