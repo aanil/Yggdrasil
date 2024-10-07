@@ -73,16 +73,17 @@ class AbstractProject(ABC):
         """
         return self.sjob_manager.submit_job(script)
 
-    def monitor_job(self, job_id: str) -> Any:
+    def monitor_job(self, job_id: str, sample: Any) -> Any:
         """Monitor the status of a submitted Slurm job using the SlurmJobManager.
 
         Args:
             job_id (str): The identifier of the submitted job to be monitored.
+            sample (Any): The sample object associated with the job.
 
         Returns:
             Any: The result of the job monitoring.
         """
-        return self.sjob_manager.monitor_job(job_id)
+        return self.sjob_manager.monitor_job(job_id, sample)
 
     @abstractmethod
     def post_process(self, result: Any) -> None:
