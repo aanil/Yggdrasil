@@ -1,5 +1,5 @@
 import csv
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from lib.base.abstract_sample import AbstractSample
 from lib.core_utils.logging_utils import custom_logger
@@ -21,7 +21,7 @@ class TenXRunSample(AbstractSample):
         sample_id: str,
         lab_samples: List[Any],
         project_info: Dict[str, Any],
-        config: Dict[str, Any],
+        config: Mapping[str, Any],
         yggdrasil_db_manager: Any,
         **kwargs: Any,
     ) -> None:
@@ -31,14 +31,14 @@ class TenXRunSample(AbstractSample):
             sample_id (str): The run sample ID.
             lab_samples (List[Any]): A list of lab sample instances.
             project_info (Dict[str, Any]): Project-specific information.
-            config (Dict[str, Any]): Configuration data.
+            config (Mapping[str, Any]): Configuration data.
             yggdrasil_db_manager (Any): Yggdrasil database manager instance.
             **kwargs (Any): Additional keyword arguments.
         """
         self.run_sample_id: str = sample_id
         self.lab_samples: List[Any] = lab_samples
         self.project_info: Dict[str, Any] = project_info
-        self.config: Dict[str, Any] = config
+        self.config: Mapping[str, Any] = config
         self.ydm: Any = yggdrasil_db_manager
 
         # self.decision_table = TenXUtils.load_decision_table("10x_decision_table.json")

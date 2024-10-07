@@ -1,6 +1,6 @@
 import asyncio
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from lib.base.abstract_project import AbstractProject
 from lib.core_utils.config_loader import ConfigLoader
@@ -16,7 +16,7 @@ class TenXProject(AbstractProject):
     Class representing a TenX project.
     """
 
-    config: Dict[str, Any] = ConfigLoader().load_config("10x_config.json")
+    config: Mapping[str, Any] = ConfigLoader().load_config("10x_config.json")
 
     def __init__(self, doc: Dict[str, Any], yggdrasil_db_manager: Any) -> None:
         """
@@ -425,8 +425,8 @@ class TenXProject(AbstractProject):
         )
         self.finalize_project()
 
-    def create_slurm_job(self, data: Any) -> None:
-        pass
+    def create_slurm_job(self, data: Any) -> str:
+        return ""
 
     def post_process(self, result: Any) -> None:
         pass

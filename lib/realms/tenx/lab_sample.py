@@ -1,6 +1,6 @@
 import glob
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import custom_logger
@@ -11,7 +11,7 @@ logging = custom_logger(__name__.split(".")[-1])
 class TenXLabSample:
     """Class representing a TenX lab sample."""
 
-    config: Dict[str, Any] = ConfigLoader().load_config("10x_config.json")
+    config: Mapping[str, Any] = ConfigLoader().load_config("10x_config.json")
 
     def __init__(
         self,
