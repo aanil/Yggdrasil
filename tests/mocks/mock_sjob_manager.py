@@ -1,14 +1,14 @@
 import asyncio
-import logging
 import random
 import string
 
 from lib.core_utils.logging_utils import custom_logger
+from lib.module_utils.sjob_manager import SlurmJobManager
 
 logging = custom_logger(__name__.split(".")[-1])
 
 
-class MockSlurmJobManager:
+class MockSlurmJobManager(SlurmJobManager):
     def __init__(self, polling_interval=1.0, command_timeout=8.0):
         self.polling_interval = polling_interval
         self.command_timeout = command_timeout
