@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from lib.core_utils.logging_utils import custom_logger
 
@@ -34,10 +34,10 @@ class SampleFileHandler:
             sample (Any): The sample object containing sample data and project information.
         """
         self.sample_id: str = sample.run_sample_id
-        self.project_id: Optional[str] = sample.project_info.get("project_id")
-        self.project_name: Optional[str] = sample.project_info.get("project_name")
-        self.sample_ref: Optional[str] = sample.project_info.get("ref_genome")
-        self.organism: Optional[str] = sample.project_info.get("organism")
+        self.project_id: str = sample.project_info.get("project_id", "")
+        self.project_name: str = sample.project_info.get("project_name", "")
+        self.sample_ref: str = sample.project_info.get("ref_genome", "")
+        self.organism: str = sample.project_info.get("organism", "")
         self.config: Dict[str, Any] = sample.config
 
         # Define sample folder structure
@@ -53,8 +53,10 @@ class SampleFileHandler:
     def init_file_paths(self) -> None:
         """Initialize critical file paths."""
         # Files needed for processing
-        self.slurm_script_path = self.base_dir / f"{self.sample_id}_slurm_script.sh"
+        self.slurm_script_path: Path = (
+            self.base_dir / f"{self.sample_id}_slurm_script.sh"
+        )
 
         # Report output files
         # NOTE: Different pipelines may produce summaries in different locations
-        self.summary_fpath = self.sample_dir / "outs" / "web_summary.html"
+        self.summary_fpath: Path = self.sample_dir / "outs" / "web_summary.html"
