@@ -161,7 +161,13 @@ class ProjectDBManager(CouchDBHandler):
             try:
                 doc = self.db.get(change["id"])
                 last_processed_seq = change["seq"]
-                Ygg.save_last_processed_seq(last_processed_seq)
+                if last_processed_seq is not None:
+                    Ygg.save_last_processed_seq(last_processed_seq)
+                else:
+                    logging.warning(
+                        "Received `None` for last_processed_seq. Skipping save."
+                    )
+
                 yield doc
             except Exception as e:
                 logging.warning(f"Error processing change: {e}")

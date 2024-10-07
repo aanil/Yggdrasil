@@ -1,7 +1,8 @@
 import asyncio
 import re
 import subprocess
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Optional, Union
 
 from lib.core_utils.config_loader import configs
 from lib.core_utils.logging_utils import custom_logger
@@ -143,16 +144,21 @@ class SlurmJobManager:
         )
         self.command_timeout: float = command_timeout
 
-    async def submit_job(self, script_path: str) -> Optional[str]:
+    async def submit_job(self, script_path: Union[str, Path]) -> Optional[str]:
         """Submit a Slurm job using the specified script.
 
         Args:
-            script_path (str): Path to the Slurm script.
+            script_path (Union[str, Path]): Path to the Slurm script.
 
         Returns:
             Optional[str]: The job ID if submission is successful, None otherwise.
         """
-        sbatch_command = ["sbatch", script_path]
+        sbatch_command = ["sbatch", str(script_path)]
+
+        if not Path(script_path).is_file():
+            logging.error(f"Script file does not exist: {script_path}")
+            return None
+
         try:
             process = await asyncio.create_subprocess_exec(
                 *sbatch_command,
