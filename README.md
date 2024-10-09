@@ -32,29 +32,31 @@ To get started with the Yggdrasil Project, you need to set up the necessary depe
 
 1. **Clone the Repository**:
 
-    ```bash
-    git clone https://github.com/NationalGenomicsInfrastructure/Yggdrasil.git
-    cd Yggdrasil
-    ```
+```bash
+git clone https://github.com/NationalGenomicsInfrastructure/Yggdrasil.git
+cd Yggdrasil
+```
 
 2. **Create and Activate a Conda Environment**:
 
     It's recommended to use a conda environment to manage dependencies. You can set up the environment using `conda`:
 
-    ```bash
-    conda create --name yggdrasil-env python=3.11
-    conda activate yggdrasil-env
-    ```
+```bash
+conda create --name yggdrasil-env python=3.11
+conda activate yggdrasil-env
+```
 
 3. **Install Required Packages**:
-    ```
-    pip install -r requirements.txt
-    ```
+
+```bash
+pip install -r requirements.txt
+```
 
 4. **Set Up Pre-Commit Hooks**:
-    ```
-    pre-commit install
-    ```
+
+```bash
+pre-commit install
+```
 
 ## Project Structure
 
@@ -111,6 +113,7 @@ Yggdrasil uses a configuration loader to manage settings. Configuration files sh
 ### Configuration Files
 
 **config.json**: This file contains global settings for Yggdrasil.
+
 Fields:
     - yggdrasil_log_dir: Directory where logs will be stored.
     - couchdb_url: URL of the CouchDB server. Example: "http://localhost:5984"
@@ -186,11 +189,13 @@ Ensure you have activated the Conda environment and installed all required packa
 We use [pre-commit](https://pre-commit.com/) to automate code formatting and linting on each commit.
 
 * **Install pre-commit hooks**:
+
 ```bash
 pre-commit install
 ```
 
 * **Run pre-commit hooks manually**:
+
 ```bash
 pre-commit run --all-files
 ```
@@ -200,16 +205,19 @@ pre-commit run --all-files
 We use `black` for code formatting, `ruff` for linting and `mypy` for static type checking. It is recommended to have these tools set as extensions on your editor (e.g. [VSCode](#vscode-integration)) too, for a more seamless, automated experience. But if you preffer running them manually in cmd:
 
 * **Format code with Black**:
+
 ```bash
 black .
 ```
 
 * **Lint code with Ruff**:
+
 ```bash
 ruff check .
 ```
 
 * **Run type checks**:
+
 ```bash
 mypy .
 ```
@@ -226,6 +234,7 @@ For an optimal development experience, we recommend using VSCode with the follow
 **VSCode Settings**
 
 Make sure your (user)`settings.json` contains the following settings to integrate the tools:
+
 ```json
 {
     "editor.defaultFormatter": "ms-python.black-formatter",
@@ -240,6 +249,7 @@ Make sure your (user)`settings.json` contains the following settings to integrat
 To ensure git blame ignores bulk formatting commits.
 
 * **Configure Git**:
+
 ```bash
 git config blame.ignoreRevsFile .git-blame-ignore-revs
 ```
@@ -247,6 +257,7 @@ git config blame.ignoreRevsFile .git-blame-ignore-revs
 * **Add Formatting Commits to `.git-blame-ignore-revs`**:
 
 Add the commit (full) hashes of your formatting commits to the `.git-blame-ignore-revs` file, one per line, e.g.:
+
 ```text
 a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0
 b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u0
