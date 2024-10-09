@@ -1,4 +1,4 @@
-# Yggdrasil
+# Yggdrasil :deciduous_tree:
 
 Yggdrasil is a data processing framework designed to manage and automate workflows for various genomic sequencing projects (currently including TenX and SmartSeq3 modules). It provides a unified interface to handle data ingestion, processing, result generation, and ultimately project packing and delivery, streamlining the analysis pipeline for sequencing data.
 
