@@ -26,9 +26,9 @@ Yggdrasil is a data processing framework designed to manage and automate workflo
 - [Git](https://git-scm.com/) for version control
 - [VSCode](https://code.visualstudio.com/) (recommended) for development
 
-To get started with the Yggdrasil Project, you need to set up the necessary dependencies. Follow the instructions below:
-
 ## Installation
+
+To get started with the Yggdrasil Project, you need to set up the necessary dependencies. Follow the instructions below:
 
 1. **Clone the Repository**:
 
@@ -39,7 +39,7 @@ cd Yggdrasil
 
 2. **Create and Activate a Conda Environment**:
 
-    It's recommended to use a conda environment to manage dependencies. You can set up the environment using `conda`:
+It is recommended to use a conda environment to manage dependencies. You can set up the environment using `conda`:
 
 ```bash
 conda create --name yggdrasil-env python=3.11
@@ -50,12 +50,6 @@ conda activate yggdrasil-env
 
 ```bash
 pip install -r requirements.txt
-```
-
-4. **Set Up Pre-Commit Hooks**:
-
-```bash
-pre-commit install
 ```
 
 ## Project Structure
@@ -115,6 +109,7 @@ Yggdrasil uses a configuration loader to manage settings. Configuration files sh
 **config.json**: This file contains global settings for Yggdrasil.
 
 Fields:
+
     - yggdrasil_log_dir: Directory where logs will be stored.
     - couchdb_url: URL of the CouchDB server. Example: "http://localhost:5984"
     - couchdb_database: Name of the CouchDB project database.
@@ -186,7 +181,7 @@ Ensure you have activated the Conda environment and installed all required packa
 
 ### Pre-Commit Hooks
 
-We use [pre-commit](https://pre-commit.com/) to automate code formatting and linting on each commit.
+Use [pre-commit](https://pre-commit.com/) to automate code formatting and linting on each commit.
 
 * **Install pre-commit hooks**:
 
@@ -202,7 +197,7 @@ pre-commit run --all-files
 
 ### Code Formatting, Linting and Type Checking
 
-We use `black` for code formatting, `ruff` for linting and `mypy` for static type checking. It is recommended to have these tools set as extensions on your editor (e.g. [VSCode](#vscode-integration)) too, for a more seamless, automated experience. But if you preffer running them manually in cmd:
+Use `black` for code formatting, `ruff` for linting and `mypy` for static type checking. It is recommended to have these tools set as extensions on your editor (e.g. [VSCode](#vscode-integration)) too, for a more seamless, automated experience. But if you preffer running them manually in cmd:
 
 * **Format code with Black**:
 
