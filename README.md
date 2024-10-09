@@ -59,26 +59,27 @@ To get started with the Yggdrasil Project, you need to set up the necessary depe
 ## Project Structure
 
 Brief overview of the main components and directories:
-    ```
-    Yggdrasil/
-    ├── lib/
-    │   ├── base/
-    │   ├── core_utils/
-    │   ├── couchdb/
-    │   ├── module_utils/
-    │   ├── realms/
-    │   │   ├── tenx/
-    │   │   └── smartseq3/
-    ├── tests/
-    ├── .github/
-    │   └── workflows/
-    ├── ygg_trunk.py
-    ├── ygg-mule.py
-    ├── pyproject.toml
-    ├── requirements.txt
-    ├── LICENSE
-    └── README.md
-    ```
+
+```text
+Yggdrasil/
+├── lib/
+│   ├── base/
+│   ├── core_utils/
+│   ├── couchdb/
+│   ├── module_utils/
+│   ├── realms/
+│   │   ├── tenx/
+│   │   └── smartseq3/
+├── tests/
+├── .github/
+│   └── workflows/
+├── ygg_trunk.py
+├── ygg-mule.py
+├── pyproject.toml
+├── requirements.txt
+├── LICENSE
+└── README.md
+```
 
 *	**lib/**: Core library containing base classes and utilities.
     *	**base/**: Abstract base classes and interfaces.
