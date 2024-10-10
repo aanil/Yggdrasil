@@ -269,12 +269,12 @@ GitHub Actions are set up to automatically run `ruff`, `black`, and `mypy` on pu
 
 Contributions are very welcome! To have as smooth of an experience as possible, the following guidelines are recommended:
 
-* **Branching**: Use feature branches and submit pull requests for review.
+**Forking**: Fork the main repository to your personal GitHub account. Develop your changes and submit pull requests to the main repository for review.
 * **Code Style**: Format with `black` and lint with `ruff`.
 * **Type Annotations**: If you use type annotations make sure to set (and pass) mypy checks.
 * **Documentation**: Documented contributions are easier to understand and review.
 
-Suggested contributions: Tests, Bug Fixes, Code Optimization, New Modules (reach out to Anastasios if you don't know where to start with developing a new module).
+**Suggested contributions**: Tests, Bug Fixes, Code Optimization, New Modules (reach out to Anastasios if you don't know where to start with developing a new module).
 
 ## License
 
