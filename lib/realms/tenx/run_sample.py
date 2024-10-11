@@ -258,8 +258,8 @@ class TenXRunSample(AbstractSample):
         required_args = self.pipeline_info.get("required_arguments", [])
         additional_args = self.pipeline_info.get("fixed_arguments", [])
 
-        # Add output directory
-        # additional_args.append(f'{"--output-dir"}={str(self.file_handler.sample_dir)}')
+        # Add output directory argument
+        additional_args.append(f"--output-dir={str(self.file_handler.sample_dir)}")
 
         # Mapping of argument names to their values
         arg_values: Dict[str, Any] = {
