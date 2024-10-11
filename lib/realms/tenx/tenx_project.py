@@ -289,6 +289,7 @@ class TenXProject(AbstractProject):
             # Handle original samples without features
             library_prep_option = self.project_info.get("library_prep_option", "")
             feature = self.get_default_feature(library_prep_option)
+            # NOTE: If you want to name samples with the customer name, comment out the line below
             original_sample_id = sample_id
             return feature, original_sample_id
 
@@ -390,6 +391,7 @@ class TenXProject(AbstractProject):
         sample_data = self.filter_aborted_samples(sample_data)
         # Step 2: Create lab samples
         lab_samples = self.create_lab_samples(sample_data)
+        logging.info(f"Lab samples: {lab_samples}")
         # Step 3: Group lab samples by original sample ID
         grouped_lab_samples = self.group_lab_samples(lab_samples)
         # Step 4: Create run samples
