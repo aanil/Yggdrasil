@@ -41,7 +41,9 @@ class SampleFileHandler:
         self.config: Dict[str, Any] = sample.config
 
         # Define sample folder structure
-        self.base_dir: Path = Path(self.config["10x_dir"]) / self.project_name
+        self.base_dir: Path = (
+            Path(self.config["10x_dir"]) / "projects" / self.project_name
+        )
         self.sample_dir: Path = self.base_dir / self.sample_id
         self.fastq_files_dir: Path = self.base_dir / "fastq_files"
 
