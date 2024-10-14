@@ -199,7 +199,7 @@ class TenXRunSample(AbstractSample):
         slurm_metadata = {
             "sample_id": self.run_sample_id,
             "project_name": self.project_info.get("project_name", ""),
-            "output_dir": str(self.file_handler.sample_dir),
+            "output_dir": str(self.file_handler.base_dir),
             "cellranger_command": cellranger_command,
         }
 
@@ -257,6 +257,9 @@ class TenXRunSample(AbstractSample):
 
         required_args = self.pipeline_info.get("required_arguments", [])
         additional_args = self.pipeline_info.get("fixed_arguments", [])
+
+        # Add output directory argument
+        additional_args.append(f"--output-dir={str(self.file_handler.sample_dir)}")
 
         # Mapping of argument names to their values
         arg_values: Dict[str, Any] = {
