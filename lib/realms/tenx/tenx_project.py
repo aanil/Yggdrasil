@@ -391,7 +391,6 @@ class TenXProject(AbstractProject):
         sample_data = self.filter_aborted_samples(sample_data)
         # Step 2: Create lab samples
         lab_samples = self.create_lab_samples(sample_data)
-        logging.info(f"Lab samples: {lab_samples}")
         # Step 3: Group lab samples by original sample ID
         grouped_lab_samples = self.group_lab_samples(lab_samples)
         # Step 4: Create run samples
