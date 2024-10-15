@@ -398,11 +398,11 @@ class TenXRunSample(AbstractSample):
 
             # Write the [libraries] section
             multi_file.write("[libraries]\n")
-            multi_file.write("fastqs,sample,library_type\n")
+            multi_file.write("fastq_id,fastqs,feature_types\n")
             libraries_data = self.collect_libraries_data()
             for lib in libraries_data:
                 multi_file.write(
-                    f"{lib['fastqs']},{lib['sample']},{lib['library_type']}\n"
+                    f"{lib['sample']},{lib['fastqs']},{lib['library_type']}\n"
                 )
 
         logging.info(
