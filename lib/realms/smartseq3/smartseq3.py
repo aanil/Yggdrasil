@@ -64,7 +64,7 @@ class SmartSeq3(AbstractProject):
         """
         try:
             project_info = {
-                "project_name": self.doc.get("project_name", "").replace(".", "__"),
+                "project_name": self.doc.get("project_name", ""),
                 "project_id": self.doc.get("project_id", "Unknown_Project"),
                 "escg_id": self.doc.get("customer_project_reference"),
                 "library_prep_option": self.doc.get("details", {}).get(
