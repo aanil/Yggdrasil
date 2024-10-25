@@ -44,7 +44,11 @@ def generate_ngi_report(
         # NOTE: Perhaps use `check=False` to prevent raising
         #       CalledProcessError on non-zero exit codes
         process = subprocess.run(
-            full_cmd, shell=True, text=True, capture_output=True  # , check=False
+            full_cmd,
+            shell=True,
+            text=True,
+            capture_output=True,
+            input="y\n",  # , check=False
         )
 
         # Check the outcome of the subprocess
