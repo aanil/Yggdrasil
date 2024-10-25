@@ -62,7 +62,7 @@ class TenXProject(AbstractProject):
         try:
             details = self.doc.get("details", {})
             project_info: Dict[str, Any] = {
-                "project_name": self.doc.get("project_name", "").replace(".", "__"),
+                "project_name": self.doc.get("project_name", ""),
                 "project_id": self.doc.get("project_id", "Unknown_Project"),
                 "customer_reference": self.doc.get("customer_project_reference", ""),
                 "library_prep_method": details.get("library_construction_method", ""),
@@ -194,8 +194,11 @@ class TenXProject(AbstractProject):
             Optional[Path]: The Path object of the project directory, or None if creation fails.
         """
         try:
-            project_base_dir = Path(self.config["10x_dir"])
-            project_dir = project_base_dir / self.project_info["project_name"]
+            project_dir = (
+                Path(self.config["10x_dir"])
+                / "projects"
+                / self.project_info["project_name"]
+            )
             project_dir.mkdir(parents=True, exist_ok=True)
             return project_dir
         except Exception as e:
