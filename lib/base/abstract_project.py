@@ -33,19 +33,14 @@ class AbstractProject(ABC):
         self.yggdrasil_db_manager: Any = yggdrasil_db_manager
 
     @abstractmethod
-    def pre_process(self) -> None:
-        """Handle preliminary processing specific to the realm's requirements."""
-        pass
-
-    @abstractmethod
-    async def process(self) -> None:
+    async def launch(self) -> None:
         """Define the main processing logic for the project.
 
         This method should be implemented by each project class to define how the processing
         of the document unfolds.
 
         Note:
-            Since processing might involve asynchronous operations (e.g., submitting and monitoring jobs),
+            Since its course might involve asynchronous operations (e.g., submitting and monitoring jobs),
             this method is defined as asynchronous.
         """
         pass

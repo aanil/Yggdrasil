@@ -56,13 +56,12 @@ async def process_couchdb_changes():
                         RealmClass = Ygg.load_realm_class(module_loc)
 
                         if RealmClass:
-                            # Call the module's process function
+                            # Call the module's launch function
                             realm = RealmClass(data, ydm)
                             if realm.proceed:
-                                task = asyncio.create_task(realm.process())
+                                task = asyncio.create_task(realm.launch())
                                 tasks.append(task)
                                 # print(f"Tasks ({realm.project_info['project_id']}): {tasks}")
-                                # module.process(data)
                             else:
                                 logging.info(
                                     f"Skipping task creation due to missing required information. {data.get('project_id')}"

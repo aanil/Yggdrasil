@@ -397,12 +397,8 @@ class TenXProject(AbstractProject):
         run_samples = self.create_run_samples(grouped_lab_samples)
         return run_samples
 
-    def pre_process(self) -> None:
-        """Perform any pre-processing steps required before processing the project."""
-        pass
-
-    async def process(self):
-        """Process the TenX project by handling its samples."""
+    async def launch(self):
+        """Launch the TenX Realm to handle its samples."""
         logging.info(f"Processing TenX project {self.project_info['project_name']}")
         self.status = "processing"
 
