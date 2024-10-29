@@ -152,6 +152,14 @@ class SmartSeq3(AbstractProject):
         if not self.samples:
             logging.warning("No samples found for processing. Returning...")
             return
+
+        # Pre-process samples
+        pre_tasks = [sample.pre_process() for sample in self.samples]
+        await asyncio.gather(*pre_tasks)
+
+        # NOTE: Could control whether to proceed with processing based on config or parameters
+
+        # Process samples
         tasks = [sample.process() for sample in self.samples]
         logging.debug(f"Sample tasks created. Waiting for completion...: {tasks}")
         await asyncio.gather(*tasks)

@@ -85,11 +85,9 @@ class SS3Sample(AbstractSample):
     def status(self, value):
         self._status = value
 
-    async def process(self):
-        """
-        Process the sample by collecting metadata, creating YAML files, generating Slurm scripts, and submitting jobs.
-        """
-        logging.info(f"Processing sample {self.id}")
+    async def pre_process(self):
+        """Pre-process the sample by collecting metadata and creating YAML files."""
+        logging.info(f"Pre-processing sample {self.id}")
         yaml_metadata = self._collect_yaml_metadata()
         if not yaml_metadata:
             logging.warning(f"Metadata missing for sample {self.id}")
@@ -115,21 +113,15 @@ class SS3Sample(AbstractSample):
         ):
             logging.error(f"Failed to create Slurm script for sample {self.id}.")
             return None
+        else:
+            logging.debug(f"Slurm script created for sample {self.id}")
 
-        # Submit the job
-        logging.debug("Slurm script created. Submitting job")
+    async def process(self):
+        """Process the sample by submitting its job."""
+        logging.debug("Submitting job for sample {self.id}")
         self.job_id = await self.sjob_manager.submit_job(
             self.file_handler.slurm_script_path
         )
-
-        # if self.job_id:
-        #     logging.debug(f"[{self.id}] Job submitted with ID: {self.job_id}")
-
-        #     asyncio.create_task(self.sjob_manager.monitor_job(self.job_id, self))
-        #     logging.debug(f"[{self.id}] Job {self.job_id} submitted for monitoring.")
-        # else:
-        #     logging.error(f"[{self.id}] Failed to submit job.")
-        #     return None
 
         if self.job_id:
             logging.debug(f"[{self.id}] Job submitted with ID: {self.job_id}")
