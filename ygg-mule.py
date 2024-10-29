@@ -71,7 +71,7 @@ def process_document(doc_id):
             if RealmClass:
                 realm = RealmClass(document, ydm)
                 if realm.proceed:
-                    asyncio.run(realm.process())
+                    asyncio.run(realm.launch())
                     logging.info("Processing complete.")
                 else:
                     logging.info(

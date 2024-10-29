@@ -151,10 +151,8 @@ class SmartSeq3(AbstractProject):
             logging.error(f"Failed to create project directory: {e}")
             return None
 
-    async def process(self):
-        """
-        Process the SmartSeq3 project by handling its samples.
-        """
+    async def launch(self):
+        """Launch the SmartSeq3 Realm to handle its samples."""
         self.status = "processing"
         logging.info(
             f"Processing SmartSeq3 project {self.project_info['project_name']}"
@@ -211,15 +209,6 @@ class SmartSeq3(AbstractProject):
             logging.info("NGI report was generated successfully.")
         else:
             logging.error("Failed to generate the NGI report.")
-
-    def pre_process(self, doc):
-        """
-        Pre-process method placeholder.
-
-        Args:
-            doc (dict): Document to pre-process.
-        """
-        pass
 
     def create_slurm_job(self, sample):
         """
