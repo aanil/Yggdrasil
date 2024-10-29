@@ -406,15 +406,18 @@ class TenXProject(AbstractProject):
         self.status = "processing"
 
         self.samples = self.extract_samples()
+        if not self.samples:
+            logging.warning("No samples found for processing. Returning...")
+            return
 
         logging.info(
             f"Samples to be processed: {[sample.run_sample_id for sample in self.samples]}"
         )
         logging.info(f"Sample features: {[sample.features for sample in self.samples]}")
 
-        if not self.samples:
-            logging.warning("No samples found for processing. Returning...")
-            return
+        # Pre-process each sample asynchronously
+        pre_tasks = [sample.pre_process() for sample in self.samples]
+        await asyncio.gather(*pre_tasks)
 
         # Process each sample asynchronously
         tasks = [sample.process() for sample in self.samples]

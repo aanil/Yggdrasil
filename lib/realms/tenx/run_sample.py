@@ -152,10 +152,9 @@ class TenXRunSample(AbstractSample):
         features = [lab_sample.feature for lab_sample in self.lab_samples]
         return list(set(features))
 
-    async def process(self):
-        """Process the sample."""
-        logging.info("\n")
-        logging.info(f"[{self.run_sample_id}] Processing...")
+    async def pre_process(self):
+        """Perform pre-processing steps before starting the processing."""
+        logging.info(f"[{self.run_sample_id}] Pre-processing...")
 
         # Step 1: Verify that all subsamples have FASTQ files
         # TODO: Also check any other requirements
@@ -202,14 +201,17 @@ class TenXRunSample(AbstractSample):
             "cellranger_command": cellranger_command,
         }
 
-        # logging.debug(f"Slurm metadata: {slurm_metadata}")
-
         slurm_template_path = self.config.get("slurm_template", "")
         if not generate_slurm_script(
             slurm_metadata, slurm_template_path, self.file_handler.slurm_script_path
         ):
             logging.error(f"[{self.run_sample_id}] Failed to generate SLURM script.")
             return None
+
+    async def process(self):
+        """Process the sample."""
+        logging.info("\n")
+        logging.info(f"[{self.run_sample_id}] Processing...")
 
         # Step 4: Submit the SLURM script
         if not self.pipeline_info.get("submit", False):
@@ -220,7 +222,7 @@ class TenXRunSample(AbstractSample):
             return
         logging.debug(f"[{self.run_sample_id}] Slurm script created. Submitting job...")
         self.status = "processing"
-        self.job_id: Optional[str] = await self.sjob_manager.submit_job(
+        self.job_id = await self.sjob_manager.submit_job(
             self.file_handler.slurm_script_path
         )
 
