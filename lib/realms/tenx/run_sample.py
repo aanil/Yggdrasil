@@ -49,7 +49,7 @@ class TenXRunSample(AbstractSample):
         self.file_handler: SampleFileHandler = SampleFileHandler(self)
 
         self.features: List[str] = self._collect_features()
-        self.pipeline_info: Optional[Dict[str, Any]] = self._get_pipeline_info()
+        self.pipeline_info: Optional[Dict[str, Any]] = self._get_pipeline_info() or {}
         self.reference_genomes: Dict[str, str] = (
             self.collect_reference_genomes()
         ) or {}
@@ -197,7 +197,7 @@ class TenXRunSample(AbstractSample):
         slurm_metadata = {
             "sample_id": self.run_sample_id,
             "project_name": self.project_info.get("project_name", ""),
-            "output_dir": str(self.file_handler.base_dir),
+            "output_dir": str(self.file_handler.project_dir),
             "cellranger_command": cellranger_command,
         }
 
@@ -265,21 +265,14 @@ class TenXRunSample(AbstractSample):
         # Mapping of argument names to their values
         arg_values: Dict[str, Any] = {
             "--id": self.run_sample_id,
-            "--csv": str(
-                self.file_handler.base_dir / f"{self.run_sample_id}_multi.csv"
-            ),
+            "--csv": str(self.file_handler.get_multi_csv_path()),
             "--transcriptome": self.reference_genomes["gex"],
             "--fastqs": ",".join(
                 [",".join(paths) for paths in self.lab_samples[0].fastq_dirs.values()]
             ),
             "--sample": self.lab_samples[0].lab_sample_id,
-            "--libraries": str(
-                self.file_handler.base_dir / f"{self.run_sample_id}_libraries.csv"
-            ),
-            "--feature-ref": str(
-                self.file_handler.base_dir
-                / f"{self.run_sample_id}_feature_reference.csv"
-            ),
+            "--libraries": str(self.file_handler.get_libraries_csv_path()),
+            "--feature-ref": str(self.file_handler.get_feature_reference_csv_path()),
         }
 
         # Add references based on the pipeline
@@ -341,9 +334,7 @@ class TenXRunSample(AbstractSample):
     def generate_libraries_csv(self) -> None:
         """Generate the libraries CSV file required for processing."""
         logging.info(f"[{self.run_sample_id}] Generating library CSV")
-        library_csv_path = (
-            self.file_handler.base_dir / f"{self.run_sample_id}_libraries.csv"
-        )
+        library_csv_path = self.file_handler.get_libraries_csv_path()
 
         # Ensure the directory exists
         library_csv_path.parent.mkdir(parents=True, exist_ok=True)
@@ -365,12 +356,13 @@ class TenXRunSample(AbstractSample):
     def generate_feature_reference_csv(self) -> None:
         """Generate the feature reference CSV file required for processing."""
         logging.info(f"[{self.run_sample_id}] Generating feature reference CSV")
+        # feature_ref_csv_path = self.file_handler.get_feature_reference_csv_path()
         pass
 
     def generate_multi_sample_csv(self) -> None:
         """Generate the multi-sample CSV file required for processing."""
         logging.info(f"[{self.run_sample_id}] Generating multi-sample CSV")
-        multi_csv_path = self.file_handler.base_dir / f"{self.run_sample_id}_multi.csv"
+        multi_csv_path = self.file_handler.get_multi_csv_path()
 
         # Ensure the directory exists
         multi_csv_path.parent.mkdir(parents=True, exist_ok=True)
