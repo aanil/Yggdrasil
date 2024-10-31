@@ -46,6 +46,7 @@ class TenXProject(AbstractProject):
                 return
 
             self.project_dir: Optional[Path] = self.ensure_project_directory()
+            self.project_info["project_dir"] = self.project_dir
             self.samples: List[TenXRunSample] = []
             self.case_type: str = self.project_info.get("case_type", "unknown")
             logging.info(f"Case type: {self.case_type}")
