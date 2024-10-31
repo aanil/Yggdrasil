@@ -56,10 +56,8 @@ class SampleFileHandler:
         self.config = sample.config
 
         # Define sample folder structure
-        self.base_dir = (
-            Path(self.config["smartseq3_dir"]) / "projects" / self.project_name
-        )
-        self.sample_dir = self.base_dir / self.sample_id
+        self.project_dir = sample.project_info.get("project_dir", "")
+        self.sample_dir = self.project_dir / self.sample_id
         self.zumis_output_dir = self.sample_dir / "zUMIs_output"
         self.stats_dir = self.sample_dir / "zUMIs_output" / "stats"
         self.expression_dir = self.sample_dir / "zUMIs_output" / "expression"
@@ -90,7 +88,7 @@ class SampleFileHandler:
         self.features_plot_fpath = self.stats_dir / f"{self.plate}.features.pdf"
 
         # Files needed for processing
-        self.slurm_script_path = self.base_dir / f"{self.sample_id}_slurm_script.sh"
+        self.slurm_script_path = self.project_dir / f"{self.sample_id}_slurm_script.sh"
         self.barcode_fpath = (
             Path(self.config["smartseq3_dir"]) / "barcodes" / f"{self.barcode}.txt"
         )

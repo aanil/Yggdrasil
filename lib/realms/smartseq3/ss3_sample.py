@@ -25,8 +25,6 @@ class SS3Sample(AbstractSample):
         config (dict): Configuration settings.
         status (str): Current status of the sample.
         metadata (dict): Metadata for the sample.
-        project_dir (Path): Path to the parent project directory.
-        sample_dir (Path): Path to the sample directory.
         sjob_manager (SlurmJobManager): Manager for submitting and monitoring Slurm jobs.
         file_handler (SampleFileHandler): Handler for sample files.
     """
@@ -57,13 +55,6 @@ class SS3Sample(AbstractSample):
         # TODO: Currently not used much, but should be used if we write to a database
         self._status = "pending"  # other statuses: "processing", "completed", "failed"
         self.metadata = None
-
-        # Define the parent project directory
-        self.project_dir = self.project_info.get("project_dir")
-
-        # Define the sample directory
-        # NOTE: This directory is not created yet. To be verified in the post_process method.
-        self.sample_dir = self.project_dir / self.id
 
         if DEBUG:
             self.sjob_manager = MockSlurmJobManager()
@@ -209,8 +200,8 @@ class SS3Sample(AbstractSample):
                 "fastqs": {k: str(v) for k, v in fastqs.items() if v},
                 "read_setup": read_setup,
                 "ref": ref_paths,
-                "outdir": str(self.sample_dir),
-                "out_yaml": self.project_dir / f"{self.id}.yaml",
+                "outdir": str(self.file_handler.sample_dir),
+                "out_yaml": self.file_handler.project_dir / f"{self.id}.yaml",
             }
         except Exception as e:
             logging.error(f"Error constructing metadata for sample {self.id}: {e}")
@@ -259,10 +250,10 @@ class SS3Sample(AbstractSample):
         try:
             metadata = {
                 "project_name": self.project_info["project_name"],
-                "project_dir": self.project_dir,
+                "project_dir": self.file_handler.project_dir,
                 # 'sample_id': self.id, # Temporarily not used, but might be used when we name everything after ngi
                 "plate_id": self.id,  # self.sample_data.get('customer_name', ''),
-                "yaml_settings_path": self.project_dir / f"{self.id}.yaml",
+                "yaml_settings_path": self.file_handler.project_dir / f"{self.id}.yaml",
                 "zumis_path": self.config["zumis_path"],
             }
         except Exception as e:
