@@ -23,19 +23,25 @@ def transfer_report(
         logging.warning("Report transfer will not be attempted. Handle manually...")
         return False
 
+    # Build the remote directory path
+    remote_dir = f"{destination_path}/{project_id}"
     if sample_id:
-        remote_path = f"{user}@{server}:{destination_path}/{project_id}/{sample_id}/"
-    else:
-        remote_path = f"{user}@{server}:{destination_path}/{project_id}/"
+        remote_dir = f"{remote_dir}/{sample_id}"
+
+    remote_path = f"{user}@{server}:{remote_dir}/"
 
     rsync_command = [
         "rsync",
         "-avz",
+        "--rsync-path",
+        f"mkdir -p '{remote_dir}' && rsync",
         "-e",
         f"ssh -i {ssh_key}" if ssh_key else "ssh",
         str(report_path),
         remote_path,
     ]
+
+    logging.debug(f"RSYNC command: {' '.join(rsync_command)}")
 
     try:
         # Execute the rsync command
