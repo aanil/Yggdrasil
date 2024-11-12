@@ -416,6 +416,7 @@ class TenXRunSample(AbstractSample):
 
     def post_process(self) -> None:
         """Perform post-processing steps after job completion."""
+        logging.info("\n")
         logging.info(f"[{self.run_sample_id}] Post-processing...")
 
         # Check if the run was successful

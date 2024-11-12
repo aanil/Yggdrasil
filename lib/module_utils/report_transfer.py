@@ -15,7 +15,7 @@ def transfer_report(
         report_transfer_config = configs["report_transfer"]
         server = report_transfer_config["server"]
         user = report_transfer_config["user"]
-        destination_path = report_transfer_config["destination_path"]
+        destination_path = report_transfer_config["destination"]
         ssh_key = report_transfer_config.get("ssh_key")
     except KeyError as e:
         missing_key = e.args[0]
@@ -39,7 +39,7 @@ def transfer_report(
 
     try:
         # Execute the rsync command
-        subprocess.run(
+        result = subprocess.run(
             rsync_command,
             check=True,
             text=True,
@@ -49,8 +49,9 @@ def transfer_report(
         logging.info(f"Report transferred successfully to {remote_path}")
         return True
     except subprocess.CalledProcessError as e:
-        logging.error(f"Failed to transfer report: {e.stderr.strip()}")
+        logging.error(f"Failed to transfer report:\n{e.stderr.strip()}")
         return False
     except Exception as e:
         logging.error(f"Unexpected error during report transfer: {e}")
+        logging.error(f"RSYNC output: {result.stdout}")
         return False
