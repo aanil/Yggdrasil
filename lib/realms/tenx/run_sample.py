@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Mapping, Optional
 
 from lib.base.abstract_sample import AbstractSample
 from lib.core_utils.logging_utils import custom_logger
+from lib.module_utils.report_transfer import transfer_report
 from lib.module_utils.sjob_manager import SlurmJobManager
 from lib.module_utils.slurm_utils import generate_slurm_script
 from lib.realms.tenx.utils.sample_file_handler import SampleFileHandler
@@ -46,7 +47,6 @@ class TenXRunSample(AbstractSample):
             "feature_to_library_type", {}
         )
         self._status: str = "initialized"
-        self.file_handler: SampleFileHandler = SampleFileHandler(self)
 
         self.features: List[str] = self._collect_features()
         self.pipeline_info: Optional[Dict[str, Any]] = self._get_pipeline_info() or {}
@@ -61,6 +61,8 @@ class TenXRunSample(AbstractSample):
             self.sjob_manager: SlurmJobManager = MockSlurmJobManager()
         else:
             self.sjob_manager = SlurmJobManager()
+
+        self.file_handler: SampleFileHandler = SampleFileHandler(self)
 
     @property
     def id(self) -> str:
@@ -197,7 +199,9 @@ class TenXRunSample(AbstractSample):
         slurm_metadata = {
             "sample_id": self.run_sample_id,
             "project_name": self.project_info.get("project_name", ""),
-            "output_dir": str(self.file_handler.project_dir),
+            "project_dir": str(self.file_handler.project_dir),
+            "output_log": str(self.file_handler.slurm_output_path),
+            "error_log": str(self.file_handler.slurm_error_path),
             "cellranger_command": cellranger_command,
         }
 
@@ -213,7 +217,14 @@ class TenXRunSample(AbstractSample):
         logging.info("\n")
         logging.info(f"[{self.run_sample_id}] Processing...")
 
-        # Step 4: Submit the SLURM script
+        if self.pipeline_info is None:
+            logging.error(
+                f"[{self.run_sample_id}] Pipeline information is missing. Skipping..."
+            )
+            self.status = "failed"
+            return
+
+        # Submit the SLURM script
         if not self.pipeline_info.get("submit", False):
             logging.info(
                 f"[{self.run_sample_id}] According to decision table, we should not submit. "
@@ -405,5 +416,25 @@ class TenXRunSample(AbstractSample):
 
     def post_process(self) -> None:
         """Perform post-processing steps after job completion."""
+        logging.info("\n")
         logging.info(f"[{self.run_sample_id}] Post-processing...")
-        pass
+
+        # Check if the run was successful
+        if not self.file_handler.check_run_success():
+            self.status = "failed"
+            return
+
+        # Extract the report path
+        if not self.file_handler.extract_report_path():
+            self.status = "failed"
+            return
+
+        # Transfer the report
+        if self.file_handler.report_path and transfer_report(
+            report_path=self.file_handler.report_path,
+            project_id=self.project_info.get("project_id", ""),
+            sample_id=self.id,
+        ):
+            logging.info(f"Report for sample {self.id} transferred successfully.")
+        else:
+            logging.error(f"Failed to transfer report for sample {self.id}.")
