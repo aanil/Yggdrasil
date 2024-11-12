@@ -11,10 +11,17 @@ logging = custom_logger(__name__.split(".")[-1])
 def transfer_report(
     report_path: Path, project_id: str, sample_id: Optional[str] = None
 ) -> bool:
-    server = configs["report_transfer"]["server"]
-    user = configs["report_transfer"]["user"]
-    destination_path = configs["report_transfer"]["destination_path"]
-    ssh_key = configs["report_transfer"].get("ssh_key")
+    try:
+        report_transfer_config = configs["report_transfer"]
+        server = report_transfer_config["server"]
+        user = report_transfer_config["user"]
+        destination_path = report_transfer_config["destination_path"]
+        ssh_key = report_transfer_config.get("ssh_key")
+    except KeyError as e:
+        missing_key = e.args[0]
+        logging.error(f"Missing configuration for report transfer: '{missing_key}'")
+        logging.warning("Report transfer will not be attempted. Handle manually...")
+        return False
 
     if sample_id:
         remote_path = f"{user}@{server}:{destination_path}/{project_id}/{sample_id}/"
