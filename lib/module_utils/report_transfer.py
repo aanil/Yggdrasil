@@ -41,7 +41,7 @@ def transfer_report(
         remote_path,
     ]
 
-    logging.debug(f"RSYNC command: {' '.join(rsync_command)}")
+    # logging.debug(f"RSYNC command: {' '.join(rsync_command)}")
 
     try:
         # Execute the rsync command
@@ -52,7 +52,7 @@ def transfer_report(
             capture_output=True,
         )
 
-        logging.info(f"Report transferred successfully to {remote_path}")
+        logging.info(f"Report transferred successfully to:\n> {server} : {remote_dir}")
         return True
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to transfer report:\n{e.stderr.strip()}")
