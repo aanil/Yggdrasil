@@ -1,5 +1,6 @@
 from lib.base.abstract_sample import AbstractSample
 from lib.core_utils.logging_utils import custom_logger
+from lib.module_utils.report_transfer import transfer_report
 from lib.module_utils.sjob_manager import SlurmJobManager
 from lib.module_utils.slurm_utils import generate_slurm_script
 from lib.realms.smartseq3.report.report_generator import Smartseq3ReportGenerator
@@ -78,7 +79,8 @@ class SS3Sample(AbstractSample):
 
     async def pre_process(self):
         """Pre-process the sample by collecting metadata and creating YAML files."""
-        logging.info(f"Pre-processing sample {self.id}")
+        logging.info("\n")
+        logging.info(f"[{self.id}] Pre-processing...")
         yaml_metadata = self._collect_yaml_metadata()
         if not yaml_metadata:
             logging.warning(f"Metadata missing for sample {self.id}")
@@ -109,7 +111,9 @@ class SS3Sample(AbstractSample):
 
     async def process(self):
         """Process the sample by submitting its job."""
-        logging.debug("Submitting job for sample {self.id}")
+        logging.info("\n")
+        logging.info(f"[{self.id}] Processing...")
+        logging.debug(f"[{self.id}] Submitting job...")
         self.job_id = await self.sjob_manager.submit_job(
             self.file_handler.slurm_script_path
         )
@@ -317,7 +321,8 @@ class SS3Sample(AbstractSample):
         """
         Post-process the sample after job completion.
         """
-        logging.info(f"Post-processing sample {self.id}...")
+        logging.info("\n")
+        logging.info(f"[{self.id}] Post-processing...")
 
         # Check if sample output is valid
         if not self.file_handler.is_output_valid():
@@ -331,9 +336,11 @@ class SS3Sample(AbstractSample):
 
         # Create symlinks for the fastq files
         if not self.file_handler.symlink_fastq_files():
-            logging.error("Failed to manage symlinks and auxiliary files.")
+            logging.error(f"[{self.id}] Failed to manage symlinks and auxiliary files.")
         else:
-            logging.info("Successfully managed symlinks and auxiliary files.")
+            logging.info(
+                f"[{self.id}] Successfully managed symlinks and auxiliary files."
+            )
 
         # Instantiate report generator
         report_generator = Smartseq3ReportGenerator(self)
@@ -354,3 +361,19 @@ class SS3Sample(AbstractSample):
 
         # Generate Report
         report_generator.render(format="PDF")
+
+        # Transfer the Report
+        if not self.file_handler.report_fpath.exists():
+            logging.error(
+                f"[{self.id}] Report not found at {self.file_handler.report_fpath}"
+            )
+            return
+
+        if transfer_report(
+            report_path=self.file_handler.report_fpath,
+            project_id=self.file_handler.project_id,
+            sample_id=self.id,
+        ):
+            logging.info(f"[{self.id}] Report transferred successfully.")
+        else:
+            logging.error(f"[{self.id}] Failed to transfer report.")
