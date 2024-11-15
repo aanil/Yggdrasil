@@ -144,10 +144,11 @@ class SmartSeq3(AbstractProject):
 
     async def launch(self):
         """Launch the SmartSeq3 Realm to handle its samples."""
-        self.status = "processing"
         logging.info(
             f"Processing SmartSeq3 project {self.project_info['project_name']}"
         )
+        self.status = "processing"
+
         self.samples = self.extract_samples()
         if not self.samples:
             logging.warning("No samples found for processing. Returning...")
@@ -159,11 +160,35 @@ class SmartSeq3(AbstractProject):
 
         # NOTE: Could control whether to proceed with processing based on config or parameters
 
+        # Filter samples that passed pre-processing
+        pre_processed_samples = [
+            sample for sample in self.samples if sample.status == "pre_processed"
+        ]
+
+        if not pre_processed_samples:
+            logging.warning("No samples passed pre-processing. Exiting...")
+            return
+
+        logging.info("\n")
+        logging.info(
+            f"Samples that passed pre-processing:"
+            f"{[sample.id for sample in pre_processed_samples]}"
+        )
+
         # Process samples
-        tasks = [sample.process() for sample in self.samples]
+        tasks = [sample.process() for sample in pre_processed_samples]
         logging.debug(f"Sample tasks created. Waiting for completion...: {tasks}")
         await asyncio.gather(*tasks)
-        logging.info("All samples processed. Finalizing project...")
+
+        # Log samples that passed processing
+        processed_samples = [
+            sample for sample in pre_processed_samples if sample.status == "completed"
+        ]
+        logging.info("\n")
+        logging.info(
+            f"Samples that finished successfully: "
+            f"{[sample.id for sample in processed_samples]}\n"
+        )
         self.finalize_project()
 
     def extract_samples(self):
