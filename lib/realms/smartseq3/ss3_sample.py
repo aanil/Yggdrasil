@@ -53,8 +53,9 @@ class SS3Sample(AbstractSample):
 
         self.config = config
         # self.job_id = None
+
         # TODO: Currently not used much, but should be used if we write to a database
-        self._status = "pending"  # other statuses: "processing", "completed", "failed"
+        # self._status = "initialized"
         self.metadata = None
 
         if DEBUG:
@@ -64,6 +65,8 @@ class SS3Sample(AbstractSample):
 
         # Initialize SampleFileHandler
         self.file_handler = SampleFileHandler(self)
+
+        self._status = "initialized"
 
     @property
     def id(self):
@@ -83,37 +86,45 @@ class SS3Sample(AbstractSample):
         logging.info(f"[{self.id}] Pre-processing...")
         yaml_metadata = self._collect_yaml_metadata()
         if not yaml_metadata:
-            logging.warning(f"Metadata missing for sample {self.id}")
-            return None
+            logging.error(f"[{self.id}] Metadata missing. Pre-processing failed.")
+            self.status = "pre_processing_failed"
+            return
 
-        logging.debug("Metadata collected. Creating YAML file")
+        logging.info(f"[{self.id}] Metadata collected. Creating YAML file")
+        if not self.create_yaml_file(yaml_metadata):
+            logging.error(f"[{self.id}] Failed to create YAML file.")
+            self.status = "pre_processing_failed"
+            return
+        logging.debug(f"[{self.id}] YAML file created.")
 
-        self.create_yaml_file(yaml_metadata)
-
-        # TODO: Check if the YAML file was created successfully
-        logging.debug("YAML file created.")
-
-        logging.debug("Creating Slurm script")
+        logging.debug(f"[{self.id}] Creating Slurm script")
         slurm_metadata = self._collect_slurm_metadata()
         if not slurm_metadata:
-            logging.warning(f"Slurm metadata missing for sample {self.id}")
-            return None
+            logging.error(f"[{self.id}] Slurm metadata missing. Pre-processing failed.")
+            self.status = "pre_processing_failed"
+            return
 
         # Create Slurm script and submit job
-        slurm_template_path = self.config["slurm_template"]
+        # TODO: Move slurm_template_path to SampleFileHandler
+        slurm_template_path = self.config.get("slurm_template", "")
         if not generate_slurm_script(
             slurm_metadata, slurm_template_path, self.file_handler.slurm_script_path
         ):
-            logging.error(f"Failed to create Slurm script for sample {self.id}.")
-            return None
+            logging.error(f"[{self.id}] Failed to create Slurm script.")
+            self.status = "pre_processing_failed"
+            return
         else:
-            logging.debug(f"Slurm script created for sample {self.id}")
+            logging.debug(f"[{self.id}] Slurm script created.")
+
+        # If all pre-processing steps succeeded
+        self.status = "pre_processed"
 
     async def process(self):
         """Process the sample by submitting its job."""
         logging.info("\n")
         logging.info(f"[{self.id}] Processing...")
         logging.debug(f"[{self.id}] Submitting job...")
+        self.status = "processing"
         self.job_id = await self.sjob_manager.submit_job(
             self.file_handler.slurm_script_path
         )
@@ -125,7 +136,7 @@ class SS3Sample(AbstractSample):
             logging.debug(f"[{self.id}] Job {self.job_id} monitoring complete.")
         else:
             logging.error(f"[{self.id}] Failed to submit job.")
-            return None
+            self.status = "processing_failed"
 
     def get_barcode(self):
         """
@@ -308,14 +319,17 @@ class SS3Sample(AbstractSample):
             )
             return None, None
 
-    def create_yaml_file(self, metadata):
+    def create_yaml_file(self, metadata) -> bool:
         """
         Create a YAML file with the provided metadata.
 
         Args:
             metadata (dict): Metadata to write to the YAML file.
+
+        Returns:
+            bool: True if the YAML file was created successfully, False otherwise.
         """
-        write_yaml(self.config, metadata)
+        return write_yaml(self.config, metadata)
 
     def post_process(self):
         """
@@ -323,6 +337,7 @@ class SS3Sample(AbstractSample):
         """
         logging.info("\n")
         logging.info(f"[{self.id}] Post-processing...")
+        self.status = "post_processing"
 
         # Check if sample output is valid
         if not self.file_handler.is_output_valid():
@@ -330,6 +345,7 @@ class SS3Sample(AbstractSample):
             logging.error(
                 f"[{self.id}] Pipeline output is invalid. Skipping post-processing."
             )
+            self.status = "post_processing_failed"
             return
 
         self.file_handler.create_directories()
@@ -337,6 +353,8 @@ class SS3Sample(AbstractSample):
         # Create symlinks for the fastq files
         if not self.file_handler.symlink_fastq_files():
             logging.error(f"[{self.id}] Failed to manage symlinks and auxiliary files.")
+            self.status = "post_processing_failed"
+            return
         else:
             logging.info(
                 f"[{self.id}] Successfully managed symlinks and auxiliary files."
@@ -350,6 +368,7 @@ class SS3Sample(AbstractSample):
             logging.error(
                 f"[{self.id}] Error collecting stats. Skipping report generation."
             )
+            self.status = "post_processing_failed"
             return
 
         # Create Plots
@@ -357,6 +376,7 @@ class SS3Sample(AbstractSample):
             logging.error(
                 f"[{self.id}] Error creating plots. Skipping report generation."
             )
+            self.status = "post_processing_failed"
             return
 
         # Generate Report
@@ -367,6 +387,7 @@ class SS3Sample(AbstractSample):
             logging.error(
                 f"[{self.id}] Report not found at {self.file_handler.report_fpath}"
             )
+            self.status = "post_processing_failed"
             return
 
         if transfer_report(
@@ -377,3 +398,8 @@ class SS3Sample(AbstractSample):
             logging.info(f"[{self.id}] Report transferred successfully.")
         else:
             logging.error(f"[{self.id}] Failed to transfer report.")
+            self.status = "post_processing_failed"
+            return
+
+        # If all post-processing steps succeeded
+        self.status = "completed"

@@ -257,7 +257,8 @@ class SlurmJobManager:
             status (str): The status of the job.
             sample (object): The sample object with `id` and `status` attributes.
         """
-        logging.debug(f"Job {job_id} status: {status}")
+        logging.info("\n")
+        logging.debug(f"[{sample.id}] Job {job_id} status: {status}")
         if status == "COMPLETED":
             logging.info(f"[{sample.id}] Job completed successfully.")
             sample.status = "processed"
