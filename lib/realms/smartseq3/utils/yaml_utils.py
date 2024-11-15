@@ -24,7 +24,7 @@ def parse_yaml(file_path):
     return yaml.load(Path(file_path))
 
 
-def write_yaml(config, args):
+def write_yaml(config, args) -> bool:
     """
     Write data to a YAML file based on a template and provided arguments.
 
@@ -74,5 +74,11 @@ def write_yaml(config, args):
         logging.debug(f"Path: {args['out_yaml']}")
         logging.warning("Continuing to overwrite the file...")
 
-    with open(args["out_yaml"], "w") as outfile:
-        yaml.dump(template, outfile)
+    try:
+        with open(args["out_yaml"], "w") as outfile:
+            yaml.dump(template, outfile)
+        logging.debug(f"YAML file written successfully at {args['out_yaml']}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to write YAML file {args['out_yaml']}: {e}")
+        return False
