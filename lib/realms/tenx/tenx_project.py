@@ -411,22 +411,45 @@ class TenXProject(AbstractProject):
             logging.warning("No samples found for processing. Returning...")
             return
 
-        logging.info(
-            f"Samples to be processed: {[sample.run_sample_id for sample in self.samples]}"
-        )
+        logging.info(f"Considered samples: {[sample.id for sample in self.samples]}")
         logging.info(f"Sample features: {[sample.features for sample in self.samples]}")
 
         # Pre-process each sample asynchronously
         pre_tasks = [sample.pre_process() for sample in self.samples]
         await asyncio.gather(*pre_tasks)
 
+        # Filter samples that passed pre-processing
+        pre_processed_samples = [
+            sample for sample in self.samples if sample.status == "pre_processed"
+        ]
+
+        if not pre_processed_samples:
+            logging.warning("No samples passed pre-processing. Exiting...")
+            return
+
+        logging.info("\n")
+        logging.info(
+            f"Samples that passed pre-processing:"
+            f"{[sample.id for sample in pre_processed_samples]}"
+        )
+
         # Process each sample asynchronously
-        tasks = [sample.process() for sample in self.samples]
+        tasks = [sample.process() for sample in pre_processed_samples]
         await asyncio.gather(*tasks)
 
+        # Log samples that passed processing
+        processed_samples = [
+            sample for sample in pre_processed_samples if sample.status == "completed"
+        ]
+        logging.info("\n")
         logging.info(
-            f"All samples processed for project {self.project_info['project_name']}"
+            f"Samples that finished successfully: "
+            f"{[sample.id for sample in processed_samples]}\n"
         )
+
+        # logging.info(
+        #     f"All samples processed for project {self.project_info['project_name']}"
+        # )
         self.finalize_project()
 
     def create_slurm_job(self, data: Any) -> str:
