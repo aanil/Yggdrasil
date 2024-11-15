@@ -259,9 +259,13 @@ class SlurmJobManager:
         """
         logging.debug(f"Job {job_id} status: {status}")
         if status == "COMPLETED":
-            logging.info(f"Sample {sample.id} processing completed.")
+            logging.info(f"[{sample.id}] Job completed successfully.")
+            sample.status = "processed"
             sample.post_process()
-            sample.status = "completed"
+            # sample.status = "completed"
         elif status in ["FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_ME+"]:
-            sample.status = "failed"
-            logging.info(f"Sample {sample.id} processing failed.")
+            sample.status = "processing_failed"
+            logging.info(f"[{sample.id}] Job failed.")
+        else:
+            logging.warning(f"[{sample.id}] Job ended with unexpacted status: {status}")
+            sample.status = "processing_failed"
