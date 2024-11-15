@@ -52,11 +52,16 @@ class MockSlurmJobManager(SlurmJobManager):
             status (str): The status of the job.
             sample (object): The sample object (must have a post_process method and id attribute).
         """
-        logging.debug(f"Job {job_id} status: {status}")
+        logging.info("\n")
+        logging.debug(f"[{sample.id}] Job {job_id} status: {status}")
         if status == "COMPLETED":
-            logging.info(f"Sample {sample.id} processing completed.")
+            logging.info(f"[{sample.id}] Job completed successfully.")
+            sample.status = "processed"
             sample.post_process()
-            sample.status = "completed"
-        elif status in ["FAILED", "CANCELLED"]:
-            sample.status = "failed"
-            logging.info(f"Sample {sample.id} processing failed.")
+            # sample.status = "completed"
+        elif status in ["FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_ME+"]:
+            sample.status = "processing_failed"
+            logging.info(f"[{sample.id}] Job failed.")
+        else:
+            logging.warning(f"[{sample.id}] Job ended with unexpacted status: {status}")
+            sample.status = "processing_failed"
