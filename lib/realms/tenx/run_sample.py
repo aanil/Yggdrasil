@@ -46,7 +46,7 @@ class TenXRunSample(AbstractSample):
         self.feature_to_library_type: Dict[str, Any] = self.config.get(
             "feature_to_library_type", {}
         )
-        self._status: str = "initialized"
+        # self._status: str = "initialized"
 
         self.features: List[str] = self._collect_features()
         self.pipeline_info: Optional[Dict[str, Any]] = self._get_pipeline_info() or {}
@@ -63,6 +63,8 @@ class TenXRunSample(AbstractSample):
             self.sjob_manager = SlurmJobManager()
 
         self.file_handler: SampleFileHandler = SampleFileHandler(self)
+
+        self._status: str = "initialized"
 
     @property
     def id(self) -> str:
@@ -85,11 +87,15 @@ class TenXRunSample(AbstractSample):
     @status.setter
     def status(self, value: str) -> None:
         """Set the current status of the sample.
+        # (FUTURE) The status will be updated in the Yggdrasil database.
 
         Args:
             value (str): The new status value.
         """
         self._status = value
+        # self.ydm.update_sample_status(
+        #     self.project_info.get("project_id", ""), self.id, value
+        # )
 
     def collect_reference_genomes(self) -> Optional[Dict[str, str]]:
         """Collect reference genomes from lab samples and ensure consistency.
@@ -156,7 +162,7 @@ class TenXRunSample(AbstractSample):
 
     async def pre_process(self):
         """Perform pre-processing steps before starting the processing."""
-        logging.info(f"[{self.run_sample_id}] Pre-processing...")
+        logging.info(f"[{self.id}] Pre-processing...")
 
         # Step 1: Verify that all subsamples have FASTQ files
         # TODO: Also check any other requirements
@@ -167,21 +173,19 @@ class TenXRunSample(AbstractSample):
         ]
         if missing_fq_labsamples:
             logging.error(
-                f"[{self.run_sample_id}] Missing FASTQ files for lab-samples: "
+                f"[{self.id}] Missing FASTQ files for lab-samples: "
                 f"{missing_fq_labsamples}. Skipping..."
             )
-            self.status = "failed"
+            self.status = "pre_processing_failed"
             return
 
         # Step 2: Determine the pipeline and additional files required
         if not self.pipeline_info:
-            logging.error(
-                f"[{self.run_sample_id}] No pipeline information found. Skipping..."
-            )
-            self.status = "failed"
+            logging.error(f"[{self.id}] No pipeline information found. Skipping...")
+            self.status = "pre_processing_failed"
             return
 
-        logging.info(f"[{self.run_sample_id}] Generating required files...")
+        logging.info(f"[{self.id}] Generating required files...")
 
         # Step 3: Generate required files based on configuration
         # TODO: Register generated files in the file handler
@@ -194,10 +198,11 @@ class TenXRunSample(AbstractSample):
             elif file_type == "multi_csv":
                 self.generate_multi_sample_csv()
 
+        # Step 4: Prepare SLURM script
         cellranger_command = self.assemble_cellranger_command()
 
         slurm_metadata = {
-            "sample_id": self.run_sample_id,
+            "sample_id": self.id,
             "project_name": self.project_info.get("project_name", ""),
             "project_dir": str(self.file_handler.project_dir),
             "output_log": str(self.file_handler.slurm_output_path),
@@ -209,47 +214,49 @@ class TenXRunSample(AbstractSample):
         if not generate_slurm_script(
             slurm_metadata, slurm_template_path, self.file_handler.slurm_script_path
         ):
-            logging.error(f"[{self.run_sample_id}] Failed to generate SLURM script.")
-            return None
+            logging.error(f"[{self.id}] Failed to generate SLURM script.")
+            self.status = "pre_processing_failed"
+            return
+
+        # If all pre-processing steps succeeded
+        self.status = "pre_processed"
 
     async def process(self):
         """Process the sample."""
         logging.info("\n")
-        logging.info(f"[{self.run_sample_id}] Processing...")
+        logging.info(f"[{self.id}] Processing...")
 
         if self.pipeline_info is None:
-            logging.error(
-                f"[{self.run_sample_id}] Pipeline information is missing. Skipping..."
-            )
-            self.status = "failed"
+            logging.error(f"[{self.id}] Pipeline information is missing. Skipping...")
+            self.status = "processing_failed"
             return
 
-        # Submit the SLURM script
+        # Check if SLURM script should be submitted
         if not self.pipeline_info.get("submit", False):
             logging.info(
-                f"[{self.run_sample_id}] According to decision table, we should not submit. "
+                f"[{self.id}] According to decision table, we should not submit. "
                 f"Handle manually!"
             )
+            self.status = "pending_manual_intervention"
             return
-        logging.debug(f"[{self.run_sample_id}] Slurm script created. Submitting job...")
+
+        logging.debug(f"[{self.id}] Slurm script created. Submitting job...")
         self.status = "processing"
         self.job_id = await self.sjob_manager.submit_job(
             self.file_handler.slurm_script_path
         )
 
         if self.job_id:
-            logging.debug(
-                f"[{self.run_sample_id}] Job submitted with ID: {self.job_id}"
-            )
-            # Wait here for the monitoring to complete before exiting the process method
+            logging.debug(f"[{self.id}] Job submitted with ID: {self.job_id}")
+            # Wait for the job to complete and monitor its status
             await self.sjob_manager.monitor_job(self.job_id, self)
-            logging.debug(
-                f"[{self.run_sample_id}] Job {self.job_id} monitoring complete."
-            )
+            logging.debug(f"[{self.id}] Job {self.job_id} monitoring complete.")
+
+            # NOTE: The sample's status will be updated by SlurmJobManager's check_status method
         else:
-            logging.error(f"[{self.run_sample_id}] Failed to submit job.")
-            self.status = "failed"
-            return None
+            logging.error(f"[{self.id}] Failed to submit job.")
+            self.status = "processing_failed"
+            return
 
     def assemble_cellranger_command(self) -> str:
         """Assemble the Cell Ranger command based on the pipeline information.
