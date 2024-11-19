@@ -168,7 +168,10 @@ class ProjectDBManager(CouchDBHandler):
                         "Received `None` for last_processed_seq. Skipping save."
                     )
 
-                yield doc
+                if doc is not None:
+                    yield doc
+                else:
+                    logging.warning(f"Document with ID {change['id']} is None.")
             except Exception as e:
                 logging.warning(f"Error processing change: {e}")
                 logging.debug(f"Data causing the error: {change}")
@@ -221,7 +224,12 @@ class YggdrasilDBManager(CouchDBHandler):
 
     def save_document(self, document: YggdrasilDocument) -> None:
         try:
-            self.db.save(document.to_dict())
+            existing_doc = self.db.get(document._id)
+            doc_dict = document.to_dict()
+            if existing_doc:
+                # Preserve the _rev field to avoid update conflicts
+                doc_dict["_rev"] = existing_doc["_rev"]
+            self.db.save(doc_dict)
             logging.info(
                 f"Document with ID '{document._id}' saved successfully in 'yggdrasil' DB."
             )
@@ -258,20 +266,10 @@ class YggdrasilDBManager(CouchDBHandler):
             status (str): The new status for the sample.
         """
         try:
-            document = self.get_document_by_project_id(project_id)
-            if document:
-                # TODO: Implement .from_dict() method in YggdrasilDocument
-                ygg_doc = YggdrasilDocument.from_dict(document)
-                ######## Replace the following with the above line ########
-                # ygg_doc = YggdrasilDocument(
-                #     project_id=document["project_id"],
-                #     projects_reference=document["projects_reference"],
-                #     method=document["method"]
-                # )
-                # ygg_doc.samples = document["samples"]
-                ##########################################################
+            document_dict = self.get_document_by_project_id(project_id)
+            if document_dict:
+                ygg_doc = YggdrasilDocument.from_dict(document_dict)
                 ygg_doc.update_sample_status(sample_id, status)
-                ygg_doc.check_project_completion()
                 self.save_document(ygg_doc)
                 logging.info(
                     f"Updated status of sample '{sample_id}' in project '{project_id}' to '{status}'."
@@ -297,3 +295,35 @@ class YggdrasilDBManager(CouchDBHandler):
         else:
             logging.info(f"Project with ID '{project_id}' does not exist.")
             return None
+
+    def get_sample_status(self, project_id: str, sample_id: str) -> Optional[str]:
+        """Retrieves the status of a specific sample.
+
+        Args:
+            project_id (str): The project ID.
+            sample_id (str): The sample ID.
+
+        Returns:
+            Optional[str]: The status of the sample if found, else None.
+        """
+        document_dict = self.get_document_by_project_id(project_id)
+        if document_dict:
+            ygg_doc = YggdrasilDocument.from_dict(document_dict)
+            sample = ygg_doc.get_sample(sample_id)
+            if sample:
+                return sample["status"]
+        return None
+
+    def get_project_status(self, project_id: str) -> Optional[str]:
+        """Retrieves the status of a project.
+
+        Args:
+            project_id (str): The project ID.
+
+        Returns:
+            Optional[str]: The status of the project if found, else None.
+        """
+        document_dict = self.get_document_by_project_id(project_id)
+        if document_dict:
+            return document_dict.get("status")
+        return None
