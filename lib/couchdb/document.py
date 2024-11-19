@@ -1,6 +1,10 @@
 import datetime
 from typing import Any, Dict, List, Optional
 
+from lib.core_utils.logging_utils import custom_logger
+
+logging = custom_logger(__name__.split(".")[-1])
+
 
 class YggdrasilDocument:
     """Represents a Yggdrasil project document.
@@ -74,7 +78,11 @@ class YggdrasilDocument:
         }
 
     def add_sample(
-        self, sample_id: str, lib_prep_option: str, status: str = "pending"
+        self,
+        sample_id: str,
+        lib_prep_option: str,
+        status: str = "pending",
+        flowcell_ids_processed_for: Optional[List[str]] = None,
     ) -> None:
         """Adds a new sample to the document.
 
@@ -82,6 +90,7 @@ class YggdrasilDocument:
             sample_id (str): The sample ID.
             lib_prep_option (str): The library preparation option.
             status (str, optional): The status of the sample. Defaults to "pending".
+            flowcell_ids_processed_for (List[str], optional): Flowcell IDs the sample has been processed for.
         """
         sample = {
             "sample_id": sample_id,
@@ -89,7 +98,7 @@ class YggdrasilDocument:
             "lib_prep_option": lib_prep_option,
             "start_time": "",
             "end_time": "",
-            "flowcell_ids_processed_for": [],
+            "flowcell_ids_processed_for": flowcell_ids_processed_for or [],
         }
         self.samples.append(sample)
 
@@ -100,14 +109,24 @@ class YggdrasilDocument:
             sample_id (str): The sample ID to update.
             status (str): The new status of the sample.
         """
-        for sample in self.samples:
-            if sample["sample_id"] == sample_id:
-                sample["status"] = status
-                if status == "running":
-                    sample["start_time"] = datetime.datetime.now().isoformat()
-                elif status in ["completed", "failed"]:
-                    sample["end_time"] = datetime.datetime.now().isoformat()
-                break
+        sample = self.get_sample(sample_id)
+        if sample:
+            sample["status"] = status
+            current_time = datetime.datetime.now().isoformat()
+            if status in ["processing", "running"]:
+                sample["start_time"] = current_time
+            elif status in [
+                "completed",
+                "processing_failed",
+                "post_processing_failed",
+                "aborted",
+            ]:
+                sample["end_time"] = current_time
+        else:
+            logging.error(
+                f"Sample with ID '{sample_id}' not "
+                f"found in project '{self.project_id}'."
+            )
 
         # Check if the project status needs to be updated
         self.check_project_completion()
@@ -126,21 +145,39 @@ class YggdrasilDocument:
                 return sample
         return None
 
+    def update_project_status(self, status: str) -> None:
+        """Updates the status of the project.
+
+        Args:
+            status (str): The new status of the project.
+        """
+        self.status = status
+        if status == "completed":
+            if not self.end_date:
+                self.end_date = datetime.datetime.now().isoformat()
+        elif status in ["processing", "failed"]:
+            self.end_date = ""
+
     def check_project_completion(self) -> None:
         """Checks if all samples are completed and updates the project status.
 
-        Samples with status "completed" or "aborted" are considered completed.
+        Samples with status "completed" or "aborted" are considered finished.
 
         Note:
             There will be cases where samples are "aborted". These samples
-            should be considered as "completed" for the project status.
+            should be considered "completed" for the project status.
         """
-        # if all(sample["status"] == "completed" for sample in self.samples):
-        if all(sample["status"] in ["completed", "aborted"] for sample in self.samples):
+        # List of statuses indicating a sample is finished
+        finished_statuses = [
+            "completed",
+            "aborted",
+        ]  # , "processing_failed", "post_processing_failed"]
+
+        if all(sample["status"] in finished_statuses for sample in self.samples):
             self.status = "completed"
             self.end_date = datetime.datetime.now().isoformat()
         else:
-            # If any sample is not completed (or aborted), set the project status to ongoing
-            self.status = "ongoing"
+            # If any sample is not completed (or aborted), set the project status to "processing"
+            self.status = "processing"
             # Clear the end date since the project is not completed
             self.end_date = ""
