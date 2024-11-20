@@ -51,7 +51,6 @@ class AbstractProject(ABC):
     #         self.initialize_project_in_db()
     #         # self._extract_project_specific_info()
     #         # self.extract_samples()
-    #         # self.add_samples_to_project()
     #     else:
     #         logging.error("Cannot proceed due to missing required fields.")
 
@@ -82,7 +81,7 @@ class AbstractProject(ABC):
             self.ydm.add_sample(
                 project_id=self.project_id,
                 sample_id=sample.id,
-                lib_prep_option=sample.lib_prep_option,
+                # lib_prep_option=sample.project_info.get("library_prep_option", ""),
                 status=sample.status,
             )
 
