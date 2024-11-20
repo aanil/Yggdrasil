@@ -255,6 +255,33 @@ class YggdrasilDBManager(CouchDBHandler):
             logging.error(f"Error accessing project: {e}")
             return None
 
+    def add_sample(
+        self,
+        project_id: str,
+        sample_id: str,
+        # lib_prep_option: str,
+        status: str = "pending",
+    ) -> None:
+        """Adds a sample to a project and saves the document.
+
+        Args:
+            project_id (str): The project ID.
+            sample_id (str): The sample ID.
+            lib_prep_option (str): The library preparation option.
+            status (str, optional): The status of the sample. Defaults to "pending".
+        """
+        try:
+            document_dict = self.get_document_by_project_id(project_id)
+            if document_dict:
+                ygg_doc = YggdrasilDocument.from_dict(document_dict)
+                ygg_doc.add_sample(sample_id, status)
+                self.save_document(ygg_doc)
+                logging.info(f"Updated project {project_id} with sample.")
+            else:
+                logging.error(f"Project {project_id} does not exist in YggdrasilDB.")
+        except Exception as e:
+            logging.error(f"Error adding sample: {e}")
+
     def update_sample_status(
         self, project_id: str, sample_id: str, status: str
     ) -> None:

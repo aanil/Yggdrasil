@@ -80,9 +80,11 @@ class YggdrasilDocument:
     def add_sample(
         self,
         sample_id: str,
-        lib_prep_option: str,
+        # lib_prep_option: str,
         status: str = "pending",
         flowcell_ids_processed_for: Optional[List[str]] = None,
+        start_time: Optional[str] = None,
+        end_time: Optional[str] = None,
     ) -> None:
         """Adds a new sample to the document.
 
@@ -91,16 +93,38 @@ class YggdrasilDocument:
             lib_prep_option (str): The library preparation option.
             status (str, optional): The status of the sample. Defaults to "pending".
             flowcell_ids_processed_for (List[str], optional): Flowcell IDs the sample has been processed for.
+            start_time (str, optional): Start time of the sample processing.
+            end_time (str, optional): End time of the sample processing.
         """
-        sample = {
-            "sample_id": sample_id,
-            "status": status,
-            "lib_prep_option": lib_prep_option,
-            "start_time": "",
-            "end_time": "",
-            "flowcell_ids_processed_for": flowcell_ids_processed_for or [],
-        }
-        self.samples.append(sample)
+        existing_sample = self.get_sample(sample_id)
+        if existing_sample:
+            # Update existing sample
+            existing_sample["status"] = status
+            if flowcell_ids_processed_for:
+                existing_sample["flowcell_ids_processed_for"].extend(
+                    flowcell_ids_processed_for
+                )
+                # Remove duplicates
+                existing_sample["flowcell_ids_processed_for"] = list(
+                    set(existing_sample["flowcell_ids_processed_for"])
+                )
+            if start_time:
+                existing_sample["start_time"] = start_time
+            if end_time:
+                existing_sample["end_time"] = end_time
+            # logging.debug(f"Updated sample: {existing_sample}")
+        else:
+            # Add new sample
+            sample = {
+                "sample_id": sample_id,
+                "status": status,
+                # "lib_prep_option": lib_prep_option,
+                "start_time": start_time or "",
+                "end_time": end_time or "",
+                "flowcell_ids_processed_for": flowcell_ids_processed_for or [],
+            }
+            self.samples.append(sample)
+            # logging.debug(f"Added sample: {sample}")
 
     def update_sample_status(self, sample_id: str, status: str) -> None:
         """Updates the status of a specific sample.
@@ -132,7 +156,7 @@ class YggdrasilDocument:
         self.check_project_completion()
 
     def get_sample(self, sample_id: str) -> Optional[Dict[str, Any]]:
-        """Retrieves a specific sample by its ID.
+        """Retrieves a specific sample from the samples list by its ID.
 
         Args:
             sample_id (str): The sample ID to retrieve.
