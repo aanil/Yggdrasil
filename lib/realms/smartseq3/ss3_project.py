@@ -4,10 +4,9 @@ from pathlib import Path
 from lib.base.abstract_project import AbstractProject
 from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import custom_logger
-from lib.module_utils.ngi_report_generator import generate_ngi_report
 
 # from datetime import datetime
-# from lib.couchdb.manager import YggdrasilDBManager
+from lib.module_utils.ngi_report_generator import generate_ngi_report
 from lib.realms.smartseq3.ss3_sample import SS3Sample
 
 logging = custom_logger("SS3 Project")
@@ -35,12 +34,14 @@ class SmartSeq3(AbstractProject):
         Args:
             doc (dict): Document containing project metadata.
         """
+        super().__init__(doc, yggdrasil_db_manager)
         self.doc = doc
         self.ydm = yggdrasil_db_manager
-        self.proceed = self._check_required_fields()
+        self.proceed = self.check_required_fields()
 
         # TODO: What if I return None if not self.proceed?
         if self.proceed:
+            self.initialize_project_in_db()
             self.project_info = self._extract_project_info()
             self.project_dir = self.ensure_project_directory()
             self.project_info["project_dir"] = self.project_dir
@@ -74,7 +75,7 @@ class SmartSeq3(AbstractProject):
                 {}
             )  # Return an empty dict or some default values to allow continuation
 
-    def _check_required_fields(self):
+    def check_required_fields(self):
         """
         Checks if the document contains all required fields.
 
@@ -154,6 +155,8 @@ class SmartSeq3(AbstractProject):
             logging.warning("No samples found for processing. Returning...")
             return
 
+        self.add_samples_to_project_in_db()
+
         # Pre-process samples
         pre_tasks = [sample.pre_process() for sample in self.samples]
         await asyncio.gather(*pre_tasks)
@@ -201,7 +204,9 @@ class SmartSeq3(AbstractProject):
         samples = []
 
         for sample_id, sample_data in self.doc.get("samples", {}).items():
-            sample = SS3Sample(sample_id, sample_data, self.project_info, self.config)
+            sample = SS3Sample(
+                sample_id, sample_data, self.project_info, self.config, self.ydm
+            )
 
             if sample.flowcell_id:
                 samples.append(sample)

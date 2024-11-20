@@ -30,7 +30,9 @@ class SS3Sample(AbstractSample):
         file_handler (SampleFileHandler): Handler for sample files.
     """
 
-    def __init__(self, sample_id, sample_data, project_info, config):
+    def __init__(
+        self, sample_id, sample_data, project_info, config, yggdrasil_db_manager
+    ):
         """
         Initialize a SmartSeq3 sample instance.
 
@@ -44,6 +46,8 @@ class SS3Sample(AbstractSample):
         self._id = sample_id
         self.sample_data = sample_data
         self.project_info = project_info
+        # TODO: ensure project_id is always available
+        self.project_id = self.project_info.get("project_id", "")
 
         # Initialize barcode
         self.barcode = self.get_barcode()
@@ -52,6 +56,7 @@ class SS3Sample(AbstractSample):
         self.flowcell_id = self._get_latest_flowcell()
 
         self.config = config
+        self.ydm = yggdrasil_db_manager
         # self.job_id = None
 
         # TODO: Currently not used much, but should be used if we write to a database
@@ -79,6 +84,8 @@ class SS3Sample(AbstractSample):
     @status.setter
     def status(self, value):
         self._status = value
+        # Update the status in the database
+        self.ydm.update_sample_status(self.project_id, self.id, value)
 
     async def pre_process(self):
         """Pre-process the sample by collecting metadata and creating YAML files."""
