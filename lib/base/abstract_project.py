@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from lib.core_utils.logging_utils import custom_logger
 from lib.module_utils.sjob_manager import SlurmJobManager
+
+logging = custom_logger(__name__.split(".")[-1])
 
 
 class AbstractProject(ABC):
@@ -18,7 +21,7 @@ class AbstractProject(ABC):
     Attributes:
         sjob_manager (SlurmJobManager): Manages submission and monitoring of Slurm jobs.
         doc (Any): The document representing the project or data to be processed.
-        yggdrasil_db_manager (Any): The database manager for Yggdrasil-specific database operations.
+        ydm (Any): The database manager (yggdrasil_db_manager) for Yggdrasil-specific database operations.
     """
 
     def __init__(self, doc: Any, yggdrasil_db_manager: Any) -> None:
@@ -30,7 +33,66 @@ class AbstractProject(ABC):
         """
         self.sjob_manager: SlurmJobManager = SlurmJobManager()
         self.doc: Any = doc
-        self.yggdrasil_db_manager: Any = yggdrasil_db_manager
+        self.ydm: Any = yggdrasil_db_manager
+        self.project_id: str = self.doc.get("project_id")
+        self.doc_id: str = self.doc.get("_id")
+        self.method: str = self.doc.get("details", {}).get(
+            "library_construction_method", ""
+        )
+        self.status: str = "ongoing"
+        self.project_info: dict = {}
+        self.samples: list = []
+        self.proceed: bool = False  # Default to False; subclasses can override
+
+    # def setup_project(self):
+    #     """Template method defining the steps for project setup."""
+    #     self.proceed = self.check_required_fields()
+    #     if self.proceed:
+    #         self.initialize_project_in_db()
+    #         # self._extract_project_specific_info()
+    #         # self.extract_samples()
+    #     else:
+    #         logging.error("Cannot proceed due to missing required fields.")
+
+    def initialize_project_in_db(self):
+        """Initialize the project in the Yggdrasil database."""
+        existing_document = self.ydm.check_project_exists(self.project_id)
+        if existing_document is None:
+            # Create the project in YggdrasilDB
+            self.ydm.create_project(self.project_id, self.doc_id, self.method)
+            logging.info(f"Project {self.project_id} created in YggdrasilDB.")
+        else:
+            logging.info(f"Project {self.project_id} already exists in YggdrasilDB.")
+            self.status = existing_document.get("status")
+            if self.status == "completed":
+                logging.info(
+                    f"Project with ID {self.project_id} is already completed. Skipping processing."
+                )
+                self.proceed = False
+            else:
+                logging.info(
+                    f"Project with ID {self.project_id} is ongoing and will be processed."
+                )
+                self.proceed = True
+
+    def add_samples_to_project_in_db(self):
+        """Add samples to the project in the Yggdrasil database."""
+        for sample in self.samples:
+            self.ydm.add_sample(
+                project_id=self.project_id,
+                sample_id=sample.id,
+                # lib_prep_option=sample.project_info.get("library_prep_option", ""),
+                status=sample.status,
+            )
+
+    @abstractmethod
+    def check_required_fields(self) -> bool:
+        """Check if the document contains all required fields.
+
+        Returns:
+            bool: True if all required fields are present, False otherwise.
+        """
+        pass
 
     @abstractmethod
     async def launch(self) -> None:
