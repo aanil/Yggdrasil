@@ -126,25 +126,6 @@ class SS3Sample(AbstractSample):
         # If all pre-processing steps succeeded
         self.status = "pre_processed"
 
-    async def process(self):
-        """Process the sample by submitting its job."""
-        logging.info("\n")
-        logging.info(f"[{self.id}] Processing...")
-        logging.debug(f"[{self.id}] Submitting job...")
-        self.status = "processing"
-        self.job_id = await self.sjob_manager.submit_job(
-            self.file_handler.slurm_script_path
-        )
-
-        if self.job_id:
-            logging.debug(f"[{self.id}] Job submitted with ID: {self.job_id}")
-            # Wait here for the monitoring to complete before exiting the process method
-            await self.sjob_manager.monitor_job(self.job_id, self)
-            logging.debug(f"[{self.id}] Job {self.job_id} monitoring complete.")
-        else:
-            logging.error(f"[{self.id}] Failed to submit job.")
-            self.status = "processing_failed"
-
     def get_barcode(self):
         """
         Retrieve and validate the barcode from sample data.
@@ -337,6 +318,25 @@ class SS3Sample(AbstractSample):
             bool: True if the YAML file was created successfully, False otherwise.
         """
         return write_yaml(self.config, metadata)
+
+    async def process(self):
+        """Process the sample by submitting its job."""
+        logging.info("\n")
+        logging.info(f"[{self.id}] Processing...")
+        logging.debug(f"[{self.id}] Submitting job...")
+        self.status = "processing"
+        self.job_id = await self.sjob_manager.submit_job(
+            self.file_handler.slurm_script_path
+        )
+
+        if self.job_id:
+            logging.debug(f"[{self.id}] Job submitted with ID: {self.job_id}")
+            # Wait here for the monitoring to complete before exiting the process method
+            await self.sjob_manager.monitor_job(self.job_id, self)
+            logging.debug(f"[{self.id}] Job {self.job_id} monitoring complete.")
+        else:
+            logging.error(f"[{self.id}] Failed to submit job.")
+            self.status = "processing_failed"
 
     def post_process(self):
         """

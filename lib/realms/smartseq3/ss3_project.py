@@ -35,45 +35,13 @@ class SmartSeq3(AbstractProject):
             doc (dict): Document containing project metadata.
         """
         super().__init__(doc, yggdrasil_db_manager)
-        self.doc = doc
-        self.ydm = yggdrasil_db_manager
         self.proceed = self.check_required_fields()
 
-        # TODO: What if I return None if not self.proceed?
         if self.proceed:
             self.initialize_project_in_db()
             self.project_info = self._extract_project_info()
             self.project_dir = self.ensure_project_directory()
             self.project_info["project_dir"] = self.project_dir
-            self.samples = []
-
-    def _extract_project_info(self):
-        """
-        Extracts project information from the provided document.
-
-        Returns:
-            dict: A dictionary containing selected project information or an empty dictionary in case of an error.
-        """
-        try:
-            project_info = {
-                "project_name": self.doc.get("project_name", ""),
-                "project_id": self.doc.get("project_id", "Unknown_Project"),
-                "escg_id": self.doc.get("customer_project_reference"),
-                "library_prep_option": self.doc.get("details", {}).get(
-                    "library_prep_option"
-                ),
-                "contact": self.doc.get("contact"),  # Is this an email or a name?
-                "ref_genome": self.doc.get("reference_genome"),
-                "organism": self.doc.get("details", {}).get("organism"),
-                "sequencing_setup": self.doc.get("details", {}).get("sequencing_setup"),
-            }
-
-            return project_info
-        except Exception as e:
-            logging.error(f"Error occurred while extracting project information: {e}")
-            return (
-                {}
-            )  # Return an empty dict or some default values to allow continuation
 
     def check_required_fields(self):
         """
@@ -122,6 +90,34 @@ class SmartSeq3(AbstractProject):
             else:
                 return False
         return True
+
+    def _extract_project_info(self):
+        """
+        Extracts project information from the provided document.
+
+        Returns:
+            dict: A dictionary containing selected project information or an empty dictionary in case of an error.
+        """
+        try:
+            project_info = {
+                "project_name": self.doc.get("project_name", ""),
+                "project_id": self.doc.get("project_id", "Unknown_Project"),
+                "escg_id": self.doc.get("customer_project_reference"),
+                "library_prep_option": self.doc.get("details", {}).get(
+                    "library_prep_option"
+                ),
+                "contact": self.doc.get("contact"),  # Is this an email or a name?
+                "ref_genome": self.doc.get("reference_genome"),
+                "organism": self.doc.get("details", {}).get("organism"),
+                "sequencing_setup": self.doc.get("details", {}).get("sequencing_setup"),
+            }
+
+            return project_info
+        except Exception as e:
+            logging.error(f"Error occurred while extracting project information: {e}")
+            return (
+                {}
+            )  # Return an empty dict or some default values to allow continuation
 
     # TODO: Check whether this would be better fit in the sample_file_handler
     def ensure_project_directory(self):
@@ -242,14 +238,8 @@ class SmartSeq3(AbstractProject):
     def create_slurm_job(self, sample):
         """
         Placeholder for creating a Slurm job on the project level.
-        Not used in the current implementation, but demanded by the RealmTemplate (perhaps reconsider template).
+        Not used in the current implementation, but demanded by the template class (perhaps reconsider template).
         """
-        # try:
-        #     output_file = f"sim_out/10x/{sample['scilife_name']}_slurm_script.sh"
-        #     # Use your method to generate the Slurm script here
-        #     generate_slurm_script(sample, "sim_out/10x/slurm_template.sh", output_file)
-        # except Exception as e:
-        #     logging.warning(f"Error in creating Slurm job for sample {sample['scilife_name']}: {e}")
         pass
 
     # def submit_job(self, script):
