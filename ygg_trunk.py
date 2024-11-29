@@ -81,7 +81,14 @@ async def process_couchdb_changes():
                 tasks_limit = 2
                 if len(tasks) >= tasks_limit:
                     # Wait for all tasks to complete
-                    await asyncio.gather(*tasks)
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    # Check for exceptions
+                    for result in results:
+                        if isinstance(result, Exception):
+                            logging.error(
+                                f"Task raised an exception: {result}",
+                                exc_info=True,
+                            )
                     tasks = []
 
                 # Sleep to avoid excessive polling
@@ -90,14 +97,24 @@ async def process_couchdb_changes():
 
             # If an HPC job is required, submit it asynchronously
             # await submit_hpc_job(data)
-        except Exception as e:
-            logging.error(f"An error occurred: {e}", exc_info=True)
+            # except Exception as e:
+            #     logging.error(f"An error occurred: {e}", exc_info=True)
             # logging.error(f"Data causing the error: {data}")
 
-        # After the loop, wait for any remaining tasks to complete
-        if tasks:
-            await asyncio.gather(*tasks)
-            tasks = []
+            # After the loop, wait for any remaining tasks to complete
+            # |<-- if goes one indentation back if except block above is uncommented NOTE
+            if tasks:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for result in results:
+                    if isinstance(result, Exception):
+                        logging.error(
+                            f"Task raised an exception: {result}",
+                            exc_info=True,
+                        )
+                tasks = []
+
+        except Exception as e:
+            logging.error(f"An error occurred: {e}", exc_info=True)
 
         # Sleep to avoid excessive polling
         print("Sleeping in while loop...")

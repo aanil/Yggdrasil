@@ -13,6 +13,13 @@ configure_logging(debug=True)
 logging = custom_logger("Ygg-Mule")
 
 
+async def launch_realm(realm):
+    try:
+        await realm.launch()
+    except Exception as e:
+        logging.error(f"Error in realm.launch(): {e}", exc_info=True)
+
+
 def process_document(doc_id):
     """Process a document by its ID.
 
@@ -46,7 +53,7 @@ def process_document(doc_id):
         if RealmClass:
             realm = RealmClass(document, ydm)
             if realm.proceed:
-                asyncio.run(realm.launch())
+                asyncio.run(launch_realm(realm))
                 logging.info("Processing complete.")
             else:
                 logging.info(
