@@ -200,6 +200,10 @@ class SmartSeq3(AbstractProject):
         samples = []
 
         for sample_id, sample_data in self.doc.get("samples", {}).items():
+            sample_status = sample_data.get("details", {}).get("status_(manual)", "")
+            if sample_status.lower() == "aborted":
+                logging.info(f"Skipping aborted sample '{sample_id}'.")
+                continue  # Skip this sample
             sample = SS3Sample(
                 sample_id, sample_data, self.project_info, self.config, self.ydm
             )

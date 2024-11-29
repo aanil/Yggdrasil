@@ -133,12 +133,18 @@ class SS3Sample(AbstractSample):
         Returns:
             str: The barcode of the sample.
         """
-        barcode = self.sample_data["library_prep"]["A"].get("barcode", None)
-        if barcode:
-            return barcode.split("-")[-1]
-        else:
-            logging.warning(f"No barcode found in StatusDB for sample {self.id}.")
-            return None  # Or handle more appropriately based on your application's requirements
+        try:
+            library_prep = self.sample_data.get("library_prep", {})
+            prep_A = library_prep.get("A", {})
+            barcode = prep_A.get("barcode", None)
+            if barcode:
+                return barcode.split("-")[-1]
+            else:
+                logging.warning(f"No barcode found for sample {self.id}.")
+                return None  # Or handle more appropriately based on your application's requirements
+        except Exception as e:
+            logging.error(f"Error extracting barcode for sample {self.id}: {e}")
+            return None
 
     def _collect_yaml_metadata(self):
         """
