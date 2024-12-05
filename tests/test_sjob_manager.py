@@ -1,89 +1,283 @@
 import asyncio
-import subprocess
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from lib.module_utils.sjob_manager import SlurmJobManager
 
 
-class MockSample:
-    def __init__(self, id):
-        self.id = id
+class Sample:
+    """Mock sample object with id and status attributes."""
+
+    def __init__(self, sample_id):
+        self.id = sample_id
+        self.status = None
 
     def post_process(self):
-        pass  # Add your mock implementation here if needed
+        pass  # Mock method to simulate post-processing
 
 
-class TestSlurmJobManager(unittest.TestCase):
+class TestSlurmJobManager(unittest.IsolatedAsyncioTestCase):
+
     def setUp(self):
         self.manager = SlurmJobManager()
-        self.sample = MagicMock()
-        self.sample.id = "sample1"
-        self.sample.post_process = AsyncMock()
+        self.script_path = "test_script.sh"
+        self.job_id = "12345"
+        self.sample = Sample("sample1")
 
-    async def test_monitor_job(self):
-        with unittest.mock.patch.object(
-            self.manager, "_job_status", new_callable=AsyncMock
-        ) as mock_job_status, unittest.mock.patch.object(
-            self.manager, "check_status"
-        ) as mock_check_status:
+    @patch("lib.module_utils.sjob_manager.Path")
+    @patch("lib.module_utils.sjob_manager.asyncio.create_subprocess_exec")
+    async def test_submit_job_success(self, mock_create_subprocess_exec, mock_path):
+        # Mock Path.is_file() to return True
+        mock_path.return_value.is_file.return_value = True
 
-            for status in ["COMPLETED", "FAILED", "CANCELLED"]:
-                mock_job_status.return_value = status
-                await self.manager.monitor_job("job1", self.sample)
-                mock_check_status.assert_called_with("job1", status, self.sample)
-
-    @patch(
-        "lib.utils.sjob_manager.asyncio.create_subprocess_exec", new_callable=AsyncMock
-    )
-    @patch("lib.utils.sjob_manager.asyncio.wait_for", new_callable=AsyncMock)
-    def test_submit_job(self, mock_wait_for, mock_create_subprocess_exec):
-        # Set up the mocks
-        mock_create_subprocess_exec.return_value.communicate.return_value = (
-            b"1234",
-            b"",
+        # Mock the subprocess
+        process_mock = MagicMock()
+        process_mock.communicate = AsyncMock(
+            return_value=(b"Submitted batch job 12345\n", b"")
         )
-        mock_create_subprocess_exec.return_value.returncode = 0
-        mock_wait_for.return_value = (b"1234", b"")
+        process_mock.returncode = 0
+        mock_create_subprocess_exec.return_value = process_mock
 
-        # Call the submit_job method
-        job_id = asyncio.run(self.manager.submit_job("script.sh"))
+        job_id = await self.manager.submit_job(self.script_path)
+        self.assertEqual(job_id, "12345")
 
-        # Assert the mocks were called correctly
-        mock_create_subprocess_exec.assert_called_once_with(
-            "sbatch", "script.sh", stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    @patch("lib.module_utils.sjob_manager.Path")
+    async def test_submit_job_script_not_found(self, mock_path):
+        # Mock Path.is_file() to return False
+        mock_path.return_value.is_file.return_value = False
+
+        job_id = await self.manager.submit_job(self.script_path)
+        self.assertIsNone(job_id)
+
+    @patch("lib.module_utils.sjob_manager.Path")
+    @patch("lib.module_utils.sjob_manager.asyncio.create_subprocess_exec")
+    async def test_submit_job_sbatch_error(
+        self, mock_create_subprocess_exec, mock_path
+    ):
+        # Mock Path.is_file() to return True
+        mock_path.return_value.is_file.return_value = True
+
+        # Mock the subprocess to simulate sbatch error
+        process_mock = MagicMock()
+        process_mock.communicate = AsyncMock(
+            return_value=(b"", b"Error submitting job")
         )
-        mock_wait_for.assert_called_once()
+        process_mock.returncode = 1
+        mock_create_subprocess_exec.return_value = process_mock
 
-        # Assert the correct job ID was returned
-        self.assertEqual(job_id, "1234")
+        job_id = await self.manager.submit_job(self.script_path)
+        self.assertIsNone(job_id)
 
-    @patch(
-        "lib.utils.sjob_manager.asyncio.create_subprocess_shell", new_callable=AsyncMock
-    )
-    @patch("lib.utils.sjob_manager.asyncio.wait_for", new_callable=AsyncMock)
-    def test__job_status(self, mock_wait_for, mock_create_subprocess_shell):
-        # Set up the mocks
-        mock_create_subprocess_shell.return_value.communicate.return_value = (
-            b"COMPLETED",
-            b"",
+    @patch("lib.module_utils.sjob_manager.Path")
+    @patch("lib.module_utils.sjob_manager.asyncio.create_subprocess_exec")
+    async def test_submit_job_no_job_id(self, mock_create_subprocess_exec, mock_path):
+        # Mock Path.is_file() to return True
+        mock_path.return_value.is_file.return_value = True
+
+        # Mock the subprocess to return output without job ID
+        process_mock = MagicMock()
+        process_mock.communicate = AsyncMock(
+            return_value=(b"Submission output without job ID", b"")
         )
-        mock_create_subprocess_shell.return_value.returncode = 0
-        mock_wait_for.return_value = (b"COMPLETED", b"")
+        process_mock.returncode = 0
+        mock_create_subprocess_exec.return_value = process_mock
 
-        # Call the _job_status method
-        status = asyncio.run(self.manager._job_status("1234"))
+        job_id = await self.manager.submit_job(self.script_path)
+        self.assertIsNone(job_id)
 
-        # Assert the mocks were called correctly
-        mock_create_subprocess_shell.assert_called_once_with(
-            "sacct -n -X -o State -j 1234",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        mock_wait_for.assert_called_once()
+    @patch("lib.module_utils.sjob_manager.Path")
+    @patch("lib.module_utils.sjob_manager.asyncio.create_subprocess_exec")
+    async def test_submit_job_timeout(self, mock_create_subprocess_exec, mock_path):
+        # Mock Path.is_file() to return True
+        mock_path.return_value.is_file.return_value = True
 
-        # Assert the correct status was returned
+        # Mock the subprocess to simulate a timeout
+        async def mock_communicate():
+            await asyncio.sleep(0.1)
+            raise asyncio.TimeoutError()
+
+        # Mock the subprocess to simulate a timeout
+        mock_create_subprocess_exec.side_effect = asyncio.TimeoutError
+
+        job_id = await self.manager.submit_job(self.script_path)
+        self.assertIsNone(job_id)
+
+    @patch("lib.module_utils.sjob_manager.asyncio.sleep", new_callable=AsyncMock)
+    @patch("lib.module_utils.sjob_manager.SlurmJobManager._job_status")
+    async def test_monitor_job_completed(self, mock_job_status, mock_sleep):
+        # Mock _job_status to return 'COMPLETED' after a few calls
+        mock_job_status.side_effect = ["PENDING", "RUNNING", "COMPLETED"]
+
+        await self.manager.monitor_job(self.job_id, self.sample)
+        self.assertEqual(self.sample.status, "processed")
+
+    @patch("lib.module_utils.sjob_manager.asyncio.sleep", new_callable=AsyncMock)
+    @patch("lib.module_utils.sjob_manager.SlurmJobManager._job_status")
+    async def test_monitor_job_failed(self, mock_job_status, mock_sleep):
+        # Mock _job_status to return 'FAILED'
+        mock_job_status.return_value = "FAILED"
+
+        await self.manager.monitor_job(self.job_id, self.sample)
+        self.assertEqual(self.sample.status, "processing_failed")
+
+    @patch("lib.module_utils.sjob_manager.asyncio.sleep", new_callable=AsyncMock)
+    @patch("lib.module_utils.sjob_manager.SlurmJobManager._job_status")
+    async def test_monitor_job_unexpected_status(self, mock_job_status, mock_sleep):
+        # Mock _job_status to return 'UNKNOWN_STATUS' a few times, then 'COMPLETED'
+        mock_job_status.side_effect = ["UNKNOWN_STATUS"] * 3 + ["COMPLETED"]
+
+        await self.manager.monitor_job(self.job_id, self.sample)
+        self.assertEqual(self.sample.status, "processed")
+
+    @patch("lib.module_utils.sjob_manager.asyncio.create_subprocess_shell")
+    async def test_job_status_success(self, mock_create_subprocess_shell):
+        # Mock the subprocess to return a valid status
+        process_mock = MagicMock()
+        process_mock.communicate = AsyncMock(return_value=(b"COMPLETED", b""))
+        mock_create_subprocess_shell.return_value = process_mock
+
+        status = await self.manager._job_status(self.job_id)
         self.assertEqual(status, "COMPLETED")
+
+    @patch("lib.module_utils.sjob_manager.asyncio.create_subprocess_shell")
+    async def test_job_status_error(self, mock_create_subprocess_shell):
+        # Mock the subprocess to return stderr
+        process_mock = MagicMock()
+        process_mock.communicate = AsyncMock(return_value=(b"", b"sacct error"))
+        mock_create_subprocess_shell.return_value = process_mock
+
+        status = await self.manager._job_status(self.job_id)
+        self.assertIsNone(status)
+
+    @patch("lib.module_utils.sjob_manager.asyncio.create_subprocess_shell")
+    async def test_job_status_timeout(self, mock_create_subprocess_shell):
+        # Mock the subprocess to simulate a timeout
+        mock_create_subprocess_shell.side_effect = asyncio.TimeoutError
+
+        status = await self.manager._job_status(self.job_id)
+        self.assertIsNone(status)
+
+    def test_check_status_completed(self):
+        # Test check_status with 'COMPLETED' status
+        self.manager.check_status(self.job_id, "COMPLETED", self.sample)
+        self.assertEqual(self.sample.status, "processed")
+
+    def test_check_status_failed(self):
+        # Test check_status with 'FAILED' status
+        self.manager.check_status(self.job_id, "FAILED", self.sample)
+        self.assertEqual(self.sample.status, "processing_failed")
+
+    def test_check_status_unexpected(self):
+        # Test check_status with an unexpected status
+        self.manager.check_status(self.job_id, "UNKNOWN_STATUS", self.sample)
+        self.assertEqual(self.sample.status, "processing_failed")
+
+    @patch("lib.module_utils.sjob_manager.custom_logger")
+    def test_init_with_configs(self, mock_custom_logger):
+        # Mock configs to return custom polling interval
+        with patch(
+            "lib.module_utils.sjob_manager.configs", {"job_monitor_poll_interval": 5.0}
+        ):
+            manager = SlurmJobManager()
+            self.assertEqual(manager.polling_interval, 5.0)
+
+    @patch("lib.module_utils.sjob_manager.custom_logger")
+    def test_init_with_default_configs(self, mock_custom_logger):
+        # Mock configs to be empty
+        with patch("lib.module_utils.sjob_manager.configs", {}):
+            manager = SlurmJobManager()
+            self.assertEqual(manager.polling_interval, 10.0)
+
+    @patch("lib.module_utils.sjob_manager.Path")
+    @patch("lib.module_utils.sjob_manager.asyncio.create_subprocess_exec")
+    async def test_submit_job_exception(self, mock_create_subprocess_exec, mock_path):
+        # Mock Path.is_file() to return True
+        mock_path.return_value.is_file.return_value = True
+
+        # Simulate an exception during subprocess creation
+        mock_create_subprocess_exec.side_effect = Exception("Unexpected error")
+
+        job_id = await self.manager.submit_job(self.script_path)
+        self.assertIsNone(job_id)
+
+    @patch("lib.module_utils.sjob_manager.asyncio.create_subprocess_shell")
+    async def test_job_status_exception(self, mock_create_subprocess_shell):
+        # Simulate an exception during subprocess creation
+        mock_create_subprocess_shell.side_effect = Exception("Unexpected error")
+
+        status = await self.manager._job_status(self.job_id)
+        self.assertIsNone(status)
+
+    @patch("lib.module_utils.sjob_manager.SlurmJobManager._job_status")
+    async def test_monitor_job_no_status(self, mock_job_status):
+        # Mock _job_status to return None
+        mock_job_status.return_value = None
+
+        # We need to prevent an infinite loop; we'll let it run only once
+        with patch(
+            "lib.module_utils.sjob_manager.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
+            mock_sleep.side_effect = asyncio.CancelledError
+
+            with self.assertRaises(asyncio.CancelledError):
+                await self.manager.monitor_job(self.job_id, self.sample)
+
+    def test_check_status_calls_post_process(self):
+        # Mock the sample's post_process method
+        self.sample.post_process = MagicMock()
+
+        self.manager.check_status(self.job_id, "COMPLETED", self.sample)
+        self.sample.post_process.assert_called_once()
+
+    def test_check_status_does_not_call_post_process(self):
+        # Mock the sample's post_process method
+        self.sample.post_process = MagicMock()
+
+        self.manager.check_status(self.job_id, "FAILED", self.sample)
+        self.sample.post_process.assert_not_called()
+
+    @patch("lib.module_utils.sjob_manager.asyncio.create_subprocess_shell")
+    async def test_job_status_with_multiple_lines(self, mock_create_subprocess_shell):
+        # Mock sacct output with multiple lines
+        process_mock = MagicMock()
+        process_mock.communicate = AsyncMock(
+            return_value=(b"COMPLETED\nCOMPLETED", b"")
+        )
+        mock_create_subprocess_shell.return_value = process_mock
+
+        status = await self.manager._job_status(self.job_id)
+        self.assertEqual(status, "COMPLETED\nCOMPLETED")
+
+    @patch("lib.module_utils.sjob_manager.asyncio.create_subprocess_shell")
+    async def test_job_status_empty_output(self, mock_create_subprocess_shell):
+        # Mock sacct output with empty stdout and stderr
+        process_mock = MagicMock()
+        process_mock.communicate = AsyncMock(return_value=(b"", b""))
+        mock_create_subprocess_shell.return_value = process_mock
+
+        status = await self.manager._job_status(self.job_id)
+        self.assertIsNone(status)
+
+    @patch("lib.module_utils.sjob_manager.asyncio.create_subprocess_shell")
+    async def test_job_status_decode_error(self, mock_create_subprocess_shell):
+        # Mock sacct output with bytes that cannot be decoded
+        process_mock = MagicMock()
+        process_mock.communicate = AsyncMock(return_value=(b"\xff\xfe", b""))
+        mock_create_subprocess_shell.return_value = process_mock
+
+        status = await self.manager._job_status(self.job_id)
+        self.assertIsNone(status)
+
+    @patch("lib.module_utils.sjob_manager.asyncio.create_subprocess_exec")
+    async def test_submit_job_decode_error(self, mock_create_subprocess_exec):
+        # Mock sbatch output with bytes that cannot be decoded
+        process_mock = MagicMock()
+        process_mock.communicate = AsyncMock(return_value=(b"\xff\xfe", b""))
+        process_mock.returncode = 0
+        mock_create_subprocess_exec.return_value = process_mock
+
+        job_id = await self.manager.submit_job(self.script_path)
+        self.assertIsNone(job_id)
 
 
 if __name__ == "__main__":
