@@ -23,6 +23,17 @@ def singleton(cls: Type[Any]) -> Type[Any]:
 
     Returns:
         Type[Any]: The singleton class with SingletonMeta as its metaclass.
+
+    Limitations:
+        - **Pickling Not Supported:** Singleton instances created with this decorator
+          cannot be pickled. Attempting to pickle such an instance will result in a
+          `TypeError` or `AttributeError`. If pickling is required, consider implementing
+          custom pickling methods or using a different singleton pattern.
+        - **Incompatible with Custom Metaclasses:** The singleton decorator cannot be
+          applied to classes that already have a custom metaclass. Doing so will raise a
+          `TypeError` due to metaclass conflicts. To use the singleton pattern with such
+          classes, you'll need to implement the singleton behavior manually or adjust
+          your class design.
     """
 
     # Create a new class with SingletonMeta as its metaclass
