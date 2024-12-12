@@ -59,13 +59,14 @@ class TestYggdrasilUtilities(unittest.TestCase):
 
     @patch("importlib.import_module")
     def test_load_realm_class_attribute_error(self, mock_import_module):
-        # Module exists but class does not
-        mock_module = MagicMock()
+        # Creating a mock module with no attributes allowed
+        # means any attribute access raises AttributeError.
+        mock_module = MagicMock(spec=[])
+
         mock_import_module.return_value = mock_module
 
         module_path = "some.module.MissingClass"
         result = YggdrasilUtilities.load_realm_class(module_path)
-
         self.assertIsNone(result)
         mock_import_module.assert_called_with("some.module")
 
@@ -92,6 +93,22 @@ class TestYggdrasilUtilities(unittest.TestCase):
 
         self.assertIsNone(result)
         mock_import_module.assert_called_with("nonexistent.module")
+
+    @patch("importlib.import_module")
+    def test_load_realm_class_caching(self, mock_import_module):
+        # First call: loads and caches the class
+        mock_module = MagicMock()
+        mock_import_module.return_value = mock_module
+        module_path = "some.module.ExistingClass"
+        first_result = YggdrasilUtilities.load_realm_class(module_path)
+        self.assertIsNotNone(first_result)
+
+        # Second call: should return the cached class without calling import_module again
+        second_result = YggdrasilUtilities.load_realm_class(module_path)
+        self.assertIs(first_result, second_result)
+        mock_import_module.assert_called_once_with(
+            "some.module"
+        )  # Confirm only called once
 
     def test_get_path_file_exists(self):
         # Create a dummy config file
@@ -215,6 +232,16 @@ class TestYggdrasilUtilities(unittest.TestCase):
         file_name = "/etc/passwd"
         result = YggdrasilUtilities.get_path(file_name)
         self.assertIsNone(result)  # Should not allow absolute paths
+
+    @patch.object(YggdrasilUtilities, "CONFIG_DIR", Path("/some/base/path"))
+    def test_get_path_resolve_error(self):
+        # Mock the config_file.resolve() call to raise an Exception
+        # to trigger the exception block in get_path
+        with patch(
+            "lib.core_utils.common.Path.resolve", side_effect=Exception("Resolve error")
+        ):
+            result = YggdrasilUtilities.get_path("somefile")
+            self.assertIsNone(result)
 
 
 if __name__ == "__main__":

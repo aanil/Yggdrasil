@@ -131,7 +131,50 @@ class TestTransferReport(unittest.TestCase):
             mock_logging.error.assert_any_call(
                 "Unexpected error during report transfer: Unexpected error"
             )
-            mock_logging.error.assert_any_call("RSYNC output: ")
+            mock_logging.error.assert_any_call(
+                "RSYNC output: No output available due to early error."
+            )
+
+    @patch("lib.module_utils.report_transfer.configs")
+    @patch("lib.module_utils.report_transfer.subprocess.run")
+    @patch("lib.module_utils.report_transfer.logging")
+    def test_transfer_report_general_exception_with_result(
+        self, mock_logging, mock_subprocess_run, mock_configs
+    ):
+        # Set up a valid config
+        mock_configs.__getitem__.return_value = {
+            "server": self.server,
+            "user": self.user,
+            "destination": self.remote_dir_base,
+            "ssh_key": self.ssh_key,
+        }
+
+        # Mock a successful subprocess run
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "Mocked RSYNC output"
+        mock_subprocess_run.return_value = mock_result
+
+        # Make logging.info raise an exception to simulate an error after success
+        def info_side_effect(*args, **kwargs):
+            raise Exception("Logging info error")
+
+        mock_logging.info.side_effect = info_side_effect
+
+        # Call the function
+        result = transfer_report(self.report_path, self.project_id, self.sample_id)
+
+        # Assert that the result is False because the exception should cause failure
+        self.assertFalse(result)
+
+        # Check that the unexpected error was logged
+        # The code logs: "Unexpected error during report transfer: Logging info error"
+        mock_logging.error.assert_any_call(
+            "Unexpected error during report transfer: Logging info error"
+        )
+
+        # Check that the RSYNC output was logged
+        mock_logging.error.assert_any_call("RSYNC output: Mocked RSYNC output")
 
     @patch("lib.module_utils.report_transfer.configs")
     @patch("lib.module_utils.report_transfer.subprocess.run")

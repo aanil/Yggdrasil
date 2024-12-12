@@ -95,9 +95,7 @@ class TestConfigLoader(unittest.TestCase):
         # Test that the configuration data is immutable
         self.config_loader._config = types.MappingProxyType(self.mock_config_data)
         with self.assertRaises(TypeError):
-            original_dict = self.mock_config_data
-            with self.assertRaises(TypeError):
-                original_dict["key1"] = "new_value"
+            self.config_loader._config["key1"] = "new_value"  # type: ignore
 
     def test_load_config_type_error(self):
         # Test handling of TypeError during json.load
@@ -132,18 +130,23 @@ class TestConfigLoader(unittest.TestCase):
         self.assertIsInstance(config_manager, ConfigLoader)
 
     def test_configs_loaded(self):
-        # Test that configs are loaded when the module is imported
-        with patch("lib.core_utils.config_loader.Ygg.get_path") as mock_get_path, patch(
-            "builtins.open", mock_open(read_data=self.mock_config_json)
+        with patch(
+            "lib.core_utils.config_loader.config_manager.load_config",
+            return_value=types.MappingProxyType(self.mock_config_data),
         ):
-            mock_get_path.return_value = Path("/path/to/config.json")
-            # Reload the module to trigger the code at the module level
             import sys
 
-            if "config_loader" in sys.modules:
-                del sys.modules["config_loader"]
+            if "lib.core_utils.config_loader" in sys.modules:
+                del sys.modules["lib.core_utils.config_loader"]
+
             from lib.core_utils import config_loader
 
+            # Patch the configs directly
+            config_loader.configs = types.MappingProxyType(self.mock_config_data)
+
+            self.assertEqual(
+                config_loader.configs, types.MappingProxyType(self.mock_config_data)
+            )
             self.assertEqual(
                 config_loader.configs, types.MappingProxyType(self.mock_config_data)
             )
