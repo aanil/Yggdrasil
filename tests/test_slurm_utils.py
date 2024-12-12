@@ -232,12 +232,12 @@ class TestGenerateSlurmScript(unittest.TestCase):
     def test_generate_slurm_script_invalid_template_path_type(self):
         # Test with invalid type for template_fpath
         with self.assertRaises(TypeError):
-            generate_slurm_script(self.args_dict, None, self.output_fpath)
+            generate_slurm_script(self.args_dict, None, self.output_fpath)  # type: ignore
 
     def test_generate_slurm_script_invalid_output_path_type(self):
         # Test with invalid type for output_fpath
         with self.assertRaises(TypeError):
-            generate_slurm_script(self.args_dict, self.template_fpath, None)
+            generate_slurm_script(self.args_dict, self.template_fpath, None)  # type: ignore
 
     @patch("lib.module_utils.slurm_utils.Path")
     @patch("builtins.open", new_callable=mock_open)
