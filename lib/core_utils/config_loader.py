@@ -84,13 +84,19 @@ class ConfigLoader:
                 # TODO: Perform validation and error checking on the loaded data if needed.
                 self._config = types.MappingProxyType(config)
         except json.JSONDecodeError as e:
+            # Set config to empty immutable mapping before raising
+            self._config = types.MappingProxyType({})
             raise json.JSONDecodeError(
                 f"Error parsing config file '{config_file}': {e}", e.doc, e.pos
             )
         except TypeError as e:
+            # Set config to empty immutable mapping before raising
+            self._config = types.MappingProxyType({})
             raise TypeError(f"Error parsing config file '{config_file}': {e}")
         except Exception as e:
             logging.error(f"Unexpected error loading config file '{config_file}': {e}")
+            # Set config to empty immutable mapping before raising
+            self._config = types.MappingProxyType({})
             raise
 
         return self._config
