@@ -13,6 +13,12 @@ def transfer_report(
 ) -> bool:
     try:
         report_transfer_config = configs["report_transfer"]
+        if not isinstance(report_transfer_config, dict):
+            logging.error(
+                "Invalid configuration type for 'report_transfer'. Expected a dictionary."
+            )
+            return False
+
         server = report_transfer_config["server"]
         user = report_transfer_config["user"]
         destination_path = report_transfer_config["destination"]
@@ -42,7 +48,7 @@ def transfer_report(
     ]
 
     # logging.debug(f"RSYNC command: {' '.join(rsync_command)}")
-
+    result = None
     try:
         # Execute the rsync command
         result = subprocess.run(
@@ -59,5 +65,9 @@ def transfer_report(
         return False
     except Exception as e:
         logging.error(f"Unexpected error during report transfer: {e}")
-        logging.error(f"RSYNC output: {result.stdout}")
+        # Check if result is not None before accessing its attributes
+        if result is not None:
+            logging.error(f"RSYNC output: {result.stdout}")
+        else:
+            logging.error("RSYNC output: No output available due to early error.")
         return False

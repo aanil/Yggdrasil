@@ -80,14 +80,38 @@ class YggdrasilUtilities:
 
         Returns:
             Optional[Path]: A Path object representing the full path to the specified
-                configuration file, or None if the file is not found.
+                configuration file, or None if the file is not found or is invalid.
         """
-        config_file = YggdrasilUtilities.CONFIG_DIR / file_name
+        # Convert to Path object
+        requested_path = Path(file_name)
 
-        if config_file.exists():
-            return config_file
-        else:
-            logging.error(f"Configuration file '{file_name}' not found.")
+        # If file_name is absolute or tries to go outside CONFIG_DIR, return None immediately
+        if requested_path.is_absolute():
+            logging.error(f"Absolute paths are not allowed: '{file_name}'")
+            return None
+
+        # Construct the path within CONFIG_DIR
+        config_file = YggdrasilUtilities.CONFIG_DIR / requested_path
+
+        # Check if the constructed path is still within CONFIG_DIR (no directory traversal)
+        try:
+            # Resolve both paths to their absolute forms and ensure CONFIG_DIR is a parent of config_file
+            config_file_resolved = config_file.resolve()
+            config_dir_resolved = YggdrasilUtilities.CONFIG_DIR.resolve()
+
+            if config_dir_resolved not in config_file_resolved.parents:
+                logging.error(
+                    f"Attempted directory traversal outside config dir: '{file_name}'"
+                )
+                return None
+
+            if config_file_resolved.exists():
+                return config_file_resolved
+            else:
+                logging.error(f"Configuration file '{file_name}' not found.")
+                return None
+        except Exception as e:
+            logging.error(f"Error resolving config file path '{file_name}': {e}")
             return None
 
     @staticmethod
@@ -116,7 +140,9 @@ class YggdrasilUtilities:
 
         if seq_file and seq_file.is_file():
             with open(seq_file) as file:
-                return file.read().strip()
+                content = file.read().strip()
+                # If the file is empty, return "0"
+                return content if content else "0"
         else:
             # Otherwise return a default sequence value of your choice.
             # NOTE: Zero (0) means start from the beginning. Note ideal!
@@ -134,5 +160,15 @@ class YggdrasilUtilities:
         seq_file = YggdrasilUtilities.get_path(".last_processed_seq")
 
         if seq_file:
-            with open(seq_file, "w") as file:
-                file.write(last_processed_seq)
+            try:
+                with open(seq_file, "w") as file:
+                    file.write(last_processed_seq)
+            except Exception as e:
+                logging.error(f"Failed to save last processed seq: {e}")
+                # Don't re-raise, just log and exit the method gracefully
+        else:
+            logging.warning(
+                "Failed to save last processed seq:"
+                "'.last_processed_seq' File not found in the configurations."
+            )
+            pass

@@ -24,22 +24,22 @@ def generate_ngi_report(
     # Convert list of samples into a space-separated string for the command line
     samples_str = " ".join(sample_list)
 
-    # Command to activate the environment and run the NGI report generation
-    activate_env_cmd = configs.get("activate_ngi_cmd")
-    if not activate_env_cmd:
-        logging.error(
-            "NGI environment activation command not found in the configuration. "
-            "NGI report will not be generated."
-        )
-        return False
-
-    report_cmd = (
-        f"ngi_reports project_summary -d {project_path} -p {project_id} "
-        f"-s '{user_name}' -y --no_txt --samples {samples_str}"
-    )
-    full_cmd = f"{activate_env_cmd} && {report_cmd}"
-
     try:
+        # Command to activate the environment and run the NGI report generation
+        activate_env_cmd = configs.get("activate_ngi_cmd")
+        if not activate_env_cmd:
+            logging.error(
+                "NGI environment activation command not found in the configuration. "
+                "NGI report will not be generated."
+            )
+            return False
+
+        report_cmd = (
+            f"ngi_reports project_summary -d {project_path} -p {project_id} "
+            f"-s '{user_name}' -y --no_txt --samples {samples_str}"
+        )
+        full_cmd = f"{activate_env_cmd} && {report_cmd}"
+
         # Execute the combined command
         # NOTE: Perhaps use `check=False` to prevent raising
         #       CalledProcessError on non-zero exit codes
