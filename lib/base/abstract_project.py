@@ -71,7 +71,7 @@ class AbstractProject(ABC):
                 self.proceed = False
             else:
                 logging.info(
-                    f"Project with ID {self.project_id} is ongoing and will be processed."
+                    f"Project with ID {self.project_id} has status '{self.status}' and will be processed."
                 )
                 self.proceed = True
 
