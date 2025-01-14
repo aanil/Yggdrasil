@@ -31,7 +31,13 @@ class SS3Sample(AbstractSample):
     """
 
     def __init__(
-        self, sample_id, sample_data, project_info, config, yggdrasil_db_manager
+        self,
+        sample_id,
+        sample_data,
+        project_info,
+        config,
+        yggdrasil_db_manager,
+        aborted: bool = False,
     ):
         """
         Initialize a SmartSeq3 sample instance.
@@ -48,6 +54,12 @@ class SS3Sample(AbstractSample):
         self.project_info = project_info
         # TODO: ensure project_id is always available
         self.project_id = self.project_info.get("project_id", "")
+        self.config = config
+        self.ydm = yggdrasil_db_manager
+
+        if aborted:
+            self._status = "aborted"
+            return
 
         # Initialize barcode
         self.barcode = self.get_barcode()
@@ -55,12 +67,6 @@ class SS3Sample(AbstractSample):
         # Collect flowcell ID
         self.flowcell_id = self._get_latest_flowcell()
 
-        self.config = config
-        self.ydm = yggdrasil_db_manager
-        # self.job_id = None
-
-        # TODO: Currently not used much, but should be used if we write to a database
-        # self._status = "initialized"
         self.metadata = None
 
         if DEBUG:
@@ -71,7 +77,10 @@ class SS3Sample(AbstractSample):
         # Initialize SampleFileHandler
         self.file_handler = SampleFileHandler(self)
 
-        self._status = "initialized"
+        if self.flowcell_id:
+            self._status = "initialized"
+        else:
+            self._status = "unsequenced"
 
     @property
     def id(self):
