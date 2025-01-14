@@ -1,3 +1,5 @@
+from typing import Union
+
 from lib.base.abstract_sample import AbstractSample
 from lib.core_utils.logging_utils import custom_logger
 from lib.module_utils.report_transfer import transfer_report
@@ -26,7 +28,7 @@ class SS3Sample(AbstractSample):
         config (dict): Configuration settings.
         status (str): Current status of the sample.
         metadata (dict): Metadata for the sample.
-        sjob_manager (SlurmJobManager): Manager for submitting and monitoring Slurm jobs.
+        sjob_manager (Union[SlurmJobManager, MockSlurmJobManager]): Manager for submitting and monitoring Slurm jobs.
         file_handler (SampleFileHandler): Handler for sample files.
     """
 
@@ -69,10 +71,9 @@ class SS3Sample(AbstractSample):
 
         self.metadata = None
 
-        if DEBUG:
-            self.sjob_manager = MockSlurmJobManager()
-        else:
-            self.sjob_manager = SlurmJobManager()
+        self.sjob_manager: Union[SlurmJobManager, MockSlurmJobManager] = (
+            MockSlurmJobManager() if DEBUG else SlurmJobManager()
+        )
 
         # Initialize SampleFileHandler
         self.file_handler = SampleFileHandler(self)
