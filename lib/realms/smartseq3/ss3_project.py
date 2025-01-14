@@ -1,5 +1,6 @@
 import asyncio
 from pathlib import Path
+from typing import List
 
 from lib.base.abstract_project import AbstractProject
 from lib.core_utils.config_loader import ConfigLoader
@@ -146,14 +147,23 @@ class SmartSeq3(AbstractProject):
         )
         self.status = "processing"
 
+        # 1) Gather all samples, including aborted/unsequenced
         self.samples = self.extract_samples()
         if not self.samples:
-            logging.warning("No samples found for processing. Returning...")
+            logging.warning("No samples found. Returning...")
             return
 
+        # 2) Register them in YggdrasilDB
         self.add_samples_to_project_in_db()
 
-        # Pre-process samples
+        # 3) Filter only the truly processable samples (i.e. not aborted, not unsequenced)
+        self.samples = self.select_samples_for_processing()
+
+        if not self.samples:
+            logging.warning("No valid (sequenced) samples to process. Returning...")
+            return
+
+        # 4) Pre-process samples
         pre_tasks = [sample.pre_process() for sample in self.samples]
         await asyncio.gather(*pre_tasks)
 
@@ -174,7 +184,7 @@ class SmartSeq3(AbstractProject):
             f"{[sample.id for sample in pre_processed_samples]}"
         )
 
-        # Process samples
+        # 5) Process samples
         tasks = [sample.process() for sample in pre_processed_samples]
         logging.debug(f"Sample tasks created. Waiting for completion...: {tasks}")
         await asyncio.gather(*tasks)
@@ -190,30 +200,58 @@ class SmartSeq3(AbstractProject):
         )
         self.finalize_project()
 
-    def extract_samples(self):
+    def extract_samples(self) -> List[SS3Sample]:
         """
-        Extracts samples from the document and creates SS3Sample instances.
+        Gather **all** samples from the project document, including aborted or unsequenced.
+
+        The sample's status is decided by the sample's constructor:
+        - If 'aborted=True' is passed, the sample sets `_status="aborted"`.
+        - Otherwise, it checks whether there is a flowcell ID and sets `_status="
+            initialized" or "unsequenced".
 
         Returns:
             list: A list of SS3Sample instances.
         """
         samples = []
 
+        # Iterate over all samples in the project doc
         for sample_id, sample_data in self.doc.get("samples", {}).items():
-            sample_status = sample_data.get("details", {}).get("status_(manual)", "")
-            if sample_status.lower() == "aborted":
-                logging.info(f"Skipping aborted sample '{sample_id}'.")
-                continue  # Skip this sample
-            sample = SS3Sample(
-                sample_id, sample_data, self.project_info, self.config, self.ydm
+            # Check if the manual status in the project doc is "aborted"
+            manual_status = (
+                sample_data.get("details", {}).get("status_(manual)", "").lower()
             )
+            is_aborted = manual_status == "aborted"
 
-            if sample.flowcell_id:
-                samples.append(sample)
-            else:
-                logging.warning(f"Skipping {sample_id}. No flowcell IDs found.")
+            # Instantiate the SS3Sample
+            sample = SS3Sample(
+                sample_id=sample_id,
+                sample_data=sample_data,
+                project_info=self.project_info,
+                config=self.config,
+                yggdrasil_db_manager=self.ydm,
+                aborted=is_aborted,
+            )
+            samples.append(sample)
 
         return samples
+
+    def select_samples_for_processing(self) -> List[SS3Sample]:
+        """
+        Return only the samples that should be processed right now:
+        e.g. skip aborted or unsequenced.
+        """
+        processable = []
+        for sample in self.samples:
+            # If a sample is aborted or unsequenced, skip
+            if sample.status in ("aborted", "unsequenced"):
+                logging.info(
+                    f"Skipping sample '{sample.id}' => status '{sample.status}'"
+                )
+                continue
+            # Otherwise it's "initialized" => we can process it
+            processable.append(sample)
+
+        return processable
 
     def finalize_project(self):
         """
