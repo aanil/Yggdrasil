@@ -1,3 +1,5 @@
+from typing import Union
+
 from lib.base.abstract_sample import AbstractSample
 from lib.core_utils.logging_utils import custom_logger
 from lib.module_utils.report_transfer import transfer_report
@@ -26,12 +28,18 @@ class SS3Sample(AbstractSample):
         config (dict): Configuration settings.
         status (str): Current status of the sample.
         metadata (dict): Metadata for the sample.
-        sjob_manager (SlurmJobManager): Manager for submitting and monitoring Slurm jobs.
+        sjob_manager (Union[SlurmJobManager, MockSlurmJobManager]): Manager for submitting and monitoring Slurm jobs.
         file_handler (SampleFileHandler): Handler for sample files.
     """
 
     def __init__(
-        self, sample_id, sample_data, project_info, config, yggdrasil_db_manager
+        self,
+        sample_id,
+        sample_data,
+        project_info,
+        config,
+        yggdrasil_db_manager,
+        aborted: bool = False,
     ):
         """
         Initialize a SmartSeq3 sample instance.
@@ -48,6 +56,12 @@ class SS3Sample(AbstractSample):
         self.project_info = project_info
         # TODO: ensure project_id is always available
         self.project_id = self.project_info.get("project_id", "")
+        self.config = config
+        self.ydm = yggdrasil_db_manager
+
+        if aborted:
+            self._status = "aborted"
+            return
 
         # Initialize barcode
         self.barcode = self.get_barcode()
@@ -55,23 +69,19 @@ class SS3Sample(AbstractSample):
         # Collect flowcell ID
         self.flowcell_id = self._get_latest_flowcell()
 
-        self.config = config
-        self.ydm = yggdrasil_db_manager
-        # self.job_id = None
-
-        # TODO: Currently not used much, but should be used if we write to a database
-        # self._status = "initialized"
         self.metadata = None
 
-        if DEBUG:
-            self.sjob_manager = MockSlurmJobManager()
-        else:
-            self.sjob_manager = SlurmJobManager()
+        self.sjob_manager: Union[SlurmJobManager, MockSlurmJobManager] = (
+            MockSlurmJobManager() if DEBUG else SlurmJobManager()
+        )
 
         # Initialize SampleFileHandler
         self.file_handler = SampleFileHandler(self)
 
-        self._status = "initialized"
+        if self.flowcell_id:
+            self._status = "initialized"
+        else:
+            self._status = "unsequenced"
 
     @property
     def id(self):
