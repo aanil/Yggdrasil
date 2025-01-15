@@ -41,6 +41,7 @@ class YggdrasilDocument:
         )
         instance.end_date = data.get("end_date", "")
         instance.samples = data.get("samples", [])
+        instance.delivery_info = data.get("delivery_info", {})
         return instance
 
     def __init__(self, project_id: str, projects_reference: str, method: str) -> None:
@@ -59,6 +60,7 @@ class YggdrasilDocument:
         self.start_date: str = datetime.datetime.now().isoformat()
         self.end_date: str = ""
         self.samples: List[Dict[str, Any]] = []
+        self.delivery_info: Dict[str, Any] = {}
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts the YggdrasilDocument to a dictionary.
@@ -75,6 +77,7 @@ class YggdrasilDocument:
             "start_date": self.start_date,
             "end_date": self.end_date,
             "samples": self.samples,
+            "delivery_info": self.delivery_info,
         }
 
     def add_sample(
@@ -122,6 +125,7 @@ class YggdrasilDocument:
                 "start_time": start_time or "",
                 "end_time": end_time or "",
                 "flowcell_ids_processed_for": flowcell_ids_processed_for or [],
+                # "QC": ""
             }
             self.samples.append(sample)
             # logging.debug(f"Added sample: {sample}")
@@ -183,25 +187,53 @@ class YggdrasilDocument:
             self.end_date = ""
 
     def check_project_completion(self) -> None:
-        """Checks if all samples are completed and updates the project status.
-
-        Samples with status "completed" or "aborted" are considered finished.
-
-        Note:
-            There will be cases where samples are "aborted". These samples
-            should be considered "completed" for the project status.
         """
-        # List of statuses indicating a sample is finished
-        finished_statuses = [
-            "completed",
-            "aborted",
-        ]  # , "processing_failed", "post_processing_failed"]
+        Determines the project status based on its samples.
 
-        if all(sample["status"] in finished_statuses for sample in self.samples):
-            self.status = "completed"
-            self.end_date = datetime.datetime.now().isoformat()
-        else:
-            # If any sample is not completed (or aborted), set the project status to "processing"
+        Logic:
+            1) If any sample is active (e.g. 'processing', 'running', etc.),
+            project -> 'processing'
+            2) Else if every sample is finished ('completed' or 'aborted'),
+            project -> 'completed'
+            3) Else if every sample is not_yet_started ('pending', 'unsequenced', etc.),
+            project -> 'pending'
+            4) Otherwise, project -> 'partially_completed'
+        """
+        # You may adjust these sets to match your real usage
+        active_statuses = {
+            "initialized",
+            "processing",
+            "pre_processing",
+            "post_processing",
+            "requires_manual_submission",
+        }
+        finished_statuses = {"completed", "aborted"}
+        not_yet_started_statuses = {"pending", "unsequenced"}
+
+        # Collect all sample statuses into a set for quick membership checks
+        sample_statuses = [sample["status"] for sample in self.samples]
+        unique_statuses = set(sample_statuses)
+
+        # 1) If any sample is "active" => project is 'processing'
+        if any(status in active_statuses for status in unique_statuses):
             self.status = "processing"
-            # Clear the end date since the project is not completed
+            self.end_date = ""  # not fully completed
+            return
+
+        # 2) If ALL samples are "finished" => 'completed'
+        if all(status in finished_statuses for status in unique_statuses):
+            self.status = "completed"
+            if not self.end_date:
+                self.end_date = datetime.datetime.now().isoformat()
+            return
+
+        # 3) If ALL samples are "not_yet_started" => 'pending'
+        if all(status in not_yet_started_statuses for status in unique_statuses):
+            self.status = "pending"
             self.end_date = ""
+            return
+
+        # 4) Otherwise => 'partially_completed'
+        # means no sample is actively running, but at least one is neither finished nor not_yet_started
+        self.status = "partially_completed"
+        self.end_date = ""
