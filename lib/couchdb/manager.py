@@ -276,9 +276,11 @@ class YggdrasilDBManager(CouchDBHandler):
                 ygg_doc = YggdrasilDocument.from_dict(document_dict)
                 ygg_doc.add_sample(sample_id, status)
                 self.save_document(ygg_doc)
-                logging.info(f"Updated project {project_id} with sample.")
+                logging.info(
+                    f"Updated project '{project_id}' with sample '{sample_id}'"
+                )
             else:
-                logging.error(f"Project {project_id} does not exist in YggdrasilDB.")
+                logging.error(f"Project '{project_id}' does not exist in YggdrasilDB.")
         except Exception as e:
             logging.error(f"Error adding sample: {e}")
 
