@@ -239,7 +239,7 @@ class TenXRunSample(AbstractSample):
                 f"[{self.id}] According to decision table, we should not submit. "
                 f"Handle manually!"
             )
-            self.status = "pending_manual_intervention"
+            self.status = "requires_manual_submission"
             return
 
         logging.debug(f"[{self.id}] Slurm script created. Submitting job...")
