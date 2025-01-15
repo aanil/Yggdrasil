@@ -202,25 +202,25 @@ class SmartSeq3(AbstractProject):
 
     def extract_samples(self) -> List[SS3Sample]:
         """
-        Gather **all** samples from the project document, including aborted or unsequenced.
-
-        The sample's status is decided by the sample's constructor:
-        - If 'aborted=True' is passed, the sample sets `_status="aborted"`.
-        - Otherwise, it checks whether there is a flowcell ID and sets `_status="
-            initialized" or "unsequenced".
+        Extracts samples from the document and creates SS3Sample instances.
 
         Returns:
-            list: A list of SS3Sample instances.
+            List[SS3Sample]: A list of SS3Sample instances (including unsequenced),
+                            excluding aborted samples entirely.
         """
         samples = []
 
         # Iterate over all samples in the project doc
         for sample_id, sample_data in self.doc.get("samples", {}).items():
-            # Check if the manual status in the project doc is "aborted"
+            # 1) Check if the manual status in the project doc is "aborted"
             manual_status = (
                 sample_data.get("details", {}).get("status_(manual)", "").lower()
             )
-            is_aborted = manual_status == "aborted"
+            if manual_status == "aborted":
+                logging.info(
+                    f"Skipping sample '{sample_id}' => status '{manual_status}'"
+                )
+                continue  # do not register in YggdrasilDB
 
             # Instantiate the SS3Sample
             sample = SS3Sample(
@@ -229,7 +229,6 @@ class SmartSeq3(AbstractProject):
                 project_info=self.project_info,
                 config=self.config,
                 yggdrasil_db_manager=self.ydm,
-                aborted=is_aborted,
             )
             samples.append(sample)
 
