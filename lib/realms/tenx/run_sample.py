@@ -39,6 +39,8 @@ class TenXRunSample(AbstractSample):
         self.run_sample_id: str = sample_id
         self.lab_samples: List[Any] = lab_samples
         self.project_info: Dict[str, Any] = project_info or {}
+        # TODO: ensure project_id is always available
+        self.project_id = self.project_info.get("project_id", "")
         self.config: Mapping[str, Any] = config or {}
         self.ydm: Any = yggdrasil_db_manager
 
@@ -93,9 +95,8 @@ class TenXRunSample(AbstractSample):
             value (str): The new status value.
         """
         self._status = value
-        # self.ydm.update_sample_status(
-        #     self.project_info.get("project_id", ""), self.id, value
-        # )
+        # Update the status in the database
+        self.ydm.update_sample_status(self.project_id, self.id, value)
 
     def collect_reference_genomes(self) -> Optional[Dict[str, str]]:
         """Collect reference genomes from lab samples and ensure consistency.
@@ -238,7 +239,7 @@ class TenXRunSample(AbstractSample):
                 f"[{self.id}] According to decision table, we should not submit. "
                 f"Handle manually!"
             )
-            self.status = "pending_manual_intervention"
+            self.status = "requires_manual_submission"
             return
 
         logging.debug(f"[{self.id}] Slurm script created. Submitting job...")

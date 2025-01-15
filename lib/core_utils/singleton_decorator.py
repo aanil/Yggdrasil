@@ -1,25 +1,49 @@
-from typing import Any, Callable, Dict, Type, TypeVar
-
-T = TypeVar("T")
+from typing import Any, Dict, Type
 
 
-def singleton(cls: Type[T]) -> Callable[..., T]:
-    """Decorator to make a class a singleton.
+class SingletonMeta(type):
+    """
+    A metaclass that creates a singleton instance of a class.
+    """
 
-    Ensures that only one instance of the class is created. Subsequent
-    calls to the class will return the same instance.
+    _instances: Dict[type, Any] = {}
+
+    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
+        if cls not in cls._instances:
+            cls._instances[cls] = super().__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+def singleton(cls: Type[Any]) -> Type[Any]:
+    """
+    Decorator to make a class a singleton by setting its metaclass to SingletonMeta.
 
     Args:
-        cls (Type[T]): The class to be decorated.
+        cls (Type[Any]): The class to be decorated.
 
     Returns:
-        Callable[..., T]: A function that returns the singleton instance of the class.
+        Type[Any]: The singleton class with SingletonMeta as its metaclass.
+
+    Limitations:
+        - **Pickling Not Supported:** Singleton instances created with this decorator
+          cannot be pickled. Attempting to pickle such an instance will result in a
+          `TypeError` or `AttributeError`. If pickling is required, consider implementing
+          custom pickling methods or using a different singleton pattern.
+        - **Incompatible with Custom Metaclasses:** The singleton decorator cannot be
+          applied to classes that already have a custom metaclass. Doing so will raise a
+          `TypeError` due to metaclass conflicts. To use the singleton pattern with such
+          classes, you'll need to implement the singleton behavior manually or adjust
+          your class design.
     """
-    instances: Dict[Type[T], T] = {}
 
-    def get_instance(*args: Any, **kwargs: Any) -> T:
-        if cls not in instances:
-            instances[cls] = cls(*args, **kwargs)
-        return instances[cls]
+    # Create a new class with SingletonMeta as its metaclass
+    class SingletonClass(cls, metaclass=SingletonMeta):
+        pass
 
-    return get_instance
+    # Preserve class metadata
+    SingletonClass.__name__ = cls.__name__
+    SingletonClass.__doc__ = cls.__doc__
+    SingletonClass.__module__ = cls.__module__
+    SingletonClass.__annotations__ = getattr(cls, "__annotations__", {})
+
+    return SingletonClass

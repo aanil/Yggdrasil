@@ -1,3 +1,5 @@
+from typing import Union
+
 from lib.base.abstract_sample import AbstractSample
 from lib.core_utils.logging_utils import custom_logger
 from lib.module_utils.report_transfer import transfer_report
@@ -26,11 +28,13 @@ class SS3Sample(AbstractSample):
         config (dict): Configuration settings.
         status (str): Current status of the sample.
         metadata (dict): Metadata for the sample.
-        sjob_manager (SlurmJobManager): Manager for submitting and monitoring Slurm jobs.
+        sjob_manager (Union[SlurmJobManager, MockSlurmJobManager]): Manager for submitting and monitoring Slurm jobs.
         file_handler (SampleFileHandler): Handler for sample files.
     """
 
-    def __init__(self, sample_id, sample_data, project_info, config):
+    def __init__(
+        self, sample_id, sample_data, project_info, config, yggdrasil_db_manager
+    ):
         """
         Initialize a SmartSeq3 sample instance.
 
@@ -44,6 +48,10 @@ class SS3Sample(AbstractSample):
         self._id = sample_id
         self.sample_data = sample_data
         self.project_info = project_info
+        # TODO: ensure project_id is always available
+        self.project_id = self.project_info.get("project_id", "")
+        self.config = config
+        self.ydm = yggdrasil_db_manager
 
         # Initialize barcode
         self.barcode = self.get_barcode()
@@ -51,22 +59,19 @@ class SS3Sample(AbstractSample):
         # Collect flowcell ID
         self.flowcell_id = self._get_latest_flowcell()
 
-        self.config = config
-        # self.job_id = None
-
-        # TODO: Currently not used much, but should be used if we write to a database
-        # self._status = "initialized"
         self.metadata = None
 
-        if DEBUG:
-            self.sjob_manager = MockSlurmJobManager()
-        else:
-            self.sjob_manager = SlurmJobManager()
+        self.sjob_manager: Union[SlurmJobManager, MockSlurmJobManager] = (
+            MockSlurmJobManager() if DEBUG else SlurmJobManager()
+        )
 
         # Initialize SampleFileHandler
         self.file_handler = SampleFileHandler(self)
 
-        self._status = "initialized"
+        if self.flowcell_id:
+            self._status = "initialized"
+        else:
+            self._status = "unsequenced"
 
     @property
     def id(self):
@@ -79,6 +84,8 @@ class SS3Sample(AbstractSample):
     @status.setter
     def status(self, value):
         self._status = value
+        # Update the status in the database
+        self.ydm.update_sample_status(self.project_id, self.id, value)
 
     async def pre_process(self):
         """Pre-process the sample by collecting metadata and creating YAML files."""
@@ -119,25 +126,6 @@ class SS3Sample(AbstractSample):
         # If all pre-processing steps succeeded
         self.status = "pre_processed"
 
-    async def process(self):
-        """Process the sample by submitting its job."""
-        logging.info("\n")
-        logging.info(f"[{self.id}] Processing...")
-        logging.debug(f"[{self.id}] Submitting job...")
-        self.status = "processing"
-        self.job_id = await self.sjob_manager.submit_job(
-            self.file_handler.slurm_script_path
-        )
-
-        if self.job_id:
-            logging.debug(f"[{self.id}] Job submitted with ID: {self.job_id}")
-            # Wait here for the monitoring to complete before exiting the process method
-            await self.sjob_manager.monitor_job(self.job_id, self)
-            logging.debug(f"[{self.id}] Job {self.job_id} monitoring complete.")
-        else:
-            logging.error(f"[{self.id}] Failed to submit job.")
-            self.status = "processing_failed"
-
     def get_barcode(self):
         """
         Retrieve and validate the barcode from sample data.
@@ -145,12 +133,18 @@ class SS3Sample(AbstractSample):
         Returns:
             str: The barcode of the sample.
         """
-        barcode = self.sample_data["library_prep"]["A"].get("barcode", None)
-        if barcode:
-            return barcode.split("-")[-1]
-        else:
-            logging.warning(f"No barcode found in StatusDB for sample {self.id}.")
-            return None  # Or handle more appropriately based on your application's requirements
+        try:
+            library_prep = self.sample_data.get("library_prep", {})
+            prep_A = library_prep.get("A", {})
+            barcode = prep_A.get("barcode", None)
+            if barcode:
+                return barcode.split("-")[-1]
+            else:
+                logging.warning(f"No barcode found for sample {self.id}.")
+                return None  # Or handle more appropriately based on your application's requirements
+        except Exception as e:
+            logging.error(f"Error extracting barcode for sample {self.id}: {e}")
+            return None
 
     def _collect_yaml_metadata(self):
         """
@@ -330,6 +324,25 @@ class SS3Sample(AbstractSample):
             bool: True if the YAML file was created successfully, False otherwise.
         """
         return write_yaml(self.config, metadata)
+
+    async def process(self):
+        """Process the sample by submitting its job."""
+        logging.info("\n")
+        logging.info(f"[{self.id}] Processing...")
+        logging.debug(f"[{self.id}] Submitting job...")
+        self.status = "processing"
+        self.job_id = await self.sjob_manager.submit_job(
+            self.file_handler.slurm_script_path
+        )
+
+        if self.job_id:
+            logging.debug(f"[{self.id}] Job submitted with ID: {self.job_id}")
+            # Wait here for the monitoring to complete before exiting the process method
+            await self.sjob_manager.monitor_job(self.job_id, self)
+            logging.debug(f"[{self.id}] Job {self.job_id} monitoring complete.")
+        else:
+            logging.error(f"[{self.id}] Failed to submit job.")
+            self.status = "processing_failed"
 
     def post_process(self):
         """

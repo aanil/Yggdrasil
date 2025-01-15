@@ -1,13 +1,13 @@
 import asyncio
 from pathlib import Path
+from typing import List
 
 from lib.base.abstract_project import AbstractProject
 from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import custom_logger
-from lib.module_utils.ngi_report_generator import generate_ngi_report
 
 # from datetime import datetime
-# from lib.couchdb.manager import YggdrasilDBManager
+from lib.module_utils.ngi_report_generator import generate_ngi_report
 from lib.realms.smartseq3.ss3_sample import SS3Sample
 
 logging = custom_logger("SS3 Project")
@@ -35,46 +35,16 @@ class SmartSeq3(AbstractProject):
         Args:
             doc (dict): Document containing project metadata.
         """
-        self.doc = doc
-        self.ydm = yggdrasil_db_manager
-        self.proceed = self._check_required_fields()
+        super().__init__(doc, yggdrasil_db_manager)
+        self.proceed = self.check_required_fields()
 
-        # TODO: What if I return None if not self.proceed?
         if self.proceed:
+            self.initialize_project_in_db()
             self.project_info = self._extract_project_info()
             self.project_dir = self.ensure_project_directory()
             self.project_info["project_dir"] = self.project_dir
-            self.samples = []
 
-    def _extract_project_info(self):
-        """
-        Extracts project information from the provided document.
-
-        Returns:
-            dict: A dictionary containing selected project information or an empty dictionary in case of an error.
-        """
-        try:
-            project_info = {
-                "project_name": self.doc.get("project_name", ""),
-                "project_id": self.doc.get("project_id", "Unknown_Project"),
-                "escg_id": self.doc.get("customer_project_reference"),
-                "library_prep_option": self.doc.get("details", {}).get(
-                    "library_prep_option"
-                ),
-                "contact": self.doc.get("contact"),  # Is this an email or a name?
-                "ref_genome": self.doc.get("reference_genome"),
-                "organism": self.doc.get("details", {}).get("organism"),
-                "sequencing_setup": self.doc.get("details", {}).get("sequencing_setup"),
-            }
-
-            return project_info
-        except Exception as e:
-            logging.error(f"Error occurred while extracting project information: {e}")
-            return (
-                {}
-            )  # Return an empty dict or some default values to allow continuation
-
-    def _check_required_fields(self):
+    def check_required_fields(self):
         """
         Checks if the document contains all required fields.
 
@@ -122,6 +92,34 @@ class SmartSeq3(AbstractProject):
                 return False
         return True
 
+    def _extract_project_info(self):
+        """
+        Extracts project information from the provided document.
+
+        Returns:
+            dict: A dictionary containing selected project information or an empty dictionary in case of an error.
+        """
+        try:
+            project_info = {
+                "project_name": self.doc.get("project_name", ""),
+                "project_id": self.doc.get("project_id", "Unknown_Project"),
+                "escg_id": self.doc.get("customer_project_reference"),
+                "library_prep_option": self.doc.get("details", {}).get(
+                    "library_prep_option"
+                ),
+                "contact": self.doc.get("contact"),  # Is this an email or a name?
+                "ref_genome": self.doc.get("reference_genome"),
+                "organism": self.doc.get("details", {}).get("organism"),
+                "sequencing_setup": self.doc.get("details", {}).get("sequencing_setup"),
+            }
+
+            return project_info
+        except Exception as e:
+            logging.error(f"Error occurred while extracting project information: {e}")
+            return (
+                {}
+            )  # Return an empty dict or some default values to allow continuation
+
     # TODO: Check whether this would be better fit in the sample_file_handler
     def ensure_project_directory(self):
         """
@@ -149,12 +147,23 @@ class SmartSeq3(AbstractProject):
         )
         self.status = "processing"
 
+        # 1) Gather all samples, including aborted/unsequenced
         self.samples = self.extract_samples()
         if not self.samples:
-            logging.warning("No samples found for processing. Returning...")
+            logging.warning("No samples found. Returning...")
             return
 
-        # Pre-process samples
+        # 2) Register them in YggdrasilDB
+        self.add_samples_to_project_in_db()
+
+        # 3) Filter only the truly processable samples (i.e. not aborted, not unsequenced)
+        self.samples = self.select_samples_for_processing()
+
+        if not self.samples:
+            logging.warning("No valid (sequenced) samples to process. Returning...")
+            return
+
+        # 4) Pre-process samples
         pre_tasks = [sample.pre_process() for sample in self.samples]
         await asyncio.gather(*pre_tasks)
 
@@ -175,7 +184,7 @@ class SmartSeq3(AbstractProject):
             f"{[sample.id for sample in pre_processed_samples]}"
         )
 
-        # Process samples
+        # 5) Process samples
         tasks = [sample.process() for sample in pre_processed_samples]
         logging.debug(f"Sample tasks created. Waiting for completion...: {tasks}")
         await asyncio.gather(*tasks)
@@ -191,24 +200,57 @@ class SmartSeq3(AbstractProject):
         )
         self.finalize_project()
 
-    def extract_samples(self):
+    def extract_samples(self) -> List[SS3Sample]:
         """
         Extracts samples from the document and creates SS3Sample instances.
 
         Returns:
-            list: A list of SS3Sample instances.
+            List[SS3Sample]: A list of SS3Sample instances (including unsequenced),
+                            excluding aborted samples entirely.
         """
         samples = []
 
+        # Iterate over all samples in the project doc
         for sample_id, sample_data in self.doc.get("samples", {}).items():
-            sample = SS3Sample(sample_id, sample_data, self.project_info, self.config)
+            # 1) Check if the manual status in the project doc is "aborted"
+            manual_status = (
+                sample_data.get("details", {}).get("status_(manual)", "").lower()
+            )
+            if manual_status == "aborted":
+                logging.info(
+                    f"Skipping sample '{sample_id}' => status '{manual_status}'"
+                )
+                continue  # do not register in YggdrasilDB
 
-            if sample.flowcell_id:
-                samples.append(sample)
-            else:
-                logging.warning(f"Skipping {sample_id}. No flowcell IDs found.")
+            # Instantiate the SS3Sample
+            sample = SS3Sample(
+                sample_id=sample_id,
+                sample_data=sample_data,
+                project_info=self.project_info,
+                config=self.config,
+                yggdrasil_db_manager=self.ydm,
+            )
+            samples.append(sample)
 
         return samples
+
+    def select_samples_for_processing(self) -> List[SS3Sample]:
+        """
+        Return only the samples that should be processed right now:
+        e.g. skip aborted or unsequenced.
+        """
+        processable = []
+        for sample in self.samples:
+            # If a sample is aborted or unsequenced, skip
+            if sample.status in ("aborted", "unsequenced"):
+                logging.info(
+                    f"Skipping sample '{sample.id}' => status '{sample.status}'"
+                )
+                continue
+            # Otherwise it's "initialized" => we can process it
+            processable.append(sample)
+
+        return processable
 
     def finalize_project(self):
         """
@@ -237,14 +279,8 @@ class SmartSeq3(AbstractProject):
     def create_slurm_job(self, sample):
         """
         Placeholder for creating a Slurm job on the project level.
-        Not used in the current implementation, but demanded by the RealmTemplate (perhaps reconsider template).
+        Not used in the current implementation, but demanded by the template class (perhaps reconsider template).
         """
-        # try:
-        #     output_file = f"sim_out/10x/{sample['scilife_name']}_slurm_script.sh"
-        #     # Use your method to generate the Slurm script here
-        #     generate_slurm_script(sample, "sim_out/10x/slurm_template.sh", output_file)
-        # except Exception as e:
-        #     logging.warning(f"Error in creating Slurm job for sample {sample['scilife_name']}: {e}")
         pass
 
     # def submit_job(self, script):

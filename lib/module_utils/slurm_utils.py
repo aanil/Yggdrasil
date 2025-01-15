@@ -25,6 +25,11 @@ def generate_slurm_script(
     Returns:
         bool: True if the script is successfully written, False otherwise.
     """
+    if not isinstance(template_fpath, (str, Path)):
+        raise TypeError("template_fpath must be a string or a Path object")
+    if not isinstance(output_fpath, (str, Path)):
+        raise TypeError("output_fpath must be a string or a Path object")
+
     try:
         template_path = Path(template_fpath)
         output_path = Path(output_fpath)

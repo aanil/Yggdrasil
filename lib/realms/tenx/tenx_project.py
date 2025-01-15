@@ -31,9 +31,10 @@ class TenXProject(AbstractProject):
         self.ydm: Any = yggdrasil_db_manager
 
         # TODO: Might need to check required fields for each different method, if they differ
-        self.proceed: bool = self._check_required_fields()
+        self.proceed: bool = self.check_required_fields()
 
         if self.proceed:
+            self.initialize_project_in_db()
             # Extract metadata from project document
             self.project_info: Dict[str, Any] = self._extract_project_info()
 
@@ -152,7 +153,7 @@ class TenXProject(AbstractProject):
         gex_organisms = reference_mapping.get("gex", {}).keys()
         return organism in gex_organisms
 
-    def _check_required_fields(self) -> bool:
+    def check_required_fields(self) -> bool:
         """Check if the document contains all required fields.
 
         Returns:
@@ -410,6 +411,8 @@ class TenXProject(AbstractProject):
         if not self.samples:
             logging.warning("No samples found for processing. Returning...")
             return
+
+        self.add_samples_to_project_in_db()
 
         logging.info(f"Considered samples: {[sample.id for sample in self.samples]}")
         logging.info(f"Sample features: {[sample.features for sample in self.samples]}")
