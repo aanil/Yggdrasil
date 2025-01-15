@@ -33,13 +33,7 @@ class SS3Sample(AbstractSample):
     """
 
     def __init__(
-        self,
-        sample_id,
-        sample_data,
-        project_info,
-        config,
-        yggdrasil_db_manager,
-        aborted: bool = False,
+        self, sample_id, sample_data, project_info, config, yggdrasil_db_manager
     ):
         """
         Initialize a SmartSeq3 sample instance.
@@ -58,10 +52,6 @@ class SS3Sample(AbstractSample):
         self.project_id = self.project_info.get("project_id", "")
         self.config = config
         self.ydm = yggdrasil_db_manager
-
-        if aborted:
-            self._status = "aborted"
-            return
 
         # Initialize barcode
         self.barcode = self.get_barcode()
