@@ -7,6 +7,7 @@ from lib.core_utils.common import YggdrasilUtilities as Ygg
 from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import configure_logging, custom_logger
 from lib.couchdb.manager import ProjectDBManager, YggdrasilDBManager
+from lib.realms.delivery.deliver import DeliveryManager
 
 # Configure logging
 configure_logging(debug=True)
@@ -20,11 +21,9 @@ async def launch_realm(realm):
         logging.error(f"Error in realm.launch(): {e}", exc_info=True)
 
 
-def process_document(doc_id):
-    """Process a document by its ID.
-
-    Fetches the document from the database, determines the appropriate module
-    to load, and executes the module.
+def process_project_doc(doc_id):
+    """Fetch a project doc from the ProjectDB by its doc_id,
+    find which analysis module to load, and execute that module.
 
     Args:
         doc_id (str): The ID of the document to process.
@@ -36,7 +35,7 @@ def process_document(doc_id):
     # Fetch the document from the project database
     document = pdm.fetch_document_by_id(doc_id)
     if not document:
-        logging.error(f"Document with ID {doc_id} not found.")
+        logging.error(f"Project document with ID {doc_id} not found in Project DB.")
         return
 
     project_id = document.get("project_id")
@@ -60,9 +59,38 @@ def process_document(doc_id):
                     f"Skipping processing due to missing required information for project: {project_id}"
                 )
         else:
-            logging.warning(f"Failed to load module '{module_loc}'.")
+            logging.warning(f"Failed to load module '{module_loc}' for doc {doc_id}.")
     except Exception as e:
-        logging.error(f"Error while processing document: {e}", exc_info=True)
+        logging.error(f"Error while processing project doc: {e}", exc_info=True)
+
+
+def process_yggdrasil_doc(doc_id):
+    """
+    Fetch an Yggdrasil document by its doc_id
+    and pass it to the DeliveryManager flow.
+
+    Args:
+        doc_id (str): The ID of the document to process.
+    """
+    # Initialize the database managers
+    ydm = YggdrasilDBManager()
+
+    # Fetch the document from the yggdrasil database
+    document = ydm.get_document_by_project_id(doc_id)
+    if not document:
+        logging.error(f"Document with ID {doc_id} not found in Yggdrasil DB.")
+        return
+
+    # Load and execute the module
+    try:
+        deliv_realm = DeliveryManager(document, ydm)
+        if deliv_realm.proceed:
+            asyncio.run(launch_realm(deliv_realm))
+            logging.info("Delivery processing complete.")
+        else:
+            logging.info(f"Skipping delivery: Not enough info in doc {doc_id}.")
+    except Exception as e:
+        logging.error(f"Error while processing yggdrasil doc: {e}", exc_info=True)
 
 
 # TODO: If the module registry doesn’t change often, consider caching it to avoid reloading it every time
@@ -83,9 +111,13 @@ def get_module_location(document):
         method = document["details"]["library_construction_method"]
 
         # Retrieve module configuration for the specified method
-        module_config = module_registry.get(method)
-        if module_config:
-            return module_config["module"]
+        # module_config = module_registry.get(method)
+        # if module_config:
+        #     return module_config["module"]
+
+        # Direct match
+        if method in module_registry:
+            return module_registry[method]["module"]
 
         # If no exact match, check for prefix matches
         for registered_method, config in module_registry.items():
@@ -111,12 +143,21 @@ def main():
         description="Ygg-Mule: Standalone Module Executor for Yggdrasil"
     )
     parser.add_argument("doc_id", type=str, help="Document ID to process")
+    parser.add_argument(
+        "-d",
+        "--delivery",
+        action="store_true",
+        help="Indicate if this is a delivery document in Yggdrasil DB.",
+    )
 
     # Parse arguments
     args = parser.parse_args()
 
     # Process the document
-    process_document(args.doc_id)
+    if args.delivery:
+        process_yggdrasil_doc(args.doc_id)
+    else:
+        process_project_doc(args.doc_id)
 
 
 if __name__ == "__main__":
