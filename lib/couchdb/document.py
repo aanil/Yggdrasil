@@ -35,13 +35,25 @@ class YggdrasilDocument:
             projects_reference=data.get("projects_reference", ""),
             method=data.get("method", ""),
         )
-        instance.status = data.get("status", "ongoing")
+        # Project-level fields
+        instance.project_status = data.get("project_status", "ongoing")
         instance.start_date = data.get(
             "start_date", datetime.datetime.now().isoformat()
         )
         instance.end_date = data.get("end_date", "")
+
+        # Samples
         instance.samples = data.get("samples", [])
+
+        # Delivery info
         instance.delivery_info = data.get("delivery_info", {})
+        if "delivery_results" not in instance.delivery_info:
+            # Always ensure we have a list for delivery_results
+            instance.delivery_info["delivery_results"] = []
+
+        # NGI report array
+        instance.ngi_report = data.get("ngi_report", [])
+
         return instance
 
     def __init__(self, project_id: str, projects_reference: str, method: str) -> None:
@@ -56,11 +68,16 @@ class YggdrasilDocument:
         self.projects_reference: str = projects_reference
         self.method: str = method
         self.project_id: str = project_id
-        self.status: str = "ongoing"
+
+        # Project lifecycle
+        self.project_status: str = "ongoing"
         self.start_date: str = datetime.datetime.now().isoformat()
         self.end_date: str = ""
+
+        # Samples & Delivery
         self.samples: List[Dict[str, Any]] = []
-        self.delivery_info: Dict[str, Any] = {}
+        self.delivery_info: Dict[str, Any] = {"delivery_results": []}
+        self.ngi_report: List[Dict[str, Any]] = []
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts the YggdrasilDocument to a dictionary.
@@ -73,12 +90,17 @@ class YggdrasilDocument:
             "projects_reference": self.projects_reference,
             "method": self.method,
             "project_id": self.project_id,
-            "status": self.status,
+            "project_status": self.project_status,
             "start_date": self.start_date,
             "end_date": self.end_date,
             "samples": self.samples,
             "delivery_info": self.delivery_info,
+            "ngi_report": self.ngi_report,
         }
+
+    # ------------------------------------------------------------------------
+    # SAMPLES
+    # ------------------------------------------------------------------------
 
     def add_sample(
         self,
@@ -89,7 +111,7 @@ class YggdrasilDocument:
         start_time: Optional[str] = None,
         end_time: Optional[str] = None,
     ) -> None:
-        """Adds a new sample to the document.
+        """Adds or updates a sample to the document.
 
         Args:
             sample_id (str): The sample ID.
@@ -104,6 +126,7 @@ class YggdrasilDocument:
             # Update existing sample
             existing_sample["status"] = status
             if flowcell_ids_processed_for:
+                existing_sample.setdefault("flowcell_ids_processed_for", [])
                 existing_sample["flowcell_ids_processed_for"].extend(
                     flowcell_ids_processed_for
                 )
@@ -122,42 +145,16 @@ class YggdrasilDocument:
                 "sample_id": sample_id,
                 "status": status,
                 # "lib_prep_option": lib_prep_option,
-                "start_time": start_time or "",
+                "start_time": start_time or datetime.datetime.now().isoformat(),
                 "end_time": end_time or "",
                 "flowcell_ids_processed_for": flowcell_ids_processed_for or [],
-                # "QC": ""
+                "QC": "",  # Appropriate statuses "Pending"/"Passed"/"Failed"; should be updated later
+                "delivered": False,
             }
             self.samples.append(sample)
             # logging.debug(f"Added sample: {sample}")
 
-    def update_sample_status(self, sample_id: str, status: str) -> None:
-        """Updates the status of a specific sample.
-
-        Args:
-            sample_id (str): The sample ID to update.
-            status (str): The new status of the sample.
-        """
-        sample = self.get_sample(sample_id)
-        if sample:
-            sample["status"] = status
-            current_time = datetime.datetime.now().isoformat()
-            if status in ["processing", "running"]:
-                sample["start_time"] = current_time
-            elif status in [
-                "completed",
-                "processing_failed",
-                "post_processing_failed",
-                "aborted",
-            ]:
-                sample["end_time"] = current_time
-        else:
-            logging.error(
-                f"Sample with ID '{sample_id}' not "
-                f"found in project '{self.project_id}'."
-            )
-
-        # Check if the project status needs to be updated
-        self.check_project_completion()
+        # self.check_project_completion() # NOTE: Should this be here?
 
     def get_sample(self, sample_id: str) -> Optional[Dict[str, Any]]:
         """Retrieves a specific sample from the samples list by its ID.
@@ -173,18 +170,69 @@ class YggdrasilDocument:
                 return sample
         return None
 
-    def update_project_status(self, status: str) -> None:
-        """Updates the status of the project.
+    def update_sample_status(self, sample_id: str, status: str) -> None:
+        """Updates the status of a specific sample.
 
         Args:
-            status (str): The new status of the project.
+            sample_id (str): The sample ID to update.
+            status (str): The new status of the sample.
         """
-        self.status = status
-        if status == "completed":
-            if not self.end_date:
-                self.end_date = datetime.datetime.now().isoformat()
-        elif status in ["processing", "failed"]:
-            self.end_date = ""
+        sample = self.get_sample(sample_id)
+        if not sample:
+            logging.error(
+                f"Sample '{sample_id}' not found in project '{self.project_id}'."
+            )
+            return
+
+        sample["status"] = status
+        current_time = datetime.datetime.now().isoformat()
+
+        # TODO: This is not correct. The start time should be set when the sample is actually started.
+        if status in ["processing", "running", "pre_processing", "post_processing"]:
+            sample["start_time"] = current_time
+        elif status in [
+            "completed",
+            "pre_processing_failed",
+            "processing_failed",
+            "post_processing_failed",
+            "aborted",
+        ]:
+            sample["end_time"] = current_time
+
+        # Check if the project status needs to be updated
+        self.check_project_completion()
+
+    def set_sample_qc_status(self, sample_id: str, qc_value: str) -> None:
+        """
+        Sets the QC status (Passed/Failed/Pending) for a sample.
+        """
+        sample = self.get_sample(sample_id)
+        if not sample:
+            logging.error(f"Cannot set QC: sample '{sample_id}' not found.")
+            return
+        sample["QC"] = qc_value
+
+    def mark_sample_as_delivered(self, sample_id: str) -> None:
+        """
+        Mark a sample as delivered (set delivered=True).
+        """
+        sample = self.get_sample(sample_id)
+        if not sample:
+            logging.error(f"Cannot mark delivered: sample '{sample_id}' not found.")
+            return
+        sample["delivered"] = True
+
+    # ------------------------------------------------------------------------
+    # PROJECT STATUS
+    # ------------------------------------------------------------------------
+
+    def update_project_status(self, new_status: str) -> None:
+        """Updates the overall project status. If 'completed', set end_date."""
+        self.project_status = new_status
+        if new_status in ["completed", "partially_completed"] and not self.end_date:
+            self.end_date = datetime.datetime.now().isoformat()
+        elif new_status in ["processing", "failed", "ongoing"]:
+            self.end_date = ""  # we clear end_date if not fully done
 
     def check_project_completion(self) -> None:
         """
@@ -200,40 +248,107 @@ class YggdrasilDocument:
             4) Otherwise, project -> 'partially_completed'
         """
         # You may adjust these sets to match your real usage
-        active_statuses = {
+        active_sample_statuses = {
             "initialized",
             "processing",
             "pre_processing",
             "post_processing",
             "requires_manual_submission",
         }
-        finished_statuses = {"completed", "aborted"}
+        finished_sample_statuses = {"completed", "aborted"}
         not_yet_started_statuses = {"pending", "unsequenced"}
 
         # Collect all sample statuses into a set for quick membership checks
         sample_statuses = [sample["status"] for sample in self.samples]
-        unique_statuses = set(sample_statuses)
+        unique_sample_statuses = set(sample_statuses)
 
         # 1) If any sample is "active" => project is 'processing'
-        if any(status in active_statuses for status in unique_statuses):
-            self.status = "processing"
-            self.end_date = ""  # not fully completed
+        if any(
+            sample_status in active_sample_statuses
+            for sample_status in unique_sample_statuses
+        ):
+            # self.project_status = "processing"
+            # self.end_date = ""  # not fully completed
+            self.update_project_status("processing")
             return
 
         # 2) If ALL samples are "finished" => 'completed'
-        if all(status in finished_statuses for status in unique_statuses):
-            self.status = "completed"
-            if not self.end_date:
-                self.end_date = datetime.datetime.now().isoformat()
+        if all(
+            sample_status in finished_sample_statuses
+            for sample_status in unique_sample_statuses
+        ):
+            # self.project_status = "completed"
+            # if not self.end_date:
+            #     self.end_date = datetime.datetime.now().isoformat()
+            self.update_project_status("processing")
             return
 
         # 3) If ALL samples are "not_yet_started" => 'pending'
-        if all(status in not_yet_started_statuses for status in unique_statuses):
-            self.status = "pending"
-            self.end_date = ""
+        if all(
+            sample_status in not_yet_started_statuses
+            for sample_status in unique_sample_statuses
+        ):
+            # self.project_status = "pending"
+            # self.end_date = ""
+            self.update_project_status("pending")
             return
 
         # 4) Otherwise => 'partially_completed'
         # means no sample is actively running, but at least one is neither finished nor not_yet_started
-        self.status = "partially_completed"
-        self.end_date = ""
+        # self.project_status = "partially_completed"
+        # self.end_date = ""
+        self.update_project_status("partially_completed")
+
+    # ------------------------------------------------------------------------
+    # NGI REPORT MANAGEMENT
+    # ------------------------------------------------------------------------
+
+    def add_ngi_report_entry(self, report_data: Dict[str, Any]) -> None:
+        """
+        Append a new record to `ngi_report`.
+        Example `report_data`:
+        {
+          "file_name": "P12345_ngi_report.html",
+          "date_created": "2025-02-02_10:20:30",
+          "signee": "",
+          "date_signed": "",
+          "approved": False,
+          "samples_included": [...]
+        }
+        """
+        self.ngi_report.append(report_data)
+
+    # ------------------------------------------------------------------------
+    # DELIVERY INFO / DELIVERY EVENTS
+    # ------------------------------------------------------------------------
+
+    def add_delivery_entry(self, delivery_data: Dict[str, Any]) -> None:
+        """
+        Add a new entry to `delivery_info.delivery_results`.
+        Example `delivery_data`:
+        {
+          "dds_project_id": "DDS123",
+          "date_uploaded": "2025-02-10_14:01:00",
+          "date_released": "2025-02-10_17:25:00",
+          "samples_included": ["P12345_101", "P12345_102"],
+          "total_volume": "100GB"
+        }
+        """
+        if "delivery_results" not in self.delivery_info:
+            self.delivery_info["delivery_results"] = []
+        self.delivery_info["delivery_results"].append(delivery_data)
+
+    # NOTE: Not sure we need it and if [-1] is consistent to getting the last entry
+    # def get_last_delivery_entry(self) -> Optional[Dict[str, Any]]:
+    #     """Return the last delivery entry from delivery_info."""
+    #     if "delivery_results" in self.delivery_info:
+    #         return self.delivery_info["delivery_results"][-1]
+    #     return None
+
+    def get_delivery_status(self) -> str:
+        """Return the current delivery phase/status from delivery_info."""
+        return self.delivery_info.get("status", "")
+
+    def set_delivery_status(self, new_status: str) -> None:
+        """Update the delivery status in delivery_info."""
+        self.delivery_info["status"] = new_status
