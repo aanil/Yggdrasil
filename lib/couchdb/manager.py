@@ -203,7 +203,12 @@ class YggdrasilDBManager(CouchDBHandler):
         super().__init__("yggdrasil")
 
     def create_project(
-        self, project_id: str, projects_reference: str, method: str
+        self,
+        project_id: str,
+        projects_reference: str,
+        method: str,
+        user_info: Optional[Dict[str, Dict[str, Optional[str]]]] = None,
+        sensitive: Optional[bool] = True,
     ) -> YggdrasilDocument:
         """Creates a new project document in the database.
 
@@ -211,6 +216,9 @@ class YggdrasilDBManager(CouchDBHandler):
             project_id (str): The project ID.
             projects_reference (str): Reference to the original project document.
             method (str): The library construction method.
+            user_info (Optional[Dict[str, Dict[str, str]]]): Nested dict of user info,
+                e.g. {"owner": {"email": "...", "name": "..."}, ...}.
+            sensitive (bool): True if data is sensitive. Defaults to True.
 
         Returns:
             YggdrasilDocument: The newly created project document.
@@ -218,9 +226,47 @@ class YggdrasilDBManager(CouchDBHandler):
         new_document = YggdrasilDocument(
             project_id=project_id, projects_reference=projects_reference, method=method
         )
+
+        # If we have user info, populate it into new_document.user_info
+        # TODO: Make sure the PI and the owner are always set | Either here or upon delivery
+        if user_info:
+            new_document.user_info = user_info
+
+        # Set sensitive flag to True by default (better safe than sorry)
+        new_document.delivery_info["sensitive"] = sensitive
+
         self.save_document(new_document)
         logging.info(f"New project with ID '{project_id}' created successfully.")
         return new_document
+
+    def sync_project_metadata(
+        self,
+        project_id: str,
+        user_info: Dict[str, Dict[str, Optional[str]]],
+        is_sensitive: bool,
+    ) -> None:
+        """
+        Fetches the project doc from YggdrasilDB, updates user_info & sensitive,
+        then saves it back.
+        """
+        doc_dict = self.get_document_by_project_id(project_id)
+        if not doc_dict:
+            logging.warning(f"No project '{project_id}' found to update.")
+            return
+
+        ygg_doc = YggdrasilDocument.from_dict(doc_dict)
+
+        # Update user_info
+        ygg_doc.set_user_info(user_info)
+
+        # Update sensitive
+        ygg_doc.delivery_info["sensitive"] = is_sensitive
+
+        # Save
+        self.save_document(ygg_doc)
+        logging.info(
+            f"Synced project '{project_id}' with necessary metadata from projectsDB."
+        )
 
     def save_document(self, document: YggdrasilDocument) -> None:
         try:
