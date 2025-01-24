@@ -45,6 +45,9 @@ class YggdrasilDocument:
         # Samples
         instance.samples = data.get("samples", [])
 
+        # User info
+        instance.user_info = data.get("user_info", {})
+
         # Delivery info
         instance.delivery_info = data.get("delivery_info", {})
         if "delivery_results" not in instance.delivery_info:
@@ -78,6 +81,7 @@ class YggdrasilDocument:
         self.samples: List[Dict[str, Any]] = []
         self.delivery_info: Dict[str, Any] = {"delivery_results": []}
         self.ngi_report: List[Dict[str, Any]] = []
+        self.user_info: Dict[str, Dict[str, Optional[str]]] = {}
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts the YggdrasilDocument to a dictionary.
@@ -96,7 +100,36 @@ class YggdrasilDocument:
             "samples": self.samples,
             "delivery_info": self.delivery_info,
             "ngi_report": self.ngi_report,
+            "user_info": self.user_info,
         }
+
+    # ---------------------------
+    # USER INFO
+    # ---------------------------
+
+    def set_user_info(self, updated_info: Dict[str, Dict[str, Optional[str]]]) -> None:
+        """
+        Updates self.user_info with the nested dictionary provided.
+
+        Example updated_info:
+        {
+            "owner": {
+            "email": "owner@host.org",
+            "name": "Owner Name"
+            },
+            "pi": {
+            "email": "pi@host.org",
+            "name": "PI Name"
+            }
+        }
+        """
+        for role, sub_dict in updated_info.items():
+            if role not in self.user_info:
+                # If the doc didn't have that role yet, create a blank dict
+                self.user_info[role] = {}
+            # Copy keys like "email", "name"
+            for key, val in sub_dict.items():
+                self.user_info[role][key] = val or ""
 
     # ------------------------------------------------------------------------
     # SAMPLES
