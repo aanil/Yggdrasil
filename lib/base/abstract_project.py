@@ -39,6 +39,43 @@ class AbstractProject(ABC):
         self.method: str = self.doc.get("details", {}).get(
             "library_construction_method", ""
         )
+        self.user_info: dict = {
+            "owner": {
+                "email": self.doc.get("order_details", {})
+                .get("owner", {})
+                .get("email", ""),
+                "name": self.doc.get("order_details", {})
+                .get("owner", {})
+                .get("name", ""),
+            },
+            "bioinformatician": {
+                "email": self.doc.get("order_details", {})
+                .get("fields", {})
+                .get("project_bx_email", ""),
+                "name": self.doc.get("order_details", {})
+                .get("fields", {})
+                .get("project_bx_name", ""),
+            },
+            "pi": {
+                "email": self.doc.get("order_details", {})
+                .get("fields", {})
+                .get("project_pi_email", ""),
+                "name": self.doc.get("order_details", {})
+                .get("fields", {})
+                .get("project_pi_name", ""),
+            },
+            "lab": {
+                "name": self.doc.get("order_details", {})
+                .get("fields", {})
+                .get("project_lab_email", ""),
+                "email": self.doc.get("order_details", {})
+                .get("fields", {})
+                .get("project_lab_name", ""),
+            },
+        }
+        sensitive_str = self.doc.get("details", {}).get("sensitive_data", "").lower()
+        self.is_sensitive = sensitive_str == "yes"
+
         self.status: str = "ongoing"
         self.project_info: dict = {}
         self.samples: list = []
@@ -59,7 +96,13 @@ class AbstractProject(ABC):
         existing_document = self.ydm.check_project_exists(self.project_id)
         if existing_document is None:
             # Create the project in YggdrasilDB
-            self.ydm.create_project(self.project_id, self.doc_id, self.method)
+            self.ydm.create_project(
+                self.project_id,
+                self.doc_id,
+                self.method,
+                self.user_info,
+                self.is_sensitive,
+            )
             logging.info(f"Project {self.project_id} created in YggdrasilDB.")
         else:
             logging.info(f"Project {self.project_id} already exists in YggdrasilDB.")
@@ -74,6 +117,12 @@ class AbstractProject(ABC):
                     f"Project with ID {self.project_id} has status '{self.status}' and will be processed."
                 )
                 self.proceed = True
+                # Update/sync the project in YggdrasilDB
+                self.ydm.sync_project_metadata(
+                    project_id=self.project_id,
+                    user_info=self.user_info,
+                    is_sensitive=self.is_sensitive,
+                )
 
     def add_samples_to_project_in_db(self):
         """Add samples to the project in the Yggdrasil database."""
