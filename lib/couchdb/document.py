@@ -235,6 +235,8 @@ class YggdrasilDocument:
         # Check if the project status needs to be updated
         self.check_project_completion()
 
+    # NOTE: This is not supposed to be used by Yggdrasil, but by the user interface
+    # NOTE: When a responsible reviews the sample, Genstat will update the QC status
     def set_sample_qc_status(self, sample_id: str, qc_value: str) -> None:
         """
         Sets the QC status (Passed/Failed/Pending) for a sample.
@@ -255,9 +257,29 @@ class YggdrasilDocument:
             return
         sample["delivered"] = True
 
+    def get_sample_status(self, sample_id: str) -> Optional[str]:
+        sample = self.get_sample(sample_id)
+        if sample:
+            return sample.get("status")
+        return None
+
     # ------------------------------------------------------------------------
-    # PROJECT STATUS
+    # PROJECT
     # ------------------------------------------------------------------------
+
+    def sync_project_metadata(
+        self,
+        user_info: Dict[str, Dict[str, Optional[str]]],
+        is_sensitive: bool,
+    ) -> None:
+        """
+        Updates user_info & sensitive fields in the document.
+        """
+        # Update user_info
+        self.set_user_info(user_info)
+
+        # Update sensitive
+        self.delivery_info["sensitive"] = is_sensitive
 
     def update_project_status(self, new_status: str) -> None:
         """Updates the overall project status. If 'completed', set end_date."""
@@ -331,6 +353,14 @@ class YggdrasilDocument:
         # self.project_status = "partially_completed"
         # self.end_date = ""
         self.update_project_status("partially_completed")
+
+    def get_project_status(self) -> Optional[str]:
+        """Retrieves the status of a project.
+
+        Returns:
+            Optional[str]: The status of the project.
+        """
+        return self.project_status
 
     # ------------------------------------------------------------------------
     # NGI REPORT MANAGEMENT

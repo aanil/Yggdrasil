@@ -6,7 +6,8 @@ import asyncio
 from lib.core_utils.common import YggdrasilUtilities as Ygg
 from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import configure_logging, custom_logger
-from lib.couchdb.manager import ProjectDBManager, YggdrasilDBManager
+from lib.couchdb.manager import ProjectDBManager
+from lib.couchdb.yggdrasil_db_manager import YggdrasilDBManager
 from lib.realms.delivery.deliver import DeliveryManager
 
 # Configure logging
