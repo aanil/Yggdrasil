@@ -94,7 +94,7 @@ class AbstractProject(ABC):
     def initialize_project_in_db(self):
         """Initialize the project in the Yggdrasil database."""
         existing_document = self.ydm.check_project_exists(self.project_id)
-        if existing_document is None:
+        if not existing_document:
             # Create the project in YggdrasilDB
             self.ydm.create_project(
                 self.project_id,
@@ -106,23 +106,30 @@ class AbstractProject(ABC):
             logging.info(f"Project {self.project_id} created in YggdrasilDB.")
         else:
             logging.info(f"Project {self.project_id} already exists in YggdrasilDB.")
-            self.status = existing_document.get("status")
-            if self.status == "completed":
-                logging.info(
-                    f"Project with ID {self.project_id} is already completed. Skipping processing."
+            document = self.ydm.get_document_by_project_id(self.project_id)
+            if document:
+                self.status = document.project_status
+                if self.status == "completed":
+                    logging.info(
+                        f"Project with ID {self.project_id} is already completed. Skipping processing."
+                    )
+                    self.proceed = False
+                else:
+                    logging.info(
+                        f"Project with ID {self.project_id} has status '{self.status}' and will be processed."
+                    )
+                    self.proceed = True
+                    # Update/sync the project in YggdrasilDB
+                    document.sync_project_metadata(
+                        user_info=self.user_info,
+                        is_sensitive=self.is_sensitive,
+                    )
+                    self.ydm.save_document(document)
+            else:
+                logging.error(
+                    f"Could not fetch YggdrasilDocument for {self.project_id}."
                 )
                 self.proceed = False
-            else:
-                logging.info(
-                    f"Project with ID {self.project_id} has status '{self.status}' and will be processed."
-                )
-                self.proceed = True
-                # Update/sync the project in YggdrasilDB
-                self.ydm.sync_project_metadata(
-                    project_id=self.project_id,
-                    user_info=self.user_info,
-                    is_sensitive=self.is_sensitive,
-                )
 
     def add_samples_to_project_in_db(self):
         """Add samples to the project in the Yggdrasil database."""
