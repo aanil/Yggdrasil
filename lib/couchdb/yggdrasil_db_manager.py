@@ -4,8 +4,8 @@ from typing import Any, Callable, Dict, Optional
 import couchdb
 
 from lib.core_utils.logging_utils import custom_logger
+from lib.couchdb.couchdb_connection import CouchDBHandler
 from lib.couchdb.document import YggdrasilDocument
-from lib.couchdb.manager import CouchDBHandler
 
 logging = custom_logger(__name__.split(".")[-1])
 

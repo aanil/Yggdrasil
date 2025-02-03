@@ -3,7 +3,7 @@ from typing import Any, AsyncGenerator, Dict, Optional, Tuple
 from lib.core_utils.common import YggdrasilUtilities as Ygg
 from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import custom_logger
-from lib.couchdb.manager import CouchDBHandler
+from lib.couchdb.couchdb_connection import CouchDBHandler
 
 logging = custom_logger(__name__.split(".")[-1])
 
