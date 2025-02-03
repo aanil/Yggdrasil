@@ -13,7 +13,17 @@ logging = custom_logger(__name__.split(".")[-1])
 
 @singleton
 class CouchDBConnectionManager:
-    """Manages connections to the CouchDB server and databases."""
+    """
+    Handles connections to a CouchDB server, including:
+
+      - Reading configuration for URLs, credentials, and defaults.
+      - Creating and storing references to multiple databases.
+      - Providing a unified entry point for connecting to CouchDB.
+
+    Automatically calls `connect_server()` on initialization.
+    Typical usage involves calling`connect_db(...)` to
+    retrieve specific Database objects.
+    """
 
     def __init__(
         self,
@@ -87,7 +97,19 @@ class CouchDBConnectionManager:
 
 
 class CouchDBHandler:
-    """Base class for CouchDB operations."""
+    """
+    Base class for CouchDB operations on a specific database.
+
+    Inheriting classes specify a database name and leverage the
+    CouchDBConnectionManager to:
+
+      - Obtain a server connection.
+      - Connect to the desired database.
+      - Store a `db` attribute for further CRUD or custom actions.
+
+    This ensures each subclass references the correct CouchDB database
+    instance without duplicating connection logic.
+    """
 
     def __init__(self, db_name: str) -> None:
         self.connection_manager = CouchDBConnectionManager()
@@ -95,7 +117,15 @@ class CouchDBHandler:
 
 
 class ProjectDBManager(CouchDBHandler):
-    """Manages interactions with the 'projects' database."""
+    """
+    Manages interactions with the 'projects' database, such as:
+
+      - Asynchronously fetching document changes (`fetch_changes` / `get_changes`).
+      - Retrieving documents by ID.
+
+    Inherits from `CouchDBHandler` to reuse the CouchDB connection.
+    It is specialized for Yggdrasil needs (e.g., module registry lookups).
+    """
 
     def __init__(self) -> None:
         super().__init__("projects")
