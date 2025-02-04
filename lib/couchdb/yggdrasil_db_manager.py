@@ -49,6 +49,7 @@ class YggdrasilDBManager(CouchDBHandler):
         self,
         project_id: str,
         projects_reference: str,
+        project_name: str,
         method: str,
         user_info: Optional[Dict[str, Dict[str, Optional[str]]]] = None,
         sensitive: Optional[bool] = True,
@@ -58,6 +59,7 @@ class YggdrasilDBManager(CouchDBHandler):
         Args:
             project_id (str): The project ID.
             projects_reference (str): Reference to the original project document.
+            project_name (str): The project name.
             method (str): The library construction method.
             user_info (Optional[Dict[str, Dict[str, str]]]): Nested dict of user info,
                 e.g. {"owner": {"email": "...", "name": "..."}, ...}.
@@ -67,7 +69,10 @@ class YggdrasilDBManager(CouchDBHandler):
             YggdrasilDocument: The newly created project document.
         """
         new_document = YggdrasilDocument(
-            project_id=project_id, projects_reference=projects_reference, method=method
+            project_id=project_id,
+            projects_reference=projects_reference,
+            project_name=project_name,
+            method=method,
         )
 
         # If we have user info, populate it into new_document.user_info
@@ -175,3 +180,21 @@ class YggdrasilDBManager(CouchDBHandler):
         """
         ygg_doc.update_sample_status(sample_id=sample_id, status=status)
         logging.info(f"Sample '{sample_id}' status updated to '{status}'.")
+
+    @auto_load_and_save
+    def add_ngi_report_entry(
+        self,
+        ygg_doc: YggdrasilDocument,
+        report_data: Dict[str, Any],
+    ) -> bool:
+        """Adds an NGI report entry to the given YggdrasilDocument.
+
+        Args:
+            ygg_doc (YggdrasilDocument): The Yggdrasil document.
+            report_data (Dict[str, Any]): The NGI report data.
+        """
+        if not ygg_doc.add_ngi_report_entry(report_data):
+            logging.info("NGI report entry failed to be added to the document.")
+            return False
+        logging.info("NGI report entry added to the document.")
+        return True

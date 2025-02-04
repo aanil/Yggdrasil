@@ -14,6 +14,7 @@ class YggdrasilDocument:
         projects_reference (str): Reference to the original project document.
         method (str): The library construction method.
         project_id (str): The project ID.
+        project_name (str): The name of the project.
         status (str): The current status of the project.
         start_date (str): ISO formatted start date and time.
         end_date (str): ISO formatted end date and time.
@@ -33,6 +34,7 @@ class YggdrasilDocument:
         instance = cls(
             project_id=data.get("project_id", ""),
             projects_reference=data.get("projects_reference", ""),
+            project_name=data.get("project_name", ""),
             method=data.get("method", ""),
         )
         # Project-level fields
@@ -59,18 +61,22 @@ class YggdrasilDocument:
 
         return instance
 
-    def __init__(self, project_id: str, projects_reference: str, method: str) -> None:
+    def __init__(
+        self, project_id: str, projects_reference: str, project_name: str, method: str
+    ) -> None:
         """Initializes a new YggdrasilDocument instance.
 
         Args:
             project_id (str): The project ID.
             projects_reference (str): Reference to the original project document.
+            project_name (str): The project name.
             method (str): The library construction method.
         """
         self._id: str = project_id
         self.projects_reference: str = projects_reference
         self.method: str = method
         self.project_id: str = project_id
+        self.project_name: str = project_name
 
         # Project lifecycle
         self.project_status: str = "ongoing"
@@ -94,6 +100,7 @@ class YggdrasilDocument:
             "projects_reference": self.projects_reference,
             "method": self.method,
             "project_id": self.project_id,
+            "project_name": self.project_name,
             "project_status": self.project_status,
             "start_date": self.start_date,
             "end_date": self.end_date,
@@ -366,7 +373,7 @@ class YggdrasilDocument:
     # NGI REPORT MANAGEMENT
     # ------------------------------------------------------------------------
 
-    def add_ngi_report_entry(self, report_data: Dict[str, Any]) -> None:
+    def add_ngi_report_entry(self, report_data: Dict[str, Any]) -> bool:
         """
         Append a new record to `ngi_report`.
         Example `report_data`:
@@ -379,7 +386,20 @@ class YggdrasilDocument:
           "samples_included": [...]
         }
         """
-        self.ngi_report.append(report_data)
+        required_keys = {
+            "file_name",
+            "date_created",
+            "signee",
+            "date_signed",
+            "approved",
+            "samples_included",
+        }
+        if isinstance(report_data, dict) and required_keys.issubset(report_data.keys()):
+            self.ngi_report.append(report_data)
+            return True
+        else:
+            logging.error("Invalid report_data format or missing required keys.")
+            return False
 
     # ------------------------------------------------------------------------
     # DELIVERY INFO / DELIVERY EVENTS
