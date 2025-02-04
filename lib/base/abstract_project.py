@@ -35,6 +35,7 @@ class AbstractProject(ABC):
         self.doc: Any = doc
         self.ydm: Any = yggdrasil_db_manager
         self.project_id: str = self.doc.get("project_id")
+        self.project_name: str = self.doc.get("project_name")
         self.doc_id: str = self.doc.get("_id")
         self.method: str = self.doc.get("details", {}).get(
             "library_construction_method", ""
@@ -99,6 +100,7 @@ class AbstractProject(ABC):
             self.ydm.create_project(
                 self.project_id,
                 self.doc_id,
+                self.project_name,
                 self.method,
                 self.user_info,
                 self.is_sensitive,
