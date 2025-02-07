@@ -288,6 +288,9 @@ class YggdrasilDocument:
         # Update sensitive
         self.delivery_info["sensitive"] = is_sensitive
 
+        # NOTE: Hardcoded for now, may be configurable in the future
+        # self.delivery_info["partial_delivery_allowed"] = False
+
     def update_project_status(self, new_status: str) -> None:
         """Updates the overall project status. If 'completed', set end_date."""
         self.project_status = new_status
@@ -382,7 +385,7 @@ class YggdrasilDocument:
           "date_created": "2025-02-02_10:20:30",
           "signee": "",
           "date_signed": "",
-          "approved": False,
+          "rejected": False,
           "samples_included": [...]
         }
         """
@@ -391,7 +394,7 @@ class YggdrasilDocument:
             "date_created",
             "signee",
             "date_signed",
-            "approved",
+            "rejected",
             "samples_included",
         }
         if isinstance(report_data, dict) and required_keys.issubset(report_data.keys()):
