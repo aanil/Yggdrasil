@@ -158,43 +158,76 @@ class YggdrasilDBManager(CouchDBHandler):
 
     @auto_load_and_save
     def add_sample(
-        self, ygg_doc: YggdrasilDocument, sample_id: str, status: str = "pending"
+        self, _doc_injected: YggdrasilDocument, sample_id: str, status: str = "pending"
     ):
         """
-        Adds a sample to the given YggdrasilDocument and
-        relies on the decorator to fetch & save the doc.
+        IMPORTANT: This method is decorated by @auto_load_and_save,
+        so you must call it like:
+
+            add_sample(<project_id>, <sample_id>, <status>)
+
+        The decorator will fetch the YggdrasilDocument and pass it here as '_doc_injected'.
+
+        ---
+
+        Adds a sample to a project.
+
+        Args:
+            _doc_injected (YggdrasilDocument): The Yggdrasil document (injected by the decorator).
+            sample_id (str): The sample ID.
+            status (str): The status of the sample. Defaults to "pending".
         """
-        ygg_doc.add_sample(sample_id=sample_id, status=status)
+        _doc_injected.add_sample(sample_id=sample_id, status=status)
         logging.info(f"Sample '{sample_id}' added with status '{status}'.")
 
     @auto_load_and_save
     def update_sample_status(
-        self, ygg_doc: YggdrasilDocument, sample_id: str, status: str
+        self, _doc_injected: YggdrasilDocument, sample_id: str, status: str
     ) -> None:
-        """Updates the status of a sample within a project.
+        """
+        IMPORTANT: This method is decorated by @auto_load_and_save,
+        so you must call it like:
+
+            update_sample_status(<project_id>, <sample_id>, <status>)
+
+        The decorator will fetch the YggdrasilDocument and pass it here as '_doc_injected'.
+
+        ---
+
+        Updates the status of a sample within a project.
 
         Args:
-            project_id (str): The project ID.
+            _doc_injected (YggdrasilDocument): The Yggdrasil document (injected by the decorator).
             sample_id (str): The sample ID.
             status (str): The new status for the sample.
         """
-        ygg_doc.update_sample_status(sample_id=sample_id, status=status)
+        _doc_injected.update_sample_status(sample_id=sample_id, status=status)
         logging.info(f"Sample '{sample_id}' status updated to '{status}'.")
 
     @auto_load_and_save
     def add_ngi_report_entry(
         self,
-        ygg_doc: YggdrasilDocument,
+        _doc_injected: YggdrasilDocument,
         report_data: Dict[str, Any],
     ) -> bool:
-        """Adds an NGI report entry to the given YggdrasilDocument.
+        """
+        IMPORTANT: This method is decorated by @auto_load_and_save,
+        so you must call it like:
+
+            add_ngi_report_entry(<project_id>, <report_data>)
+
+        The decorator will fetch the YggdrasilDocument and pass it here as '_doc_injected'.
+
+        ---
+
+        Adds an NGI report entry to a project.
 
         Args:
-            ygg_doc (YggdrasilDocument): The Yggdrasil document.
+            _doc_injected (YggdrasilDocument): The Yggdrasil document (injected by the decorator).
             report_data (Dict[str, Any]): The NGI report data.
         """
-        if not ygg_doc.add_ngi_report_entry(report_data):
-            logging.info("NGI report entry failed to be added to the document.")
+        if not _doc_injected.add_ngi_report_entry(report_data):
+            logging.warning("NGI report entry failed to be added to the document.")
             return False
         logging.info("NGI report entry added to the document.")
         return True
