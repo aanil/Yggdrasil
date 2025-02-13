@@ -91,6 +91,9 @@ class SS3Sample(AbstractSample):
         """Pre-process the sample by collecting metadata and creating YAML files."""
         logging.info("\n")
         logging.info(f"[{self.id}] Pre-processing...")
+        # TODO: Maybe add decorators to log the start (and end?) of each method and update the status
+        self.status = "pre_processing"
+
         yaml_metadata = self._collect_yaml_metadata()
         if not yaml_metadata:
             logging.error(f"[{self.id}] Metadata missing. Pre-processing failed.")

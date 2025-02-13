@@ -98,7 +98,7 @@ class SampleFileHandler:
         self.umi_stats_fpath = self.stats_dir / f"{self.plate}.umi_stats.txt"
         self.well_barcodes_fpath = self.stats_dir / f"{self.plate}.well_barcodes.txt"
         # TODO: whether PDF or HTML should be decided by the report generator
-        self.report_fpath = self.zumis_output_dir / f"{self.plate}_report.pdf"
+        self.report_fpath = self.zumis_output_dir / f"{self.plate}_SS3_report.pdf"
 
     def ensure_barcode_file(self):
         """
