@@ -9,7 +9,10 @@ logging = custom_logger(__name__.split(".")[-1])
 
 
 def transfer_report(
-    report_path: Path, project_id: str, sample_id: Optional[str] = None
+    report_path: Path,
+    project_id: str,
+    sample_id: Optional[str] = None,
+    destination_filename: Optional[str] = None,
 ) -> bool:
     try:
         report_transfer_config = configs["report_transfer"]
@@ -34,7 +37,10 @@ def transfer_report(
     if sample_id:
         remote_dir = f"{remote_dir}/{sample_id}"
 
-    remote_path = f"{user}@{server}:{remote_dir}/"
+    if destination_filename:
+        remote_path = f"{user}@{server}:{remote_dir}/{destination_filename}"
+    else:
+        remote_path = f"{user}@{server}:{remote_dir}/"
 
     rsync_command = [
         "rsync",
