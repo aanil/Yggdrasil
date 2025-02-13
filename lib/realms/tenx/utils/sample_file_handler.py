@@ -49,6 +49,9 @@ class SampleFileHandler:
 
         self.fastq_files: Dict[str, Any] = {}
 
+        # Define the name the report should have when transferred to ngi-interal
+        self.dest_report_name: str = f"{self.sample_id}_10x_report.html"
+
         # Define critical file paths
         self.init_file_paths()
 

@@ -440,6 +440,7 @@ class TenXRunSample(AbstractSample):
             report_path=self.file_handler.report_path,
             project_id=self.project_info.get("project_id", ""),
             sample_id=self.id,
+            destination_filename=self.file_handler.dest_report_name,
         ):
             logging.info(f"[{self.id}] Report transferred successfully.")
         else:
