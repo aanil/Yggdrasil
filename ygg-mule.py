@@ -17,7 +17,8 @@ logging = custom_logger("Ygg-Mule")
 
 async def launch_realm(realm):
     try:
-        await realm.launch()
+        # await realm.launch()
+        await realm.launch_template()
     except Exception as e:
         logging.error(f"Error in realm.launch(): {e}", exc_info=True)
 
