@@ -231,3 +231,25 @@ class YggdrasilDBManager(CouchDBHandler):
             return False
         logging.info("NGI report entry added to the document.")
         return True
+
+    @auto_load_and_save
+    def update_sample_slurm_job_id(
+        self, _doc_injected: YggdrasilDocument, sample_id: str, slurm_job_id: str
+    ) -> None:
+        """
+        Decorated method to set 'slurm_job_id' on a sample.
+
+        Usage:
+            ydm.update_sample_slurm_job_id(
+                project_id="<some_project>",
+                sample_id="<some_sample>",
+                slurm_job_id="<JOB_ID>",
+            )
+        """
+        success = _doc_injected.update_sample_field(
+            sample_id, "slurm_job_id", slurm_job_id
+        )
+        if success:
+            logging.info(f"Sample '{sample_id}' slurm_job_id set to '{slurm_job_id}'.")
+        else:
+            logging.warning(f"Failed to update slurm_job_id for sample '{sample_id}'.")
