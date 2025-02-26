@@ -1,18 +1,15 @@
-from typing import Union
+from typing import Optional
 
 from lib.base.abstract_sample import AbstractSample
 from lib.core_utils.logging_utils import custom_logger
 from lib.module_utils.report_transfer import transfer_report
-from lib.module_utils.sjob_manager import SlurmJobManager
 from lib.module_utils.slurm_utils import generate_slurm_script
 from lib.realms.smartseq3.report.report_generator import Smartseq3ReportGenerator
 from lib.realms.smartseq3.utils.sample_file_handler import SampleFileHandler
 from lib.realms.smartseq3.utils.ss3_utils import SS3Utils
 from lib.realms.smartseq3.utils.yaml_utils import write_yaml
-from tests.mocks.mock_sjob_manager import MockSlurmJobManager
 
 logging = custom_logger("SS3 Sample")
-DEBUG = True
 
 
 class SS3Sample(AbstractSample):
@@ -33,7 +30,13 @@ class SS3Sample(AbstractSample):
     """
 
     def __init__(
-        self, sample_id, sample_data, project_info, config, yggdrasil_db_manager
+        self,
+        sample_id,
+        sample_data,
+        project_info,
+        config,
+        yggdrasil_db_manager,
+        hpc_manager,
     ):
         """
         Initialize a SmartSeq3 sample instance.
@@ -52,6 +55,9 @@ class SS3Sample(AbstractSample):
         self.project_id = self.project_info.get("project_id", "")
         self.config = config
         self.ydm = yggdrasil_db_manager
+        self.sjob_manager = hpc_manager
+
+        self.job_id: Optional[str] = None
 
         # Initialize barcode
         self.barcode = self.get_barcode()
@@ -59,11 +65,8 @@ class SS3Sample(AbstractSample):
         # Collect flowcell ID
         self.flowcell_id = self._get_latest_flowcell()
 
-        self.metadata = None
-
-        self.sjob_manager: Union[SlurmJobManager, MockSlurmJobManager] = (
-            MockSlurmJobManager() if DEBUG else SlurmJobManager()
-        )
+        self.metadata = None  # YAML metadata
+        self.slurm_meta = None  # Slurm metadata
 
         # Initialize SampleFileHandler
         self.file_handler = SampleFileHandler(self)
@@ -107,8 +110,9 @@ class SS3Sample(AbstractSample):
             return
         logging.debug(f"[{self.id}] YAML file created.")
 
-        logging.debug(f"[{self.id}] Creating Slurm script")
+        logging.debug(f"[{self.id}] Collecting Slurm metadata...")
         slurm_metadata = self._collect_slurm_metadata()
+        self.slurm_meta = slurm_metadata
         if not slurm_metadata:
             logging.error(f"[{self.id}] Slurm metadata missing. Pre-processing failed.")
             self.status = "pre_processing_failed"
@@ -355,6 +359,13 @@ class SS3Sample(AbstractSample):
         logging.info(f"[{self.id}] Post-processing...")
         self.status = "post_processing"
 
+        if not self.metadata:
+            self.metadata = self._collect_yaml_metadata()
+            if not self.metadata:
+                logging.error(f"[{self.id}] Metadata missing. Post-processing failed.")
+                self.status = "post_processing_failed"
+                return
+
         # Check if sample output is valid
         if not self.file_handler.is_output_valid():
             # TODO: Send a notification (Slack?) for manual intervention
@@ -419,3 +430,29 @@ class SS3Sample(AbstractSample):
 
         # If all post-processing steps succeeded
         self.status = "completed"
+
+    ####################################################################################################
+    ######################## New methods for the templating transition #################################
+    ####################################################################################################
+
+    async def submit_job(self) -> None:
+        """
+        Submits a Slurm job for this sample, stores the job_id in the DB.
+        """
+        logging.info(f"[{self.id}] Submitting HPC job...")
+        self.job_id = await self.sjob_manager.submit_job(
+            self.file_handler.slurm_script_path
+        )
+
+        if self.job_id:
+            logging.debug(f"[{self.id}] Job submitted with ID: {self.job_id}")
+            # Store in DB
+            self.ydm.update_sample_slurm_job_id(self.project_id, self.id, self.job_id)
+            logging.info(f"[{self.id}] Job ID [{self.job_id}] stored in DB.")
+            self.status = "auto-submitted"
+
+            # Possibly set status, e.g. self.status = "processing"
+        else:
+            logging.error(f"[{self.id}] Failed to submit job.")
+            self.job_id = None
+            self.status = "job_submission_failed"

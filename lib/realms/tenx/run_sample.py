@@ -4,7 +4,8 @@ from typing import Any, Dict, List, Mapping, Optional
 from lib.base.abstract_sample import AbstractSample
 from lib.core_utils.logging_utils import custom_logger
 from lib.module_utils.report_transfer import transfer_report
-from lib.module_utils.sjob_manager import SlurmJobManager
+
+# from lib.module_utils.sjob_manager import SlurmJobManager
 from lib.module_utils.slurm_utils import generate_slurm_script
 from lib.realms.tenx.utils.sample_file_handler import SampleFileHandler
 from lib.realms.tenx.utils.tenx_utils import TenXUtils
@@ -24,6 +25,7 @@ class TenXRunSample(AbstractSample):
         project_info: Dict[str, Any],
         config: Mapping[str, Any],
         yggdrasil_db_manager: Any,
+        hpc_manager: Any,
         **kwargs: Any,
     ) -> None:
         """Initialize a TenXRunSample instance.
@@ -43,6 +45,9 @@ class TenXRunSample(AbstractSample):
         self.project_id = self.project_info.get("project_id", "")
         self.config: Mapping[str, Any] = config or {}
         self.ydm: Any = yggdrasil_db_manager
+        self.sjob_manager: Any = hpc_manager
+
+        self.job_id: Optional[str] = None
 
         # self.decision_table = TenXUtils.load_decision_table("10x_decision_table.json")
         self.feature_to_library_type: Dict[str, Any] = self.config.get(
@@ -56,13 +61,13 @@ class TenXRunSample(AbstractSample):
             self.collect_reference_genomes()
         ) or {}
 
-        if DEBUG:
-            # Use a mock SlurmJobManager for debugging purposes
-            from tests.mocks.mock_sjob_manager import MockSlurmJobManager
+        # if DEBUG:
+        #     # Use a mock SlurmJobManager for debugging purposes
+        #     from tests.mocks.mock_sjob_manager import MockSlurmJobManager
 
-            self.sjob_manager: SlurmJobManager = MockSlurmJobManager()
-        else:
-            self.sjob_manager = SlurmJobManager()
+        #     self.sjob_manager: SlurmJobManager = MockSlurmJobManager()
+        # else:
+        #     self.sjob_manager = SlurmJobManager()
 
         self.file_handler: SampleFileHandler = SampleFileHandler(self)
 
@@ -451,3 +456,29 @@ class TenXRunSample(AbstractSample):
         # If all post-processing steps succeeded
         self.status = "completed"
         logging.info(f"[{self.id}] Post-processing completed successfully.")
+
+    ####################################################################################################
+    ######################## New methods for the templating transition #################################
+    ####################################################################################################
+
+    async def submit_job(self) -> None:
+        """
+        Submits a Slurm job for this sample, stores the job_id in the DB.
+        """
+        logging.info(f"[{self.id}] Submitting HPC job...")
+        self.job_id = await self.sjob_manager.submit_job(
+            self.file_handler.slurm_script_path
+        )
+
+        if self.job_id:
+            logging.debug(f"[{self.id}] Job submitted with ID: {self.job_id}")
+            # Store in DB
+            self.ydm.update_sample_slurm_job_id(self.project_id, self.id, self.job_id)
+            logging.info(f"[{self.id}] Job ID [{self.job_id}] stored in DB.")
+            self.status = "auto-submitted"
+
+            # Possibly set status, e.g. self.status = "processing"
+        else:
+            logging.error(f"[{self.id}] Failed to submit job.")
+            self.job_id = None
+            self.status = "job_submission_failed"
