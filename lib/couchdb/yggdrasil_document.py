@@ -145,6 +145,7 @@ class YggdrasilDocument:
     def add_sample(
         self,
         sample_id: str,
+        slurm_job_id: Optional[str] = None,
         # lib_prep_option: str,
         status: str = "pending",
         flowcell_ids_processed_for: Optional[List[str]] = None,
@@ -155,6 +156,7 @@ class YggdrasilDocument:
 
         Args:
             sample_id (str): The sample ID.
+            slurm_job_id (str, optional): The SLURM job ID, if any.
             lib_prep_option (str): The library preparation option.
             status (str, optional): The status of the sample. Defaults to "pending".
             flowcell_ids_processed_for (List[str], optional): Flowcell IDs the sample has been processed for.
@@ -184,6 +186,7 @@ class YggdrasilDocument:
             sample = {
                 "sample_id": sample_id,
                 "status": status,
+                "slurm_job_id": slurm_job_id or "",
                 # "lib_prep_option": lib_prep_option,
                 "start_time": start_time or datetime.datetime.now().isoformat(),
                 "end_time": end_time or "",
@@ -210,7 +213,7 @@ class YggdrasilDocument:
                 return sample
         return None
 
-    def update_sample_status(self, sample_id: str, status: str) -> None:
+    def update_sample_status(self, sample_id: str, status: str) -> bool:
         """Updates the status of a specific sample.
 
         Args:
@@ -222,7 +225,7 @@ class YggdrasilDocument:
             logging.error(
                 f"Sample '{sample_id}' not found in project '{self.project_id}'."
             )
-            return
+            return False
 
         sample["status"] = status
         current_time = datetime.datetime.now().isoformat()
@@ -241,6 +244,8 @@ class YggdrasilDocument:
 
         # Check if the project status needs to be updated
         self.check_project_completion()
+
+        return True
 
     # NOTE: This is not supposed to be used by Yggdrasil, but by the user interface
     # NOTE: When a responsible reviews the sample, Genstat will update the QC status
@@ -269,6 +274,48 @@ class YggdrasilDocument:
         if sample:
             return sample.get("status")
         return None
+
+    # TODO: `set_sample_qc_status` and `mark_sample_as_delivered` should become
+    #       convenience methods in YggdrasilDBManager
+    def update_sample_field(self, sample_id: str, field_name: str, value: Any) -> bool:
+        """
+        Updates or sets the given field in a sample's dictionary.
+
+        Args:
+            sample_id (str): The sample ID to update.
+            field_name (str): The name of the field to set (e.g. 'slurm_job_id').
+            value (Any): The new value for that field (e.g. a string job ID).
+
+        Returns:
+            bool: True if the sample was found and updated, False otherwise.
+        """
+        if field_name == "status":
+            logging.warning(
+                "Attempted to update sample status via 'update_sample_field';"
+            )
+            if value:
+                logging.info("Attempting to use 'update_sample_status'.")
+                return self.update_sample_status(sample_id, value)
+            return False
+
+        sample = self.get_sample(sample_id)
+        if not sample:
+            logging.error(
+                f"Cannot update field '{field_name}' for sample '{sample_id}' "
+                f"in project '{self.project_id}': sample not found."
+            )
+            return False
+
+        sample[field_name] = value
+        logging.debug(
+            f"Updated sample '{sample_id}' in project '{self.project_id}' with "
+            f"'{field_name}': {value}"
+        )
+
+        # Check if the project status needs to be updated
+        self.check_project_completion()
+
+        return True
 
     # ------------------------------------------------------------------------
     # PROJECT

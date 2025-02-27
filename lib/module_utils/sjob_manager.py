@@ -22,6 +22,15 @@ class SlurmJobManager:
         command_timeout (float): Timeout for Slurm commands in seconds.
     """
 
+    slurm_end_states = [
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED",
+        "CANCELLED+",
+        "TIMEOUT",
+        "OUT_OF_ME+",
+    ]
+
     def __init__(
         self, polling_interval: float = 10.0, command_timeout: float = 8.0
     ) -> None:
@@ -102,9 +111,11 @@ class SlurmJobManager:
         logging.debug(f"[{sample.id}] Job {job_id} submitted for monitoring.")
         while True:
             status = await self._job_status(job_id)
-            if status in ["COMPLETED", "FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_ME+"]:
+            # if status in ["COMPLETED", "FAILED", "CANCELLED", "CANCELLED+", "TIMEOUT", "OUT_OF_ME+"]:
+            if status in self.slurm_end_states:
                 # logging.info(f"Job {job_id} status: {status}")
-                self.check_status(job_id, status, sample)
+                # self.check_status(job_id, status, sample)
+                self.check_status_new(job_id, status, sample)
                 break
             await asyncio.sleep(self.polling_interval)
 
@@ -160,9 +171,28 @@ class SlurmJobManager:
             sample.status = "processed"
             sample.post_process()
             # sample.status = "completed"
-        elif status in ["FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_ME+"]:
+        elif status in ["FAILED", "CANCELLED", "CANCELLED+", "TIMEOUT", "OUT_OF_ME+"]:
             sample.status = "processing_failed"
             logging.info(f"[{sample.id}] Job failed.")
         else:
             logging.warning(f"[{sample.id}] Job ended with unexpacted status: {status}")
+            sample.status = "processing_failed"
+
+    @staticmethod
+    def check_status_new(job_id: str, status: str, sample: Any) -> None:
+        """
+        Called when SlurmJobManager.monitor_job determines the job is done or failed.
+        We just set the sample status now. We do NOT call sample.post_process().
+        """
+        logging.info(f"[{sample.id}] Slurm job {job_id} ended with state '{status}'.")
+
+        # Mark job complete or failed
+        if status == "COMPLETED":
+            sample.status = (
+                "processed"  # HPC finished successfully, not yet post-processed
+            )
+        elif status in ["FAILED", "CANCELLED", "CANCELLED+", "TIMEOUT", "OUT_OF_ME+"]:
+            sample.status = "processing_failed"
+        else:
+            logging.warning(f"[{sample.id}] Unexpected Slurm terminal state: {status}")
             sample.status = "processing_failed"

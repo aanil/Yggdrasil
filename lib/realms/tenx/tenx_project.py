@@ -381,6 +381,7 @@ class TenXProject(AbstractProject):
                 self.project_info,
                 self.config,
                 self.ydm,
+                self.sjob_manager,
             )
             run_samples.append(run_sample)
         return run_samples
@@ -471,3 +472,36 @@ class TenXProject(AbstractProject):
         logging.info(
             f"Project {self.project_info['project_name']} has been successfully finalized."
         )
+
+    ####################################################################################################
+    ######################## New methods for the templating transition #################################
+    ####################################################################################################
+
+    def do_extract_samples(self):
+        # Reuse existing 10x logic (temporary for the templating transition).
+        # Return a list of TenXSample objects
+        self.samples = self.extract_samples()
+
+    async def do_pre_process_samples(self):
+        logging.info("TenX realm: Pre-processing samples in parallel.")
+
+        logging.info(f"Considered samples: {[sample.id for sample in self.samples]}")
+        logging.info(f"Sample features: {[sample.features for sample in self.samples]}")
+
+        tasks = [sample.pre_process() for sample in self.samples]
+        await asyncio.gather(*tasks)
+
+        # Filter out any that didn't become 'pre_processed'
+        self.samples = [
+            sample for sample in self.samples if sample.status == "pre_processed"
+        ]
+        if not self.samples:
+            logging.warning("No samples passed pre-processing.")
+        else:
+            logging.info(
+                f"Samples that passed pre-processing: {[sample.id for sample in self.samples]}"
+            )
+
+    async def do_finalize_project(self):
+        """ """
+        self.finalize_project()
