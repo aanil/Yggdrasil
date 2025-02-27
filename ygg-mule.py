@@ -152,6 +152,8 @@ def main():
         help="Indicate if this is a delivery document in Yggdrasil DB.",
     )
 
+    parser.add_argument("--dev", action="store_true", help="Enable development mode")
+
     # Parse arguments
     args = parser.parse_args()
 
