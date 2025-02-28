@@ -1,15 +1,18 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Union
+from typing import Any, List, Mapping, Union
 
-from lib.core_utils.config_loader import configs
+# from lib.core_utils.config_loader import configs
+from lib.core_utils.config_loader import ConfigLoader
 
 # Suppress logging for specific noisy libraries
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 logging.getLogger("numba").setLevel(logging.WARNING)
 logging.getLogger("h5py").setLevel(logging.WARNING)
 logging.getLogger("PIL").setLevel(logging.WARNING)
+
+configs: Mapping[str, Any] = ConfigLoader().load_config("config.json")
 
 
 def configure_logging(debug: bool = False) -> None:
@@ -40,7 +43,9 @@ def configure_logging(debug: bool = False) -> None:
     if debug:
         handlers.append(logging.StreamHandler())
 
-    logging.basicConfig(level=log_level, format=log_format, handlers=handlers)
+    logging.basicConfig(
+        level=log_level, format=log_format, handlers=handlers, force=True
+    )
 
 
 def custom_logger(module_name: str) -> logging.Logger:
