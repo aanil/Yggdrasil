@@ -5,8 +5,6 @@ from typing import List
 from lib.base.abstract_project import AbstractProject
 from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import custom_logger
-
-# from datetime import datetime
 from lib.module_utils.ngi_report_generator import generate_ngi_report
 from lib.realms.smartseq3.ss3_sample import SS3Sample
 
