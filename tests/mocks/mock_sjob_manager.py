@@ -3,12 +3,11 @@ import random
 import string
 
 from lib.core_utils.logging_utils import custom_logger
-from lib.module_utils.sjob_manager import SlurmJobManager
 
 logging = custom_logger(__name__.split(".")[-1])
 
 
-class MockSlurmJobManager(SlurmJobManager):
+class MockSlurmJobManager:
 
     slurm_end_states = [
         "COMPLETED",
