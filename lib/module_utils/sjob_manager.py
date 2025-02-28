@@ -4,11 +4,21 @@ import subprocess
 from pathlib import Path
 from typing import Any, Mapping, Optional, Union
 
-# from lib.core_utils.config_loader import configs
 from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import custom_logger
+from tests.mocks.mock_sjob_manager import MockSlurmJobManager
 
 logging = custom_logger(__name__.split(".")[-1])
+
+
+class SlurmManagerFactory:
+    @staticmethod
+    def get_manager(is_dev: bool):
+        if is_dev:
+            return MockSlurmJobManager()
+        else:
+            return SlurmJobManager()
+
 
 #################################################################################################
 ######### CLASS BELOW ASSUMES ACCESS TO THE HOST SYSTEM TO SUBMIT SLURM JOBS ####################
