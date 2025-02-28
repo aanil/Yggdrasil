@@ -1,15 +1,20 @@
 #!/usr/bin/env python
 import asyncio
 import logging
+from typing import Any, Mapping
 
 from lib.core_utils.common import YggdrasilUtilities as Ygg
-from lib.core_utils.config_loader import configs as ygg_configs
+
+# from lib.core_utils.config_loader import configs as ygg_configs
+from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import configure_logging
 from lib.couchdb.project_db_manager import ProjectDBManager
 from lib.couchdb.yggdrasil_db_manager import YggdrasilDBManager
 
 # Call configure_logging to set up the logging environment
 configure_logging(debug=True)
+
+ygg_configs: Mapping[str, Any] = ConfigLoader().load_config("config.json")
 
 
 # Define asynchronous functions for task handling

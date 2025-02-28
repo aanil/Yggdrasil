@@ -3,9 +3,8 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from lib.core_utils.logging_utils import custom_logger
-
-# from lib.module_utils.sjob_manager import SlurmJobManager
-from tests.mocks.mock_sjob_manager import MockSlurmJobManager
+from lib.core_utils.ygg_mode import YggMode
+from lib.module_utils.sjob_manager import SlurmManagerFactory
 
 logging = custom_logger(__name__.split(".")[-1])
 
@@ -34,8 +33,7 @@ class AbstractProject(ABC):
             doc (Any): The document representing the project (data to be processed).
             yggdrasil_db_manager (Any): The database manager for Yggdrasil-specific database operations.
         """
-        # self.sjob_manager: SlurmJobManager = SlurmJobManager()
-        self.sjob_manager: MockSlurmJobManager = MockSlurmJobManager()
+        self.sjob_manager: Any = SlurmManagerFactory.get_manager(YggMode.is_dev())
         self.doc: Any = doc
         self.ydm: Any = yggdrasil_db_manager
         self.project_id: str = self.doc.get("project_id")

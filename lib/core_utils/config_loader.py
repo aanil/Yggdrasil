@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Mapping, Optional
 
 from lib.core_utils.common import YggdrasilUtilities as Ygg
+from lib.core_utils.ygg_mode import YggMode
 
 # NOTE: To use custom_logger resolve circular import issue
 
@@ -60,48 +61,50 @@ class ConfigLoader:
         """
         return self._load_config(file_name, is_path=False)
 
-    def _load_config(self, file_name, is_path=False):
+    def _load_config(self, file_name: str, is_path: bool = False) -> Mapping[str, Any]:
         """
-        Load and validate the configuration from the JSON file.
-
-        Args:
-            file_name (str): The name or path of the configuration JSON file.
-            is_path (bool): True if file_name is a path, False if it's a filename.
-
-        Returns:
-            Mapping[str, Any]: The loaded configuration data.
+        Unified method that respects dev mode for both is_path=True/False.
         """
-        config_file = Path(file_name) if is_path else Ygg.get_path(file_name)
+        # 1) Build the 'base_file' (path to config.json)
+        base_file = Path(file_name) if is_path else Ygg.get_path(file_name)
 
-        if config_file is None:
-            # Return an empty mapping if the file is not found
+        if base_file is None:
             self._config = types.MappingProxyType({})
             return self._config
 
+        # 2) If dev mode is on, try the dev counterpart (dev_myfile.suffix) in the same directory
+        if YggMode.is_dev():
+            dev_file = base_file.with_name(f"dev_{base_file.name}")
+            if dev_file.is_file():
+                logging.info(
+                    f"Dev mode ON. Loading dev config '{dev_file.name}' instead of '{base_file.name}'."
+                )
+                base_file = dev_file
+            else:
+                logging.info(
+                    f"Dev mode ON but no dev config found for '{base_file.name}'. "
+                    f"Using the original file."
+                )
+
+        # 3) Now actually load from whatever base_file points to (the dev version if it existed)
         try:
-            with open(config_file) as f:
+            with open(base_file) as f:
                 config = json.load(f)
-                # TODO: Perform validation and error checking on the loaded data if needed.
                 self._config = types.MappingProxyType(config)
         except json.JSONDecodeError as e:
             # Set config to empty immutable mapping before raising
             self._config = types.MappingProxyType({})
             raise json.JSONDecodeError(
-                f"Error parsing config file '{config_file}': {e}", e.doc, e.pos
+                f"Error parsing config file '{base_file}': {e}", e.doc, e.pos
             )
         except TypeError as e:
             # Set config to empty immutable mapping before raising
             self._config = types.MappingProxyType({})
-            raise TypeError(f"Error parsing config file '{config_file}': {e}")
+            raise TypeError(f"Error parsing config file '{base_file}': {e}")
         except Exception as e:
-            logging.error(f"Unexpected error loading config file '{config_file}': {e}")
+            logging.error(f"Unexpected error loading config file '{base_file}': {e}")
             # Set config to empty immutable mapping before raising
             self._config = types.MappingProxyType({})
             raise
 
         return self._config
-
-
-# Instantiate ConfigLoader when the module is imported
-config_manager = ConfigLoader()
-configs = config_manager.load_config("config.json")

@@ -4,8 +4,6 @@ from typing import Any, Dict, List, Mapping, Optional
 from lib.base.abstract_sample import AbstractSample
 from lib.core_utils.logging_utils import custom_logger
 from lib.module_utils.report_transfer import transfer_report
-
-# from lib.module_utils.sjob_manager import SlurmJobManager
 from lib.module_utils.slurm_utils import generate_slurm_script
 from lib.realms.tenx.utils.sample_file_handler import SampleFileHandler
 from lib.realms.tenx.utils.tenx_utils import TenXUtils
@@ -60,14 +58,6 @@ class TenXRunSample(AbstractSample):
         self.reference_genomes: Dict[str, str] = (
             self.collect_reference_genomes()
         ) or {}
-
-        # if DEBUG:
-        #     # Use a mock SlurmJobManager for debugging purposes
-        #     from tests.mocks.mock_sjob_manager import MockSlurmJobManager
-
-        #     self.sjob_manager: SlurmJobManager = MockSlurmJobManager()
-        # else:
-        #     self.sjob_manager = SlurmJobManager()
 
         self.file_handler: SampleFileHandler = SampleFileHandler(self)
 

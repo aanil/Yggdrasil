@@ -2,12 +2,23 @@ import asyncio
 import re
 import subprocess
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Mapping, Optional, Union
 
-from lib.core_utils.config_loader import configs
+from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import custom_logger
+from tests.mocks.mock_sjob_manager import MockSlurmJobManager
 
 logging = custom_logger(__name__.split(".")[-1])
+
+
+class SlurmManagerFactory:
+    @staticmethod
+    def get_manager(is_dev: bool):
+        if is_dev:
+            return MockSlurmJobManager()
+        else:
+            return SlurmJobManager()
+
 
 #################################################################################################
 ######### CLASS BELOW ASSUMES ACCESS TO THE HOST SYSTEM TO SUBMIT SLURM JOBS ####################
@@ -31,6 +42,8 @@ class SlurmJobManager:
         "OUT_OF_ME+",
     ]
 
+    configs: Mapping[str, Any] = ConfigLoader().load_config("config.json")
+
     def __init__(
         self, polling_interval: float = 10.0, command_timeout: float = 8.0
     ) -> None:
@@ -42,7 +55,7 @@ class SlurmJobManager:
             command_timeout (float, optional): Timeout for Slurm commands in seconds.
                 Defaults to 8.0 seconds.
         """
-        self.polling_interval: float = configs.get(
+        self.polling_interval: float = self.configs.get(
             "job_monitor_poll_interval", polling_interval
         )
         self.command_timeout: float = command_timeout
