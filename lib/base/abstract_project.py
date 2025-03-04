@@ -356,6 +356,8 @@ class AbstractProject(ABC):
         #     return
 
         match self.project_status:
+            case "":
+                await self._handle_main_flow()
             case "pending":
                 await self._handle_main_flow()
             case "manually_submitted_samples":
