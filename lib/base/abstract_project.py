@@ -360,6 +360,8 @@ class AbstractProject(ABC):
                 await self._handle_main_flow()
             case "pending":
                 await self._handle_main_flow()
+            case "partially_completed":
+                await self._handle_main_flow()
             case "manually_submitted_samples":
                 await self._handle_manually_submitted_flow()
             case "completed":
