@@ -3,7 +3,8 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from lib.core_utils.logging_utils import custom_logger
-from lib.core_utils.ygg_mode import YggMode
+from lib.core_utils.ygg_session import YggSession
+from lib.module_utils.hpc_submission_policy import HPCSubmissionPolicy
 from lib.module_utils.sjob_manager import SlurmManagerFactory
 
 logging = custom_logger(__name__.split(".")[-1])
@@ -33,7 +34,10 @@ class AbstractProject(ABC):
             doc (Any): The document representing the project (data to be processed).
             yggdrasil_db_manager (Any): The database manager for Yggdrasil-specific database operations.
         """
-        self.sjob_manager: Any = SlurmManagerFactory.get_manager(YggMode.is_dev())
+        self.sjob_manager: Any = SlurmManagerFactory.get_manager(YggSession.is_dev())
+        self.submission_policy: HPCSubmissionPolicy = HPCSubmissionPolicy(
+            user_manual_submit=YggSession.is_manual_submit()
+        )
         self.doc: Any = doc
         self.ydm: Any = yggdrasil_db_manager
         self.project_id: str = self.doc.get("project_id")
@@ -549,6 +553,8 @@ class AbstractProject(ABC):
         if not self.samples:
             logging.warning("No samples found => nothing to do.")
             return
+
+        self.fetch_and_merge_sample_info_from_db()
         self.add_samples_to_project_in_db()
 
         # 2) Pre-process
@@ -560,8 +566,9 @@ class AbstractProject(ABC):
         # 3) Decide auto vs. manual
         #    If auto-submission == True, we call do_submit_sample_jobs()
         #    If not, we set project => "manually_submitted_samples" so user can do HPC externally
-        auto_submit = self.doc.get("pipeline_info", {}).get("submit", True)
-        if auto_submit:
+        # auto_submit = self.doc.get("pipeline_info", {}).get("submit", True)
+        # if auto_submit:
+        if self.submission_policy.should_auto_submit():
             logging.info("Auto-submitting HPC jobs for all samples.")
             await self.do_submit_sample_jobs()
 
