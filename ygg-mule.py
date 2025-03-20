@@ -6,7 +6,7 @@ import asyncio
 from lib.core_utils.common import YggdrasilUtilities as Ygg
 from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import configure_logging, custom_logger
-from lib.core_utils.ygg_mode import YggMode
+from lib.core_utils.ygg_session import YggSession
 from lib.couchdb.project_db_manager import ProjectDBManager
 from lib.couchdb.yggdrasil_db_manager import YggdrasilDBManager
 from lib.realms.delivery.deliver import DeliveryManager
@@ -154,12 +154,18 @@ def main():
     )
 
     parser.add_argument("--dev", action="store_true", help="Enable development mode")
+    parser.add_argument(
+        "-m", "--manual-submit", action="store_true", help="Force manual HPC submission"
+    )
 
     # Parse arguments
     args = parser.parse_args()
 
     # Set dev mode (if enabled)
-    YggMode.init(args.dev)
+    YggSession.init_dev_mode(args.dev)
+
+    # Set manual HPC submission (if enabled)
+    YggSession.init_manual_submit(args.manual_submit)
 
     # Process the document
     if args.delivery:
