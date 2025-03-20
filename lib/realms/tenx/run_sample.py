@@ -55,6 +55,7 @@ class TenXRunSample(AbstractSample):
 
         self.features: List[str] = self._collect_features()
         self.pipeline_info: Optional[Dict[str, Any]] = self._get_pipeline_info() or {}
+        self.auto_submit: bool = self.pipeline_info.get("submit", False)
         self.reference_genomes: Dict[str, str] = (
             self.collect_reference_genomes()
         ) or {}
