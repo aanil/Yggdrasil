@@ -12,8 +12,6 @@ logging.getLogger("numba").setLevel(logging.WARNING)
 logging.getLogger("h5py").setLevel(logging.WARNING)
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
-configs: Mapping[str, Any] = ConfigLoader().load_config("config.json")
-
 
 def configure_logging(debug: bool = False) -> None:
     """Set up logging for the Yggdrasil application.
@@ -28,6 +26,7 @@ def configure_logging(debug: bool = False) -> None:
     Returns:
         None
     """
+    configs: Mapping[str, Any] = ConfigLoader().load_config("config.json")
     log_dir = Path(configs["yggdrasil_log_dir"])
     log_dir.mkdir(parents=True, exist_ok=True)
 
