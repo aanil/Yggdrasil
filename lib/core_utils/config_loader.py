@@ -2,7 +2,7 @@ import json
 import logging
 import types
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional
 
 from lib.core_utils.common import YggdrasilUtilities as Ygg
 from lib.core_utils.ygg_mode import YggMode
@@ -21,6 +21,8 @@ class ConfigLoader:
     Attributes:
         _config (Optional[Mapping[str, Any]]): The loaded configuration data.
     """
+
+    _cache: Dict[Path, Mapping[str, Any]] = {}
 
     def __init__(self) -> None:
         self._config: Optional[Mapping[str, Any]] = None
@@ -76,21 +78,30 @@ class ConfigLoader:
         if YggMode.is_dev():
             dev_file = base_file.with_name(f"dev_{base_file.name}")
             if dev_file.is_file():
-                logging.info(
-                    f"Dev mode ON. Loading dev config '{dev_file.name}' instead of '{base_file.name}'."
+                logging.debug(
+                    f"Dev mode ON. Using dev config '{dev_file.name}' instead of '{base_file.name}'."
                 )
                 base_file = dev_file
             else:
-                logging.info(
+                logging.debug(
                     f"Dev mode ON but no dev config found for '{base_file.name}'. "
                     f"Using the original file."
                 )
 
-        # 3) Now actually load from whatever base_file points to (the dev version if it existed)
+        # 3) **Cache lookup**
+        key = base_file.resolve()
+        if key in ConfigLoader._cache:
+            logging.debug(
+                "Config file '%s' already loaded. Using cached version.",
+                base_file.name,
+            )
+            self._config = ConfigLoader._cache[key]
+            return self._config
+
+        # 4) Now actually load from disk
         try:
             with open(base_file) as f:
-                config = json.load(f)
-                self._config = types.MappingProxyType(config)
+                raw = json.load(f)
         except json.JSONDecodeError as e:
             # Set config to empty immutable mapping before raising
             self._config = types.MappingProxyType({})
@@ -106,5 +117,10 @@ class ConfigLoader:
             # Set config to empty immutable mapping before raising
             self._config = types.MappingProxyType({})
             raise
+
+        # 5) wrap and cache
+        mp = types.MappingProxyType(raw)
+        ConfigLoader._cache[key] = mp
+        self._config = mp
 
         return self._config
