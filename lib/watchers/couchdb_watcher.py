@@ -27,6 +27,7 @@ class CouchDBWatcher(AbstractWatcher):
         self,
         on_event: Callable[[YggdrasilEvent], None],
         changes_fetcher: Callable[[], AsyncIterable[tuple[Any, Any]]],
+        event_type: str = "document_change",
         poll_interval: float = 5,
         name: str = "CouchDBWatcher",
         logger: Optional[logging.Logger] = None,
@@ -40,7 +41,7 @@ class CouchDBWatcher(AbstractWatcher):
             name: Identifier for logging purposes.
             logger: Optional logger instance. Defaults to named logger.
         """
-        super().__init__(on_event, logger=logger)
+        super().__init__(on_event, event_type, name)
         self.changes_fetcher = changes_fetcher
         self.poll_interval = poll_interval
         self.name = name
@@ -65,7 +66,7 @@ class CouchDBWatcher(AbstractWatcher):
                     if not self._running:
                         break
                     payload = {"document": doc_data, "module_location": module_loc}
-                    await self.emit("project_change", payload, self.name)
+                    await self.emit(payload)
 
             except Exception as e:
                 self._logger.error(

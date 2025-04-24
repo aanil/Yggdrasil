@@ -20,7 +20,7 @@ class SeqDataDetector(FileSystemEventHandler):
         self,
         instrument_name: str,
         marker_files: Set[str],
-        emit_coroutine: Callable[[str, Any, str], Coroutine[Any, Any, None]],
+        emit_coroutine: Callable[[Any, Optional[str]], Coroutine[Any, Any, None]],
         async_loop: asyncio.AbstractEventLoop,
         logger: logging.Logger,
         discovered_subfolders: Dict[str, Set[str]] = {},
@@ -29,7 +29,7 @@ class SeqDataDetector(FileSystemEventHandler):
         Args:
             instrument_name: For logging & identification (e.g. "Illumina")
             marker_files: The set of filenames that must all appear before we trigger an event
-            emit_callback: The watcher's method to call (like watcher.emit(...))
+            emit_coroutine: The watcher's method to call (like watcher.emit(...))
             async_loop: The event loop to use for scheduling the emit coroutine
             logger: Logger instance
             discovered_subfolders: Shared dictionary that tracks which markers
@@ -76,7 +76,7 @@ class SeqDataDetector(FileSystemEventHandler):
 
             # We cannot directly 'await' emit_coroutine because on_created is sync.
             # Instead, we schedule it on the watcher's loop.
-            coro = self.emit_coroutine("flowcell_ready", payload, "filesystem")
+            coro = self.emit_coroutine(payload, None)
             asyncio.run_coroutine_threadsafe(coro, self.loop)
 
             # Remove from discovered_subfolders so we don't double-emit
@@ -102,6 +102,7 @@ class SeqDataWatcher(AbstractWatcher):
         self,
         on_event: Callable[[YggdrasilEvent], None],
         config: Dict[str, Any],
+        event_type: str = "flowcell_ready",
         name: str = "SeqDataWatcher",
         recursive: bool = True,
         logger: Optional[logging.Logger] = None,
@@ -113,7 +114,7 @@ class SeqDataWatcher(AbstractWatcher):
             logger: Optional logger. If None, one is created.
             recursive: Whether to watch subdirectories under directory_to_watch.
         """
-        super().__init__(on_event, logger=logger)
+        super().__init__(on_event, event_type, name)
         self.name = name
         config = config or {}
         self.instrument_name = config.get("instrument_name", "UnknownInstrument")
