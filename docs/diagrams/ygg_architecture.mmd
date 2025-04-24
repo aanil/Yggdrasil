@@ -1,0 +1,19 @@
+flowchart TB
+    subgraph Infrastructure
+      HPC[HPC]
+      DB[CouchDB]
+      FS[File System / Miarka]
+    end
+
+    subgraph Yggdrasil
+    W["Watchers<br/>(FileSystemWatcher, CouchDBWatcher)"]
+    Y[YggdrasilCore]
+    R["Realms/Processors<br/>(FlowcellRealm, DeliveryRealm, etc.)"]
+    end
+
+    FS --> W
+    DB --> W
+    W --> Y
+    Y --> R
+    R --> HPC
+    R --> DB
