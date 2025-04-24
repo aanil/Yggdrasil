@@ -13,12 +13,9 @@ from lib.watchers.seq_data_watcher import SeqDataWatcher, YggdrasilEvent
 class YggdrasilCore:
     """
     Central orchestrator that manages:
-    - Multiple watchers (file system, CouchDB, HPC job status, etc.)
+    - Multiple watchers (file system, CouchDB, etc.)
     - Event handlers (one or more handlers for specific event types)
-    - Semi-automatic (CLI) calls that bypass watchers
-
-    You can extend it to handle Slack messages, emails, HPC triggers,
-    or Prefect flows without major re-architecture.
+    - (future) Semi-automatic (CLI) calls that bypass watchers
     """
 
     def __init__(
@@ -26,7 +23,7 @@ class YggdrasilCore:
     ):
         """
         Args:
-            config: A dictionary of global Yggdrasil settings (from config.json or generated).
+            config: A dictionary of global Yggdrasil settings.
             logger: If not provided, a default named logger is created.
         """
         self.config = config
@@ -37,7 +34,6 @@ class YggdrasilCore:
         self.watchers: List = []
 
         # Handlers: event_type -> function(event_payload)
-        # By default, we can have a fallback if there's no handler
         self.handlers: Dict[str, BaseHandler] = {}
 
         self._init_db_managers()
@@ -71,7 +67,6 @@ class YggdrasilCore:
     def register_handler(self, event_type: str, handler_func: BaseHandler) -> None:
         """
         Attach a function that processes events of a certain type.
-        Example event_type: "flowcell_ready", "document_change", etc.
         Example handler_func: your code that triggers HPC jobs, Prefect flows, etc.
         """
         self.handlers[event_type] = handler_func
@@ -226,15 +221,17 @@ class YggdrasilCore:
 
         payload = {"document": doc, "module_location": module_loc}
 
-        # Use the same handler you registered earlier
-        handler = self.handlers.get("document_change")
+        # Use the appropriate registered earlier
+        handler = self.handlers.get(EventType.PROJECT_CHANGE)
         if not handler:
-            self._logger.error("No handler for 'document_change'")
+            self._logger.error(
+                "No handler for '%s' event type", EventType.PROJECT_CHANGE
+            )
             return
 
         if not hasattr(handler, "run_now"):
             raise RuntimeError(
-                f"Handler {handler!r} must implement `.run_now(payload)` for one‑off mode"
+                f"Handler {handler!r} must implement `.run_now(payload)` for one-off mode"
             )
         handler.run_now(payload)
 
