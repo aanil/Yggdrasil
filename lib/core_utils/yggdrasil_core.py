@@ -2,6 +2,7 @@ import asyncio
 import logging
 from typing import Any, Dict, List, Mapping, Optional
 
+from lib.core_utils.event_types import EventType
 from lib.core_utils.singleton_decorator import singleton
 from lib.handlers.base_handler import BaseHandler
 from lib.watchers.couchdb_watcher import CouchDBWatcher
@@ -84,15 +85,15 @@ class YggdrasilCore:
 
         # Best‑practice analysis for new/changed ProjectDB docs
         project_handler = BestPracticeAnalysisHandler()
-        self.register_handler("document_change", project_handler)
+        self.register_handler(EventType.PROJECT_CHANGE, project_handler)
 
         # Demultiplexing / downstream pipeline for newly-ready flowcells
         # flowcell_handler = FlowcellHandler()
-        # self.register_handler("flowcell_ready", flowcell_handler)
+        # self.register_handler(EventType.FLOWCELL_READY, flowcell_handler)
 
-        # (If you have a CLI‑triggered event type, e.g. 'manual_doc_run', register it here too)
-        # cli_handler = YourCLIHandler()
-        # self.register_handler("manual_doc_run", cli_handler)
+        # NOTE: When we have a CLI‑triggered event type, e.g. 'manual_run', register it here too
+        # cli_handler = CLIHandler()
+        # self.register_handler(EventType.<whatever>, cli_handler)
 
         self._logger.info("Registered handlers: %s", ", ".join(self.handlers.keys()))
 
@@ -121,6 +122,7 @@ class YggdrasilCore:
             name = instrument.get("name", "UnnamedInstrument")
             watcher = SeqDataWatcher(
                 on_event=self.handle_event,
+                event_type=EventType.FLOWCELL_READY,
                 name=f"SeqDataWatcher-{name}",
                 config={
                     "instrument_name": name,
@@ -145,6 +147,7 @@ class YggdrasilCore:
         # Project DB
         cdb_pdm_watcher = CouchDBWatcher(
             on_event=self.handle_event,
+            event_type=EventType.PROJECT_CHANGE,
             name="ProjectDBWatcher",
             changes_fetcher=self.pdm.fetch_changes,
             poll_interval=poll_interval,
