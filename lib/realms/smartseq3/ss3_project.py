@@ -34,6 +34,7 @@ class SmartSeq3(AbstractProject):
             doc (dict): Document containing project metadata.
         """
         super().__init__(doc, yggdrasil_db_manager)
+        self.submission_policy.realm_supports_auto = True
         self.proceed = self.check_required_fields()
 
         if self.proceed:
@@ -139,71 +140,73 @@ class SmartSeq3(AbstractProject):
             return None
 
     async def launch(self):
-        """Launch the SmartSeq3 Realm to handle its samples."""
-        logging.info(
-            f"Processing SmartSeq3 project {self.project_info['project_name']}"
-        )
-        self.status = "processing"
+        pass
 
-        # 1) Gather all samples, including aborted/unsequenced
-        self.samples = self.extract_samples()
-        if not self.samples:
-            logging.warning("No samples found. Returning...")
-            return
+    #     """Launch the SmartSeq3 Realm to handle its samples."""
+    #     logging.info(
+    #         f"Processing SmartSeq3 project {self.project_info['project_name']}"
+    #     )
+    #     self.status = "processing"
 
-        # 2) Register them in YggdrasilDB
-        self.add_samples_to_project_in_db()
+    #     # 1) Gather all samples, including aborted/unsequenced
+    #     self.samples = self.extract_samples()
+    #     if not self.samples:
+    #         logging.warning("No samples found. Returning...")
+    #         return
 
-        # 3) Filter only the truly processable samples (i.e. not aborted, not unsequenced)
-        self.samples = self.select_samples_for_processing()
+    #     # 2) Register them in YggdrasilDB
+    #     self.add_samples_to_project_in_db()
 
-        if not self.samples:
-            logging.warning("No valid (sequenced) samples to process. Returning...")
-            return
+    #     # 3) Filter only the truly processable samples (i.e. not aborted, not unsequenced)
+    #     self.samples = self.select_samples_for_processing()
 
-        # 4) Pre-process samples
-        pre_tasks = [sample.pre_process() for sample in self.samples]
-        await asyncio.gather(*pre_tasks)
+    #     if not self.samples:
+    #         logging.warning("No valid (sequenced) samples to process. Returning...")
+    #         return
 
-        # NOTE: Could control whether to proceed with processing based on config or parameters
+    #     # 4) Pre-process samples
+    #     pre_tasks = [sample.pre_process() for sample in self.samples]
+    #     await asyncio.gather(*pre_tasks)
 
-        # Filter samples that passed pre-processing
-        pre_processed_samples = [
-            sample for sample in self.samples if sample.status == "pre_processed"
-        ]
+    #     # NOTE: Could control whether to proceed with processing based on config or parameters
 
-        if not pre_processed_samples:
-            logging.warning("No samples passed pre-processing. Exiting...")
-            return
+    #     # Filter samples that passed pre-processing
+    #     pre_processed_samples = [
+    #         sample for sample in self.samples if sample.status == "pre_processed"
+    #     ]
 
-        logging.info("\n")
-        logging.info(
-            f"Samples that passed pre-processing:"
-            f"{[sample.id for sample in pre_processed_samples]}"
-        )
+    #     if not pre_processed_samples:
+    #         logging.warning("No samples passed pre-processing. Exiting...")
+    #         return
 
-        # 4.5) Create Scripts for each sample
-        for sample in pre_processed_samples:
-            if sample.create_submission_scripts():
-                logging.info(f"Scripts created for sample '{sample.id}'")
-            else:
-                logging.error(f"Failed to create scripts for sample '{sample.id}'")
+    #     logging.info("\n")
+    #     logging.info(
+    #         f"Samples that passed pre-processing:"
+    #         f"{[sample.id for sample in pre_processed_samples]}"
+    #     )
 
-        # 5) Process samples
-        tasks = [sample.process() for sample in pre_processed_samples]
-        logging.debug(f"Sample tasks created. Waiting for completion...: {tasks}")
-        await asyncio.gather(*tasks)
+    #     # 4.5) Create Scripts for each sample
+    #     for sample in pre_processed_samples:
+    #         if sample.create_submission_scripts():
+    #             logging.info(f"Scripts created for sample '{sample.id}'")
+    #         else:
+    #             logging.error(f"Failed to create scripts for sample '{sample.id}'")
 
-        # Log samples that passed processing
-        processed_samples = [
-            sample for sample in pre_processed_samples if sample.status == "completed"
-        ]
-        logging.info("\n")
-        logging.info(
-            f"Samples that finished successfully: "
-            f"{[sample.id for sample in processed_samples]}\n"
-        )
-        self.finalize_project()
+    #     # 5) Process samples
+    #     tasks = [sample.process() for sample in pre_processed_samples]
+    #     logging.debug(f"Sample tasks created. Waiting for completion...: {tasks}")
+    #     await asyncio.gather(*tasks)
+
+    #     # Log samples that passed processing
+    #     processed_samples = [
+    #         sample for sample in pre_processed_samples if sample.status == "completed"
+    #     ]
+    #     logging.info("\n")
+    #     logging.info(
+    #         f"Samples that finished successfully: "
+    #         f"{[sample.id for sample in processed_samples]}\n"
+    #     )
+    #     self.finalize_project()
 
     def extract_samples(self) -> List[SS3Sample]:
         """
@@ -247,8 +250,8 @@ class SmartSeq3(AbstractProject):
         """
         processable = []
         for sample in self.samples:
-            # If a sample is aborted or unsequenced, skip
-            if sample.status in ("aborted", "unsequenced"):
+            # If a sample is aborted, unsequenced or completed, skip
+            if sample.status in ("aborted", "unsequenced", "completed"):
                 logging.info(
                     f"Skipping sample '{sample.id}' => status '{sample.status}'"
                 )
@@ -325,7 +328,7 @@ class SmartSeq3(AbstractProject):
 
     async def do_pre_process_samples(self):
         """
-        1) Filter out aborted/unsequenced by using `select_samples_for_processing()`.
+        1) Filter out aborted/unsequenced/completed by using `select_samples_for_processing()`.
         2) Pre-process each sample asynchronously (e.g. gather).
         3) Keep only those that ended in 'pre_processed'.
         """
@@ -357,6 +360,10 @@ class SmartSeq3(AbstractProject):
         """
         # TODO: In the end the NGI report will be generated by TACA. Remove when delivery realm is ready.
         self._generate_ngi_report()
+        # TODO: "pending_QC" might not be ideal. What if there are more samples coming in?
+        #        If more samples are coming in (e.g. "unsequenced"), we should keep the project open.
+        #        Potential opitons: "pending_samples", "partially_completed"
+        #        Otherwise if all samples are completed, status can be "completed" or "pending_QC".
         self.project_status = "pending_QC"
         logging.info(f"[{self.project_id}] Project finalized.")
         # NOTE: Add more steps here, like preparing deliveries, etc.

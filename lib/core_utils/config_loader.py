@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
 from lib.core_utils.common import YggdrasilUtilities as Ygg
-from lib.core_utils.ygg_mode import YggMode
+from lib.core_utils.ygg_session import YggSession
 
 # NOTE: To use custom_logger resolve circular import issue
 
@@ -75,7 +75,7 @@ class ConfigLoader:
             return self._config
 
         # 2) If dev mode is on, try the dev counterpart (dev_myfile.suffix) in the same directory
-        if YggMode.is_dev():
+        if YggSession.is_dev():
             dev_file = base_file.with_name(f"dev_{base_file.name}")
             if dev_file.is_file():
                 logging.debug(
