@@ -2,12 +2,22 @@
 
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/2fa79bea21b142d9a75d0951ec2803dd)](https://app.codacy.com/gh/glrs/Yggdrasil/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
 
-Yggdrasil is a data processing framework designed to manage and automate workflows for various genomic sequencing projects (currently including TenX and SmartSeq3 modules). It provides a unified interface to handle data ingestion, processing, result generation, and ultimately project packing and delivery, streamlining the analysis pipeline for sequencing data.
+Yggdrasil is an in-house orchestration framework designed to automate well-defined workflows. It watches directories, CouchDB
+changes, etc., then calls **realm modules** (external or internal packages) to do the heavy lifting. Example realms today:
+
+* `tenx` (internal)         - 10x Genomics best practice analysis
+* `smartseq3` (internal)    - Smart-seq3 best practice analysis
+* `dataflow-dmx` (external) - [under developmennt] Demultiplexing pipeline for Illumina / Aviti / ONT
+* *(more to come)*
+
+External realms self-register through the entry-point group **`ygg.handler`**.
+
+---
 
 ## Table of Contents
 
-- [Prerequisites](#prerequisites)
 - [Installation](#installation)
+- [Install External Realms](#install-an-external-realm-(example:-dataflow-dmx))
 - [Project Structure](#project-structure)
 - [Usage](#usage)
 - [Configuration](#configuration)
@@ -21,38 +31,62 @@ Yggdrasil is a data processing framework designed to manage and automate workflo
 - [Contributing](#contributing)
 - [License](#license)
 
-## Prerequisites
-
-- **Python 3.11** or higher
-- [Conda](https://docs.conda.io/en/latest/) for environment management
-- [Git](https://git-scm.com/) for version control
-- [VSCode](https://code.visualstudio.com/) (recommended) for development
 
 ## Installation
 
-To get started with the Yggdrasil Project, you need to set up the necessary dependencies. Follow the instructions below:
-
-1. **Clone the Repository**:
+### 1. Developers / Contributors
 
 ```bash
+# Clone & create an isolated env
 git clone https://github.com/NationalGenomicsInfrastructure/Yggdrasil.git
 cd Yggdrasil
+conda create -n ygg-dev python=3.11 pip
+conda activate ygg-dev
+
+# Editable install with dev extras (ruff, mypy, ...)
+pip install -e .[dev]
+
+# Run the event loop
+python yggdrasil.py
 ```
 
-2. **Create and Activate a Conda Environment**:
+* Runtime dependencies come from `[project] dependencies` in `pyproject.toml`.
+* Dev tooling is pulled from `[project.optional-dependencies] dev`.
 
-It is recommended to use a conda environment to manage dependencies. You can set up the environment using `conda`:
+### 2. Production / CI runners
 
 ```bash
-conda create --name yggdrasil-env python=3.11
-conda activate yggdrasil-env
+# 1. Clone & create an isolated env
+git clone https://github.com/NationalGenomicsInfrastructure/Yggdrasil.git
+cd Yggdrasil
+conda create -n ygg python=3.11 pip
+conda activate ygg
+
+# 2. Install locked runtime stack
+pip install -r requirements/lock.txt
+
+# 3. Install Yggdrasil itself (no dev extras)
+pip install -e .
 ```
 
-3. **Install Required Packages**:
+`requirements/lock.txt` is generated from the dependency list with `pip-compile --strip-extras`
 
+
+## Install an external realm (example: dataflow-dmx)
 ```bash
-pip install -r requirements.txt
+# Clone next to Yggdrasil or organize in a `realms` dir (any folder works)
+git clone https://github.com/NationalGenomicsInfrastructure/dmx.git
+pip install -e ./dmx
 ```
+
+Restart Yggdrasil so it re-scans entry-points. Startup log shows the handler is active:
+```
+✓  registered external handler flowcell-dmx for FLOWCELL_READY
+```
+
+When a new flowcell is detected, Yggdrasil schedules the handler as an
+async background task in its event loop.
+
 
 ## Project Structure
 
@@ -64,33 +98,42 @@ Yggdrasil/
 │   ├── base/
 │   ├── core_utils/
 │   ├── couchdb/
+│   ├── handlers/
 │   ├── module_utils/
 │   ├── realms/
 │   │   ├── tenx/
 │   │   └── smartseq3/
+│   └── watchers/
 ├── tests/
 ├── .github/
 │   └── workflows/
-├── ygg_trunk.py
-├── ygg-mule.py
+├── requirements/
+├── yggdrasil.py
+├── ygg_trunk.py (depr)
+├── ygg-mule.py (depr)
 ├── pyproject.toml
-├── requirements.txt
 ├── LICENSE
 └── README.md
 ```
 
 *	**lib/**: Core library containing base classes and utilities.
     *	**base/**: Abstract base classes and interfaces.
-    *   **core_utils/**: Utility modules for the Yggdrasil core functionalities.
-    *   **couchdb/**: Classes specific for Yggdrasil - CouchDB interactions.
+    *   **core_utils/**: Utility modules for Yggdrasil core functionalities.
+    *   **couchdb/**: Classes specific for Yggdrasil-CouchDB interactions and document management.
+    *   **handlers/**: Base classes and built-in event/data handlers for processing and workflow orchestration.
     *	**module_utils/**: Utility modules for various Yggdrasil module functionalities.
-    *	**realms/**: Modules specific to different sequencing technologies (e.g. TenX, SmartSeq3, etc.)
+    *	**realms/**: Internal modules specific to different sequencing technologies (e.g. TenX, SmartSeq3, etc.)
+    *   **watchers/**: File system and CouchDB watchers for monitoring and triggering events.
 *	**tests/**: Test cases for the application.
 *	**.github/workflows/**: GitHub Actions workflows for CI/CD.
+*   **requirements/**: Dependency lock files and requirements management for reproducible environments.
+
+
+---
 
 ## Usage
 
-### Ygg-Mule
+### Ygg-Mule (depricated)
 
 To run Yggdrasil manually, use the manual core script `ygg-mule.py`. It is used for processing documents manually by providing a CouchDB document ID.
 
