@@ -7,6 +7,18 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.11"
 
+dependencies = [
+    "appdirs==1.4.4",
+    "loompy==3.0.7",
+    "networkx==3.5",
+    "pandas==2.3.1",
+    "panzi_json_logic==1.0.1",
+    "Pillow==11.3.0",
+    "reportlab==4.0.9",
+    "rich==14.0.0",
+    "watchdog==6.0.0"
+]
+
 [tool.ruff.lint]
 select = [
     "E4",
