@@ -1,12 +1,15 @@
 import asyncio
+import importlib.metadata
 import logging
-from typing import Any, Dict, List, Mapping, Optional
+from collections.abc import Mapping
+from typing import Any
 
-from lib.core_utils.event_types import EventType
 from lib.core_utils.singleton_decorator import singleton
 from lib.handlers.base_handler import BaseHandler
+from lib.handlers.flowcell_handler import FlowcellHandler
 from lib.watchers.couchdb_watcher import CouchDBWatcher
 from lib.watchers.seq_data_watcher import SeqDataWatcher, YggdrasilEvent
+from yggdrasil.core_utils.event_types import EventType  # type: ignore
 
 
 @singleton
@@ -18,9 +21,7 @@ class YggdrasilCore:
     - (future) Semi-automatic (CLI) calls that bypass watchers
     """
 
-    def __init__(
-        self, config: Mapping[str, Any], logger: Optional[logging.Logger] = None
-    ):
+    def __init__(self, config: Mapping[str, Any], logger: logging.Logger | None = None):
         """
         Args:
             config: A dictionary of global Yggdrasil settings.
@@ -31,10 +32,10 @@ class YggdrasilCore:
         self._running = False
 
         # Watchers: a list of classes that inherit from AbstractWatcher
-        self.watchers: List = []
+        self.watchers: list = []
 
         # Handlers: event_type -> function(event_payload)
-        self.handlers: Dict[str, BaseHandler] = {}
+        self.handlers: dict[str, BaseHandler] = {}
 
         self._init_db_managers()
 
@@ -72,25 +73,55 @@ class YggdrasilCore:
         self.handlers[event_type] = handler_func
         self._logger.debug(f"Registered handler for event_type='{event_type}'")
 
+    def auto_register_external_handlers(self):
+        for entry_point in importlib.metadata.entry_points(group="ygg.handler"):
+            handler_cls = entry_point.load()
+
+            # every external handler **must** expose a class-attr event_type
+            event_type = getattr(handler_cls, "event_type", None)
+
+            if not isinstance(event_type, EventType):
+                self._logger.error(
+                    "✘  %s skipped: event_type %r is not a valid EventType",
+                    entry_point.name,
+                    event_type,
+                )
+                continue
+
+            self.register_handler(event_type, handler_cls())  # type: ignore
+
+            self._logger.error(
+                "✓  registered external handler %s for %s",
+                entry_point.name,
+                event_type.name,  # type: ignore
+            )
+
     def setup_handlers(self) -> None:
         """
         Instantiate and register all event handlers.
         """
+        self._logger.error("Setting up event handlers...")
+        # 1. Auto-register external handlers from entry points
+        self.auto_register_external_handlers()
+
+        # 2. Register built-in handlers
         from lib.handlers.bp_analysis_handler import BestPracticeAnalysisHandler
 
         # Best‑practice analysis for new/changed ProjectDB docs
         project_handler = BestPracticeAnalysisHandler()
         self.register_handler(EventType.PROJECT_CHANGE, project_handler)
 
-        # Demultiplexing / downstream pipeline for newly-ready flowcells
-        # flowcell_handler = FlowcellHandler()
-        # self.register_handler(EventType.FLOWCELL_READY, flowcell_handler)
+        # # Demultiplexing / downstream pipeline for newly-ready flowcells
+        flowcell_handler = FlowcellHandler()
+        self.register_handler(EventType.FLOWCELL_READY, flowcell_handler)
 
         # NOTE: When we have a CLI‑triggered event type, e.g. 'manual_run', register it here too
         # cli_handler = CLIHandler()
         # self.register_handler(EventType.<whatever>, cli_handler)
 
-        self._logger.info("Registered handlers: %s", ", ".join(self.handlers.keys()))
+        self._logger.error(
+            "Registered handlers for events: %s", ", ".join(self.handlers.keys())
+        )
 
     def setup_watchers(self):
         """
@@ -99,7 +130,7 @@ class YggdrasilCore:
         """
         self._logger.info("Setting up watchers...")
         self._setup_fs_watchers()
-        self._setup_cdb_watchers()
+        # self._setup_cdb_watchers()
         # Potentially more: self._setup_hpc_watchers(), etc.
         self._logger.info("Watchers setup done.")
 
@@ -110,9 +141,17 @@ class YggdrasilCore:
         instruments = self.config.get("instrument_watch", [])
         # Example config:
         # [
-        #   {"name": "Illumina", "directory_to_watch": "/data/illumina", "marker_files": ["RTAComplete.txt"]},
+        #   {"name": "NextSeq", "directory_to_watch": "/data/illumina/nextseq", "marker_files": ["RTAComplete.txt"]},
         #   {"name": "Aviti", ...},
         # ]
+        instruments = [
+            {
+                "name": "MiSeq",
+                "directory": "sim_out/ngi2016003/flowcell_sync/illumina/miseq",
+                "marker_files": ["RTAComplete.txt"],
+            }
+        ]
+
         for instrument in instruments:
             name = instrument.get("name", "UnnamedInstrument")
             watcher = SeqDataWatcher(
@@ -121,8 +160,8 @@ class YggdrasilCore:
                 name=f"SeqDataWatcher-{name}",
                 config={
                     "instrument_name": name,
-                    "directory_to_watch": instrument.get("directory", "/tmp"),
-                    "marker_files": set(instrument.get("marker_files", [])),
+                    "directory_to_watch": instrument.get("directory", ""),
+                    "marker_files": set(instrument.get("marker_files", ["test.txt"])),
                 },
                 recursive=True,
                 logger=self._logger,
