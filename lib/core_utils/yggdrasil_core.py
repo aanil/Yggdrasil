@@ -6,7 +6,8 @@ from typing import Any
 
 from lib.core_utils.singleton_decorator import singleton
 from lib.handlers.base_handler import BaseHandler
-from lib.handlers.flowcell_handler import FlowcellHandler
+
+# from lib.handlers.flowcell_handler import FlowcellHandler
 from lib.watchers.couchdb_watcher import CouchDBWatcher
 from lib.watchers.seq_data_watcher import SeqDataWatcher, YggdrasilEvent
 from yggdrasil.core_utils.event_types import EventType  # type: ignore
@@ -112,8 +113,8 @@ class YggdrasilCore:
         self.register_handler(EventType.PROJECT_CHANGE, project_handler)
 
         # # Demultiplexing / downstream pipeline for newly-ready flowcells
-        flowcell_handler = FlowcellHandler()
-        self.register_handler(EventType.FLOWCELL_READY, flowcell_handler)
+        # flowcell_handler = FlowcellHandler()
+        # self.register_handler(EventType.FLOWCELL_READY, flowcell_handler)
 
         # NOTE: When we have a CLI‑triggered event type, e.g. 'manual_run', register it here too
         # cli_handler = CLIHandler()
