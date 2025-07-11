@@ -1,10 +1,24 @@
 import argparse
 import asyncio
-import logging
 
 from lib.core_utils.config_loader import ConfigLoader
+
+# import logging
+from lib.core_utils.logging_utils import configure_logging, custom_logger
 from lib.core_utils.ygg_session import YggSession
 from lib.core_utils.yggdrasil_core import YggdrasilCore
+
+# os.environ.setdefault("PREFECT_API_URL", "auto")  # embedded server
+# os.environ.setdefault("PREFECT_LOGGING_LEVEL", "INFO")  # prevent DEBUG spam
+# os.environ.setdefault("PREFECT_EXPERIMENTAL_EVENTS", "false")  # turn off events
+# os.environ.setdefault(
+#     "PREFECT_LOGGING_SETTINGS_PATH",
+#     "yggdrasil_workspace/common/configurations/logging.yml",
+# )
+
+
+configure_logging(debug=True)
+logging = custom_logger("Yggdrasil")
 
 
 def main():
@@ -37,7 +51,14 @@ def main():
     YggSession.init_dev_mode(args.dev)
 
     # 2) Adjust root logger
-    logging.basicConfig(level=logging.DEBUG if args.dev else logging.INFO)
+    # logging.basicConfig(
+    #     level=logging.DEBUG if args.dev else logging.INFO,
+    #     format="[%(name)s] %(message)s",
+    #     handlers=[RichHandler(show_time=True, show_level=True, markup=True)],
+    # )
+    # os.environ["PREFECT_LOGGING_LEVEL"] = "DEBUG" if args.dev else "INFO"
+
+    logging.debug("Yggdrasil: Starting up...")
 
     # 3) Prepare core (load config, init core, register handlers)
     config = ConfigLoader().load_config("config.json")
@@ -53,6 +74,7 @@ def main():
         try:
             asyncio.run(core.start())
         except KeyboardInterrupt:
+            logging.warning("[bold red blink] Shutting down Yggdrasil daemon... [/]")
             asyncio.run(core.stop())
 
     elif args.mode == "run-doc":
@@ -66,33 +88,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-# import asyncio
-# import logging
-
-# from lib.core_utils.config_loader import ConfigLoader
-# from lib.core_utils.yggdrasil_core import YggdrasilCore
-
-
-# def main():
-#     # Possibly load config
-#     config = ConfigLoader().load_config("config.json")
-
-#     # Create YggdrasilCore
-#     core = YggdrasilCore(config, logger=logging.getLogger("YggdrasilCore"))
-
-#     # Setup watchers & handlers
-#     core.setup_watchers()
-#     # core.setup_handlers()
-
-#     # Start all watchers
-#     try:
-#         asyncio.run(core.start())
-#     except KeyboardInterrupt:
-#         print("Interrupted! Stopping YggdrasilCore...")
-#         asyncio.run(core.stop())
-
-
-# if __name__ == "__main__":
-#     main()
