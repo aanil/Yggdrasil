@@ -19,6 +19,13 @@ dependencies = [
     "watchdog==6.0.0"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "mypy",
+    "pip-tools",
+]
+
 [tool.ruff.lint]
 select = [
     "E4",
