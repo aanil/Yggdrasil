@@ -1,4 +1,13 @@
-[tool.ruff]
+[project]
+name = "yggdrasil"
+version = "0.0.0.dev0"
+authors = [
+    { name = "Anastasios Glaros", email = "anastasios.glaros@scilifelab.se" }
+]
+readme = "README.md"
+requires-python = ">=3.11"
+
+[tool.ruff.lint]
 select = [
     "E4",
     "E7",
@@ -18,3 +27,10 @@ ignore = [
 ignore_missing_imports = true
 follow_imports = "skip"
 check_untyped_defs = false
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["yggdrasil"]
