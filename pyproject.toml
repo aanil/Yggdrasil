@@ -47,9 +47,12 @@ ignore_missing_imports = true
 follow_imports = "skip"
 check_untyped_defs = false
 
+[project.scripts]
+yggdrasil = "yggdrasil.cli:main"
+
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["yggdrasil"]
+packages = ["yggdrasil", "lib"]
