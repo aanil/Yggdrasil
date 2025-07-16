@@ -191,13 +191,13 @@ yggdrasil run-doc a1b2c3d4e5f --manual-submit`
 Yggdrasil will pick up the running Slurm job and wait for it until it finishes, to continue with post-processing.
 
 ### Invocation summary
-| You want to…                              | Command                                      |
-| ----------------------------------------- | -------------------------------------------- |
-| Run Yggdrasil as a background service     | `yggdrasil daemon`                           |
-| Same, but with dev logging & dev servers  | `yggdrasil --dev daemon`                     |
-| (re)Process one document                  | `yggdrasil run-doc <DOC_ID>`                 |
-| (re)Process with manual Slurm submission  | `yggdrasil run-doc <DOC_ID> --manual-submit` |
-| Use module form instead of console-script | `python -m yggdrasil ...`                    |
+| You want to…                                                   | Command                                      |
+| -------------------------------------------------------------- | -------------------------------------------- |
+| Run Yggdrasil as a background service                          | `yggdrasil daemon`                           |
+| Same, but with dev logging & dev servers                       | `yggdrasil --dev daemon`                     |
+| (re)Process one document                                       | `yggdrasil run-doc <DOC_ID>`                 |
+| (re)Process with manual Slurm submission                       | `yggdrasil run-doc <DOC_ID> --manual-submit` |
+| **When developing**, use module form instead of console-script | `python -m yggdrasil ...`                    |
 
 
 ---
@@ -213,24 +213,31 @@ Yggdrasil uses a configuration loader to manage settings. Configuration files sh
 Fields:
 
     - yggdrasil_log_dir: Directory where logs will be stored.
-    - couchdb_url: URL of the CouchDB server. Example: "http://localhost:5984"
+    - couchdb_url: URL of the CouchDB server (host:port format).
     - couchdb_database: Name of the CouchDB project database.
     - couchdb_status_tracking: Name of the CouchDB yggdrasil database for project status tracking.
     - couchdb_poll_interval: Interval (in seconds) for polling CouchDB for changes.
     - job_monitor_poll_interval: Interval (in seconds) for polling the job monitor.
-    - activate_ngi_cmd: Command to activate NGI environment
+    - activate_ngi_cmd: Command to activate NGI environment (can be "None" if not used).
+    - report_transfer: Settings for transferring reports (server, user, destination, ssh_key).
 
 Example Configuration File (config.json)
 
 ```json
 {
     "yggdrasil_log_dir": "yggdrasil_workspace/logs",
-    "couchdb_url": "http://localhost:5984",
-    "couchdb_database": "my_project_db",
-    "couchdb_status_tracking": "my_ygg_status_db",
+    "couchdb_url": "<host>:<port>",
+    "couchdb_database": "my_projects",
+    "couchdb_status_tracking": "my_yggdrasil_db",
     "couchdb_poll_interval": 3,
-    "job_monitor_poll_interval": 60,
-    "activate_ngi_cmd": "source sourceme_sthlm.sh && source activate NGI"
+    "job_monitor_poll_interval": 5,
+    "activate_ngi_cmd": "None",
+    "report_transfer": {
+        "server": "<server>",
+        "user": "<username>",
+        "destination": "<destination_path>",
+        "ssh_key": "<ssh_key_path>"
+    }
 }
 ```
 
@@ -257,21 +264,16 @@ Example:
 
 ### Environment Variables
 
-Ensure the following environment variables are set:
+The following variables can also be set in the `config.json`, but for safety reasons, you are endorsed to set them as environment variables, like so:
 
     - COUCH_USER: Your CouchDB username.
     - COUCH_PASS: Your CouchDB password.
 
 ### Logging
 
-Yggdrasil uses a custom logging utility to manage logs. Logs are stored in the directory specified by the yggdrasil_log_dir configuration.
+Yggdrasil uses a custom logging utility to manage logs. Logs are stored in the directory specified by the `yggdrasil_log_dir` configuration.
 
-**Enabling Debug Logging**: To enable debug logging, modify the `configure_logging` call in your script:
-
-```python
-from lib.utils.logging_utils import configure_logging
-configure_logging(debug=True)
-```
+**Debug Logging**: By setting the `--dev` flag when run Yggdrasil, the debug logging is enabled automatically.
 
 ## Development Guidelines
 
