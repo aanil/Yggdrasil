@@ -46,7 +46,7 @@ conda activate ygg-dev
 # Editable install with dev extras (ruff, mypy, ...)
 pip install -e .[dev]
 
-# Run the event loop
+# Run Yggdrasil
 python yggdrasil.py
 ```
 
@@ -84,7 +84,7 @@ Restart Yggdrasil so it re-scans entry-points. Startup log shows the handler is 
 ✓  registered external handler flowcell-dmx for FLOWCELL_READY
 ```
 
-When a new flowcell is detected, Yggdrasil schedules the handler as an
+When a new event is detected, Yggdrasil schedules the appropriate handler as an
 async background task in its event loop.
 
 
@@ -133,17 +133,74 @@ Yggdrasil/
 
 ## Usage
 
-### Ygg-Mule (depricated)
+### Command-line interface
 
-To run Yggdrasil manually, use the manual core script `ygg-mule.py`. It is used for processing documents manually by providing a CouchDB document ID.
-
-**Usage**:
+Yggdrasil has a single entry-point for both daemon operation (background watchers + handlers) and one-off project processing.
+After you installed Yggdrasil in an environment, call it in the following way:
 
 ```bash
-python ygg-mule.py <doc_id>
+yggdrasil [--dev] {daemon | run-doc} [OPTIONS]
 ```
 
-Replace <doc_id> with the actual CouchDB document ID you wish to process.
+| Global flag | Description                                                                                                       |
+| ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| `--dev`     | Turns on *development mode*: <br>• DEBUG-level logging<br>• Dev-mode configuration overrides (useful on a laptop) |
+
+You can also run the CLI via `python -m yggdrasil` or `python -m yggdrasil.cli` if you prefer.
+
+
+### 1. `daemon` mode
+Starts the long-running service:
+* instantiates all configured watchers (file-system, CouchDB, ...);
+* auto-registers built-in and external handlers;
+* processes events until you stop it with **Ctrl-C**.
+
+```bash
+# production-style run
+yggdrasil daemon
+
+# verbose local run
+yggdrasil --dev daemon
+```
+
+Logs are written to the directory set in `yggdrasil_workspace/common/configurations/config.json` → `yggdrasil_log_dir`.
+
+### 2. One-off mode run-doc
+Processes **exactly one** CouchDB project document and then exits. Useful for manual re-processing or debugging.
+
+```bash
+yggdrasil run-doc DOC_ID [--manual-submit]
+```
+
+| Option            | Meaning                                                                                                               |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `--manual-submit` | Force **manual** HPC submission for this invocation (handlers check a session flag instead of auto‐calling `sbatch`). |
+
+#### Example:
+__Objective__: Rerun project N.Surname (CouchDB doc_id: a1b2c3d4e5f), but stop before Slurm submission because we need to manually edit the project's configurations.
+```bash
+# Initially run
+yggdrasil run-doc a1b2c3d4e5f --manual-submit
+```
+
+After you run this, manually edit the project as needed and submit to Slurm. Copy the Slurm `job_id` to the respective field in the project's CouchDB doc, and re-run the same command:
+```bash
+yggdrasil run-doc a1b2c3d4e5f --manual-submit`
+```
+
+Yggdrasil will pick up the running Slurm job and wait for it until it finishes, to continue with post-processing.
+
+### Invocation summary
+| You want to…                              | Command                                      |
+| ----------------------------------------- | -------------------------------------------- |
+| Run Yggdrasil as a background service     | `yggdrasil daemon`                           |
+| Same, but with dev logging & dev servers  | `yggdrasil --dev daemon`                     |
+| (re)Process one document                  | `yggdrasil run-doc <DOC_ID>`                 |
+| (re)Process with manual Slurm submission  | `yggdrasil run-doc <DOC_ID> --manual-submit` |
+| Use module form instead of console-script | `python -m yggdrasil ...`                    |
+
+
+---
 
 ## Configuration
 
@@ -177,9 +234,7 @@ Example Configuration File (config.json)
 }
 ```
 
-**module_registry.json**: This file maps different library construction methods to their respective processing modules. The modules specified here will be dynamically loaded and executed based on the entire name of a `library_prep_method` specified in the CouchDB document, or a designated prefix of them.
-
-This file maps different library construction methods to their respective processing modules. The modules specified here will be dynamically loaded and executed based on the library construction method specified in the CouchDB document.
+**module_registry.json**: This file maps different library construction methods to their respective internal processing modules. The modules specified here will be dynamically loaded and executed based on the entire name of a `library_prep_method` specified in the CouchDB document, or a designated prefix of them.
 
 Example:
 
@@ -279,7 +334,7 @@ Make sure your (user)`settings.json` contains the following settings to integrat
 {
     "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.formatOnSave": true,
-    "ruff.lint.args": [ "--config=pyproject.toml" ],
+    "ruff.configuration": "pyproject.toml",
     "mypy-type-checker.args": [ "--config-file=pyproject.toml" ]
 }
 ```
