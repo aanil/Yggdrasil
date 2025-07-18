@@ -24,7 +24,7 @@ External realms self-register through the entry-point group **`ygg.handler`**.
 - [Project Structure](#project-structure)
 - [Usage](#usage)
   - [Command-line interface](#command-line-interface)
-  - [Daemon mode](#1-daemon-mode)
+  - [Daemon mode](#1-daemon-mode-daemon)
   - [One-off mode run-doc](#2-one-off-mode-run-doc)
 - [Configuration](#configuration)
 - [Development Guidelines](#development-guidelines)
