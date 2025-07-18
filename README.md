@@ -20,11 +20,11 @@ External realms self-register through the entry-point group **`ygg.handler`**.
 - [Installation](#installation)
   - [Developers / Contributors](#1-developers--contributors)
   - [Production / CI runners](#2-production--ci-runners)
-- [Install External Realms](#install-external-realms-example-dataflow-dmx)
+- [Install External Realms](#install-an-external-realm-example-dataflow-dmx)
 - [Project Structure](#project-structure)
 - [Usage](#usage)
   - [Command-line interface](#command-line-interface)
-  - [Daemon mode](#1-daemon-mode)
+  - [`daemon` mode](#1-daemon-mode)
   - [One-off mode run-doc](#2-one-off-mode-run-doc)
 - [Configuration](#configuration)
 - [Development Guidelines](#development-guidelines)
@@ -33,7 +33,7 @@ External realms self-register through the entry-point group **`ygg.handler`**.
   - [Everyday workflow](#2-everyday-workflow)
   - [VSCode Integration (recommended)](#3-vscode-integration-recommended)
   - [Git Blame hygiene (optional)](#4-git-blame-hygiene-optional)
-  - [Continuous Integration](#continuous-integration)
+  - [Continuous Integration](#5-continuous-integration)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -352,7 +352,7 @@ a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0
 b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u0
 ```
 
-### Continuous Integration
+### 5. Continuous Integration
 
 GitHub Actions are set up to automatically run `ruff`, `black`, and `mypy` on pushes and pull requests.
 
