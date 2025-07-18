@@ -156,6 +156,7 @@ You can also run the CLI via `python -m yggdrasil` or `python -m yggdrasil.cli` 
 
 
 ### 1. Daemon mode
+
 Starts the long-running service:
 * instantiates all configured watchers (file-system, CouchDB, ...);
 * auto-registers built-in and external handlers;
@@ -172,6 +173,7 @@ yggdrasil --dev daemon
 Logs are written to the directory set in `yggdrasil_workspace/common/configurations/config.json` → `yggdrasil_log_dir`.
 
 ### 2. One-off mode run-doc
+
 Processes **exactly one** CouchDB project document and then exits. Useful for manual re-processing or debugging.
 
 ```bash
