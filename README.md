@@ -24,8 +24,8 @@ External realms self-register through the entry-point group **`ygg.handler`**.
 - [Project Structure](#project-structure)
 - [Usage](#usage)
   - [Command-line interface](#command-line-interface)
-  - [`daemon` mode](#1-`daemon`-mode)
-  - [One-off mode run-doc](#2-one-off-mode-run--doc)
+  - [Daemon mode](#1-daemon-mode)
+  - [One-off mode run-doc](#2-one-off-mode-run-doc)
 - [Configuration](#configuration)
 - [Development Guidelines](#development-guidelines)
   - [Setting Up the Development Environment](#1-setting-up-the-development-environment)
@@ -155,7 +155,7 @@ yggdrasil [--dev] {daemon | run-doc} [OPTIONS]
 You can also run the CLI via `python -m yggdrasil` or `python -m yggdrasil.cli` if you prefer.
 
 
-### 1. `daemon` mode
+### 1. Daemon mode
 Starts the long-running service:
 * instantiates all configured watchers (file-system, CouchDB, ...);
 * auto-registers built-in and external handlers;
