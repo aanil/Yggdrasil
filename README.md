@@ -16,17 +16,23 @@ External realms self-register through the entry-point group **`ygg.handler`**.
 
 ## Table of Contents
 
+
 - [Installation](#installation)
-- [Install External Realms](#install-an-external-realm-(example:-dataflow-dmx))
+  - [Developers / Contributors](#1-developers--contributors)
+  - [Production / CI runners](#2-production--ci-runners)
+- [Install External Realms](#install-external-realms-example-dataflow-dmx)
 - [Project Structure](#project-structure)
 - [Usage](#usage)
+  - [Command-line interface](#command-line-interface)
+  - [Daemon mode](#1-daemon-mode)
+  - [One-off mode run-doc](#2-one-off-mode-run-doc)
 - [Configuration](#configuration)
 - [Development Guidelines](#development-guidelines)
-  - [Setting Up the Development Environment](#setting-up-the-development-environment)
+  - [Setting Up the Development Environment](#1-setting-up-the-development-environment)
   - [Pre-Commit Hooks](#pre-commit-hooks)
-  - [Code Formatting, Linting and Type Checking](#code-formatting-linting-and-type-checking)
-  - [VSCode Integration](#vscode-integration)
-  - [Git Blame Configuration](#git-blame-configuration)
+  - [Everyday workflow](#2-everyday-workflow)
+  - [VSCode Integration (recommended)](#3-vscode-integration-recommended)
+  - [Git Blame hygiene (optional)](#4-git-blame-hygiene-optional)
   - [Continuous Integration](#continuous-integration)
 - [Contributing](#contributing)
 - [License](#license)
@@ -273,64 +279,54 @@ The following variables can also be set in the `config.json`, but for safety rea
 
 Yggdrasil uses a custom logging utility to manage logs. Logs are stored in the directory specified by the `yggdrasil_log_dir` configuration.
 
-**Debug Logging**: By setting the `--dev` flag when run Yggdrasil, the debug logging is enabled automatically.
+**Debug Logging**: By setting the `--dev` flag when running Yggdrasil, the debug logging is enabled automatically.
 
 ## Development Guidelines
 
-### Setting Up the Development Environment
+### 1. Setting Up the Development Environment
 
-Ensure you have activated the Conda environment and installed all required packages as per the [Installation](#installation) section.
+Ensure you have activated the Conda environment, and have installed runtime + dev tools. The latter can be done in one go with:
+```bash
+pip install -e .[dev]
+```
+
+`.[dev]` pulls:
+* **ruff** (lint) · **black** (format) · **mypy** (type-check)
+* **pip-tools** (`pip-compile`)
+* **pre-commit** itself — no separate pip install needed.
 
 ### Pre-Commit Hooks
 
 Use [pre-commit](https://pre-commit.com/) to automate code formatting and linting on each commit.
 
-* **Install pre-commit hooks**:
-
 ```bash
+# Install Git hooks (runs ruff / black / mypy automatically)
 pre-commit install
 ```
 
-* **Run pre-commit hooks manually**:
+### 2. Everyday workflow
 
-```bash
-pre-commit run --all-files
-```
+| Task              | Command                      |
+| ----------------- | ---------------------------- |
+| Format everything | `black .`                    |
+| Lint              | `ruff check .`               |
+| Static types      | `mypy .`                     |
+| Run all hooks     | `pre-commit run --all-files` |
 
-### Code Formatting, Linting and Type Checking
+_(Hooks fire automatically on `git commit`; run manually only if you want a
+full pass before staging.)_
 
-Use `black` for code formatting, `ruff` for linting and `mypy` for static type checking. It is recommended to have these tools set as extensions on your editor (e.g. [VSCode](#vscode-integration)) too, for a more seamless, automated experience. But if you preffer running them manually in cmd:
+### 3. VSCode Integration (recommended)
 
-* **Format code with Black**:
-
-```bash
-black .
-```
-
-* **Lint code with Ruff**:
-
-```bash
-ruff check .
-```
-
-* **Run type checks**:
-
-```bash
-mypy .
-```
-
-### VSCode Integration
-
-For an optimal development experience, we recommend using VSCode with the following extensions:
-
-* Python (by Microsoft)
-* Ruff (by Astral Software)
-* Black Formatter (by Microsoft)
-* Mypy Type Checker (by Microsoft)
+Install extensions:
+* Python (Microsoft)
+* Ruff (Astral Software)
+* Black Formatter (Microsoft)
+* Mypy Type Checker (Microsoft)
 
 **VSCode Settings**
 
-Make sure your (user)`settings.json` contains the following settings to integrate the tools:
+Add to `settings.json` (user or workspace):
 
 ```json
 {
@@ -341,19 +337,15 @@ Make sure your (user)`settings.json` contains the following settings to integrat
 }
 ```
 
-### Git Blame Configuration
+### 4. Git Blame hygiene (optional)
 
-To ensure git blame ignores bulk formatting commits.
-
-* **Configure Git**:
+Ignore bulk-format commits so git blame stays useful:
 
 ```bash
 git config blame.ignoreRevsFile .git-blame-ignore-revs
 ```
 
-* **Add Formatting Commits to `.git-blame-ignore-revs`**:
-
-Add the commit (full) hashes of your formatting commits to the `.git-blame-ignore-revs` file, one per line, e.g.:
+Append the commit (full) hashes of large "black-only" or "ruff-fix" commits to the `.git-blame-ignore-revs` file (one hash per line), e.g.:
 
 ```text
 a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0
@@ -364,16 +356,19 @@ b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u0
 
 GitHub Actions are set up to automatically run `ruff`, `black`, and `mypy` on pushes and pull requests.
 
-* Workflow File: .github/workflows/lint.yml
-* Separate Jobs: Each tool runs in its own job for clear feedback.
+* Workflow File: `.github/workflows/lint.yml`
+* Jobs: `ruff-check`, `black-check`, `mypy-check`
+* Each job installs exact runtime versions from `requirements/lock.txt`, **then** the tool it needs.
 
 ## Contributing
 
 Contributions are very welcome! To have as smooth of an experience as possible, the following guidelines are recommended:
 
-* **Forking**: Fork the main repository to your personal GitHub account. Develop your changes and submit pull requests to the main repository for review.
+* **Forking**: Fork the main repository to your personal GitHub account.
+* **Git workflow**: Open pull-requests **against the `dev` branch**.
 * **Code Style**: Format with `black` and lint with `ruff`.
 * **Type Annotations**: If you use type annotations make sure to set (and pass) `mypy` checks.
+* **Pre-commit**: `black`, `ruff`, and `mypy` run automatically. Make sure `pre-commit install` is enabled and hooks pass before pushing.
 * **Documentation**: Documented contributions are easier to understand and review.
 
 **Suggested contributions**: Tests, Bug Fixes, Code Optimization, New Modules (reach out to Anastasios if you don't know where to start with developing a new module).
