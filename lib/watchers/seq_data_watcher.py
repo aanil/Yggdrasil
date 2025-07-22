@@ -143,7 +143,7 @@ class SeqDataWatcher(AbstractWatcher):
         self._running = True
         self._loop = asyncio.get_running_loop()  # store reference to the current loop
 
-        self._logger.info(f"Starting FileSystemWatcher for {self.instrument_name}")
+        self._logger.debug(f"Starting FileSystemWatcher for {self.instrument_name} ...")
 
         event_detector = SeqDataDetector(
             instrument_name=self.instrument_name,
@@ -158,6 +158,8 @@ class SeqDataWatcher(AbstractWatcher):
             event_detector, path=self.directory_to_watch, recursive=self.recursive
         )
         self._observer.start()
+
+        self._logger.info(f"Started FileSystemWatcher for {self.instrument_name}.")
 
         # The observer runs in its own thread, but we still need to
         # keep an async loop alive until stop() is called.

@@ -57,7 +57,7 @@ class CouchDBWatcher(AbstractWatcher):
             return
 
         self._running = True
-        self._logger.info(f"Starting CouchDBWatcher: {self.name}")
+        self._logger.debug(f"Starting CouchDBWatcher: {self.name} ...")
 
         while self._running:
             try:
@@ -72,6 +72,8 @@ class CouchDBWatcher(AbstractWatcher):
                 self._logger.error(
                     f"Error in {self.name} watcher loop: {e}", exc_info=True
                 )
+
+            self._logger.info(f"Started CouchDBWatcher: {self.name}.")
 
             # Sleep between poll cycles, or break if stopped
             if self._running:

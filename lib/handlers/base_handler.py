@@ -1,6 +1,8 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, ClassVar
+
+from yggdrasil.core_utils.event_types import EventType  # type: ignore
 
 
 class BaseHandler(ABC):
@@ -11,8 +13,11 @@ class BaseHandler(ABC):
       - run_now: a sync wrapper for one-off CLI use
     """
 
+    # realm authors must set this
+    event_type: ClassVar[EventType]
+
     @abstractmethod
-    async def handle_task(self, payload: Dict[str, Any]) -> None:
+    async def handle_task(self, payload: dict[str, Any]) -> None:
         """
         Coroutine that does the real work.
         Subclasses implement this (e.g. resolving realm, running it).
@@ -20,13 +25,13 @@ class BaseHandler(ABC):
         ...
 
     @abstractmethod
-    def __call__(self, payload: Dict[str, Any]) -> None:
+    def __call__(self, payload: dict[str, Any]) -> None:
         """
         Schedule handle_async under asyncio.create_task().
         """
         ...
 
-    def run_now(self, payload: Dict[str, Any]) -> None:
+    def run_now(self, payload: dict[str, Any]) -> None:
         """
         Blocking, one-off entrypoint for CLI mode.
         Simply runs handle_async() to completion.
