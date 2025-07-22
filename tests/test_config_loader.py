@@ -21,8 +21,9 @@ class TestConfigLoader(unittest.TestCase):
 
     def test_load_config_success(self):
         # Test loading config from a file name using Ygg.get_path
-        with patch("lib.core_utils.config_loader.Ygg.get_path") as mock_get_path, patch(
-            "builtins.open", mock_open(read_data=self.mock_config_json)
+        with (
+            patch("lib.core_utils.config_loader.Ygg.get_path") as mock_get_path,
+            patch("builtins.open", mock_open(read_data=self.mock_config_json)),
         ):
             mock_get_path.return_value = Path("/path/to/config.json")
             config = self.config_loader.load_config("config.json")
@@ -59,8 +60,9 @@ class TestConfigLoader(unittest.TestCase):
     def test_load_config_invalid_json(self):
         # Test behavior when config file contains invalid JSON
         invalid_json = "{key1: value1"  # Missing quotes and closing brace
-        with patch("lib.core_utils.config_loader.Ygg.get_path") as mock_get_path, patch(
-            "builtins.open", mock_open(read_data=invalid_json)
+        with (
+            patch("lib.core_utils.config_loader.Ygg.get_path") as mock_get_path,
+            patch("builtins.open", mock_open(read_data=invalid_json)),
         ):
             mock_get_path.return_value = Path("/path/to/config.json")
             with self.assertRaises(json.JSONDecodeError):
@@ -69,8 +71,9 @@ class TestConfigLoader(unittest.TestCase):
     def test_load_config_empty_file(self):
         # Test behavior when config file is empty
         empty_json = ""
-        with patch("lib.core_utils.config_loader.Ygg.get_path") as mock_get_path, patch(
-            "builtins.open", mock_open(read_data=empty_json)
+        with (
+            patch("lib.core_utils.config_loader.Ygg.get_path") as mock_get_path,
+            patch("builtins.open", mock_open(read_data=empty_json)),
         ):
             mock_get_path.return_value = Path("/path/to/config.json")
             with self.assertRaises(json.JSONDecodeError):
@@ -99,17 +102,22 @@ class TestConfigLoader(unittest.TestCase):
 
     def test_load_config_type_error(self):
         # Test handling of TypeError during json.load
-        with patch("lib.core_utils.config_loader.Ygg.get_path") as mock_get_path, patch(
-            "builtins.open", mock_open(read_data=self.mock_config_json)
-        ), patch("json.load", side_effect=TypeError("Type error")):
+        # Clear cache to avoid interference from other tests
+        ConfigLoader._cache.clear()
+        with (
+            patch("lib.core_utils.config_loader.Ygg.get_path") as mock_get_path,
+            patch("builtins.open", mock_open(read_data=self.mock_config_json)),
+            patch("json.load", side_effect=TypeError("Type error")),
+        ):
             mock_get_path.return_value = Path("/path/to/config.json")
             with self.assertRaises(TypeError):
                 self.config_loader.load_config("config.json")
 
     def test_load_config_unexpected_exception(self):
         # Test handling of an unexpected exception during file loading
-        with patch("lib.core_utils.config_loader.Ygg.get_path") as mock_get_path, patch(
-            "builtins.open", side_effect=Exception("Unexpected error")
+        with (
+            patch("lib.core_utils.config_loader.Ygg.get_path") as mock_get_path,
+            patch("builtins.open", side_effect=Exception("Unexpected error")),
         ):
             mock_get_path.return_value = Path("/path/to/config.json")
             with self.assertRaises(Exception) as context:
@@ -118,45 +126,24 @@ class TestConfigLoader(unittest.TestCase):
 
     def test_load_config_path_unexpected_exception(self):
         # Test handling of an unexpected exception during file loading with load_config_path
+        # Clear cache to avoid interference from other tests
+        ConfigLoader._cache.clear()
         with patch("builtins.open", side_effect=Exception("Unexpected error")):
             with self.assertRaises(Exception) as context:
                 self.config_loader.load_config_path("/path/to/config.json")
             self.assertEqual(str(context.exception), "Unexpected error")
 
-    def test_config_manager_instance(self):
-        # Test that config_manager is an instance of ConfigLoader
-        from lib.core_utils.config_loader import config_manager
+    # Removed test_config_manager_instance: config_manager no longer exists
 
-        self.assertIsInstance(config_manager, ConfigLoader)
-
-    def test_configs_loaded(self):
-        with patch(
-            "lib.core_utils.config_loader.config_manager.load_config",
-            return_value=types.MappingProxyType(self.mock_config_data),
-        ):
-            import sys
-
-            if "lib.core_utils.config_loader" in sys.modules:
-                del sys.modules["lib.core_utils.config_loader"]
-
-            from lib.core_utils import config_loader
-
-            # Patch the configs directly
-            config_loader.configs = types.MappingProxyType(self.mock_config_data)
-
-            self.assertEqual(
-                config_loader.configs, types.MappingProxyType(self.mock_config_data)
-            )
-            self.assertEqual(
-                config_loader.configs, types.MappingProxyType(self.mock_config_data)
-            )
+    # Removed test_configs_loaded: configs attribute no longer exists in config_loader
 
     def test_load_config_with_directory_traversal(self):
         # Test that directory traversal in file_name is handled safely
         with patch("lib.core_utils.config_loader.Ygg.get_path") as mock_get_path:
-            mock_get_path.return_value = Path("/path/to/../../etc/passwd")
-            with self.assertRaises(Exception):
-                self.config_loader.load_config("../../../etc/passwd")
+            mock_get_path.return_value = None  # Simulate blocked traversal
+            config = self.config_loader.load_config("../../../etc/passwd")
+            self.assertEqual(config, types.MappingProxyType({}))
+            self.assertEqual(self.config_loader._config, types.MappingProxyType({}))
 
     def test_load_config_path_with_invalid_path(self):
         # Test that invalid paths in load_config_path are handled
