@@ -10,12 +10,13 @@ class MockWatcher(AbstractWatcher):
     A concrete subclass of AbstractWatcher for testing purposes.
     """
 
+    def __init__(self, on_event, event_type="mock_event", name=None, logger=None):
+        super().__init__(on_event, event_type, name, logger)
+
     async def start(self):
         self._running = True
         # Simulate detecting an event and emitting it immediately.
-        await self.emit(
-            event_type="mock_event", payload={"dummy": 123}, source="mock_source"
-        )
+        await self.emit(payload={"dummy": 123}, source="mock_source")
 
     async def stop(self):
         self._running = False
