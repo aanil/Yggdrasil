@@ -4,13 +4,14 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
+# from yggdrasil.core_utils.event_types import EventType  # type: ignore
+from lib.core_utils.event_types import EventType
 from lib.core_utils.singleton_decorator import singleton
 from lib.handlers.base_handler import BaseHandler
 
 # from lib.handlers.flowcell_handler import FlowcellHandler
 from lib.watchers.couchdb_watcher import CouchDBWatcher
 from lib.watchers.seq_data_watcher import SeqDataWatcher, YggdrasilEvent
-from yggdrasil.core_utils.event_types import EventType  # type: ignore
 
 
 @singleton
