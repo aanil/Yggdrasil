@@ -3,11 +3,16 @@ from unittest.mock import MagicMock, patch
 
 import couchdb
 
+from lib.core_utils.singleton_decorator import SingletonMeta
 from lib.couchdb.couchdb_connection import CouchDBConnectionManager
 
 
 class TestCouchDBConnectionManager(unittest.TestCase):
     def setUp(self):
+        # Clear singleton instances to ensure test isolation
+        if CouchDBConnectionManager in SingletonMeta._instances:
+            del SingletonMeta._instances[CouchDBConnectionManager]
+
         # Common configuration that will be returned by ConfigLoader.load_config
         self.mock_config = {
             "couchdb": {
@@ -17,8 +22,13 @@ class TestCouchDBConnectionManager(unittest.TestCase):
             }
         }
 
+    def tearDown(self):
+        # Clear singleton instances after each test
+        if CouchDBConnectionManager in SingletonMeta._instances:
+            del SingletonMeta._instances[CouchDBConnectionManager]
+
     @patch(
-        "lib.couchdb.manager.ConfigLoader.load_config",
+        "lib.couchdb.couchdb_connection.ConfigLoader.load_config",
         return_value={
             "couchdb": {
                 "url": "localhost:5984",
@@ -27,8 +37,8 @@ class TestCouchDBConnectionManager(unittest.TestCase):
             }
         },
     )
-    @patch("lib.couchdb.manager.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.manager.couchdb.Server")
+    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
+    @patch("lib.couchdb.couchdb_connection.couchdb.Server")
     def test_initialization_with_defaults(
         self, mock_server_class, mock_getenv, mock_load_config
     ):
@@ -49,7 +59,7 @@ class TestCouchDBConnectionManager(unittest.TestCase):
         mock_server.version.assert_called_once()
 
     @patch(
-        "lib.couchdb.manager.ConfigLoader.load_config",
+        "lib.couchdb.couchdb_connection.ConfigLoader.load_config",
         return_value={
             "couchdb": {
                 "url": "localhost:5984",
@@ -58,8 +68,8 @@ class TestCouchDBConnectionManager(unittest.TestCase):
             }
         },
     )
-    @patch("lib.couchdb.manager.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.manager.couchdb.Server")
+    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
+    @patch("lib.couchdb.couchdb_connection.couchdb.Server")
     def test_singleton_returns_same_instance(
         self, mock_server_class, mock_getenv, mock_load_config
     ):
@@ -77,7 +87,7 @@ class TestCouchDBConnectionManager(unittest.TestCase):
         self.assertEqual(manager2.db_password, "secret")
 
     @patch(
-        "lib.couchdb.manager.ConfigLoader.load_config",
+        "lib.couchdb.couchdb_connection.ConfigLoader.load_config",
         return_value={
             "couchdb": {
                 "url": "localhost:5984",
@@ -86,8 +96,8 @@ class TestCouchDBConnectionManager(unittest.TestCase):
             }
         },
     )
-    @patch("lib.couchdb.manager.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.manager.couchdb.Server")
+    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
+    @patch("lib.couchdb.couchdb_connection.couchdb.Server")
     def test_connect_server_failure(
         self, mock_server_class, mock_getenv, mock_load_config
     ):
@@ -99,7 +109,7 @@ class TestCouchDBConnectionManager(unittest.TestCase):
         self.assertEqual(str(cm.exception), "Failed to connect to CouchDB server")
 
     @patch(
-        "lib.couchdb.manager.ConfigLoader.load_config",
+        "lib.couchdb.couchdb_connection.ConfigLoader.load_config",
         return_value={
             "couchdb": {
                 "url": "localhost:5984",
@@ -108,8 +118,8 @@ class TestCouchDBConnectionManager(unittest.TestCase):
             }
         },
     )
-    @patch("lib.couchdb.manager.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.manager.couchdb.Server")
+    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
+    @patch("lib.couchdb.couchdb_connection.couchdb.Server")
     def test_connect_db_success(self, mock_server_class, mock_getenv, mock_load_config):
         # Mock a connected server and a database
         mock_server = MagicMock()
@@ -125,7 +135,7 @@ class TestCouchDBConnectionManager(unittest.TestCase):
         self.assertEqual(manager.databases["testdb"], mock_db)
 
     @patch(
-        "lib.couchdb.manager.ConfigLoader.load_config",
+        "lib.couchdb.couchdb_connection.ConfigLoader.load_config",
         return_value={
             "couchdb": {
                 "url": "localhost:5984",
@@ -134,8 +144,8 @@ class TestCouchDBConnectionManager(unittest.TestCase):
             }
         },
     )
-    @patch("lib.couchdb.manager.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.manager.couchdb.Server")
+    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
+    @patch("lib.couchdb.couchdb_connection.couchdb.Server")
     def test_connect_db_no_server(
         self, mock_server_class, mock_getenv, mock_load_config
     ):
@@ -153,7 +163,7 @@ class TestCouchDBConnectionManager(unittest.TestCase):
         self.assertEqual(str(cm.exception), "Server not connected")
 
     @patch(
-        "lib.couchdb.manager.ConfigLoader.load_config",
+        "lib.couchdb.couchdb_connection.ConfigLoader.load_config",
         return_value={
             "couchdb": {
                 "url": "localhost:5984",
@@ -162,8 +172,8 @@ class TestCouchDBConnectionManager(unittest.TestCase):
             }
         },
     )
-    @patch("lib.couchdb.manager.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.manager.couchdb.Server")
+    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
+    @patch("lib.couchdb.couchdb_connection.couchdb.Server")
     def test_connect_db_not_found(
         self, mock_server_class, mock_getenv, mock_load_config
     ):
@@ -179,7 +189,7 @@ class TestCouchDBConnectionManager(unittest.TestCase):
         self.assertEqual(str(cm.exception), "Database missingdb does not exist")
 
     @patch(
-        "lib.couchdb.manager.ConfigLoader.load_config",
+        "lib.couchdb.couchdb_connection.ConfigLoader.load_config",
         return_value={
             "couchdb": {
                 "url": "localhost:5984",
@@ -188,8 +198,8 @@ class TestCouchDBConnectionManager(unittest.TestCase):
             }
         },
     )
-    @patch("lib.couchdb.manager.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.manager.couchdb.Server")
+    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
+    @patch("lib.couchdb.couchdb_connection.couchdb.Server")
     def test_connect_db_unexpected_error(
         self, mock_server_class, mock_getenv, mock_load_config
     ):
