@@ -99,9 +99,10 @@ class TestSeqDataWatcher(unittest.TestCase):
             self.assertEqual(event.event_type, "flowcell_ready")
             self.assertEqual(event.payload["instrument"], "Illumina")
             self.assertIn("subfolder", event.payload)
-            self.assertTrue(
-                "filesystem" in event.source,
-                "Event source should be 'filesystem' or similar",
+            self.assertIn(
+                event.source,
+                ["filesystem", "SeqDataWatcher"],
+                f"Event source should be 'filesystem' or 'SeqDataWatcher', got '{event.source}'",
             )
 
 
