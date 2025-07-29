@@ -1,5 +1,9 @@
 <div align="center">
-  <img src="docs/assets/ygg_logo.png" alt="Yggdrasil Logo" width="15%" style="max-width: 100px;"/>
+  <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/ygg_logo-dark_mode.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/ygg_logo-light_mode.png">
+  <img alt="Yggdrasil Logo" src="docs/assets/ygg_logo-light_mode.png" width="15%" style="max-width: 100px;">
+</picture>
 </div>
 
 # Yggdrasil
