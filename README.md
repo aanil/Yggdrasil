@@ -1,4 +1,4 @@
-<div align="left">
+<div align="center">
   <img src="docs/assets/ygg_logo.png" alt="Yggdrasil Logo" width="15%" style="max-width: 100px;"/>
 </div>
 
