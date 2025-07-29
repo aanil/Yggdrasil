@@ -1,10 +1,11 @@
 <div align="left">
   <img src="docs/assets/ygg_logo.png" alt="Yggdrasil Logo" width="15%" style="max-width: 100px;"/>
-  
-  # Yggdrasil
-  
-  [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/2fa79bea21b142d9a75d0951ec2803dd)](https://app.codacy.com/gh/glrs/Yggdrasil/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
 </div>
+
+# Yggdrasil
+  
+[![Codacy Badge](https://app.codacy.com/project/badge/Coverage/2fa79bea21b142d9a75d0951ec2803dd)](https://app.codacy.com/gh/glrs/Yggdrasil/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
+
 
 Yggdrasil is an in-house orchestration framework designed to automate well-defined workflows. It watches directories, CouchDB
 changes, etc., then calls **realm modules** (external or internal packages) to do the heavy lifting. Example realms today:
