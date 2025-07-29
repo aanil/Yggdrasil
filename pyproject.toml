@@ -21,9 +21,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "ruff",
-    "mypy",
+    "ruff>=0.6.8",
+    "black>=24.8.0",
+    "mypy>=1.11.2",
     "pip-tools",
+    "pre-commit",
 ]
 
 [tool.ruff.lint]
@@ -56,3 +58,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["yggdrasil", "lib"]
+
+[tool.setuptools.package-data]
+yggdrasil = ["assets/*"]

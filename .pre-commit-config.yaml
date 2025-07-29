@@ -26,3 +26,12 @@ repos:
             "--only-verified",
           ]
         stages: [pre-commit, pre-push]
+
+  - repo: local
+    hooks:
+      - id: pip-compile-lock
+        name: Re-generate requirements/lock.txt
+        entry: pip-compile --strip-extras -o requirements/lock.txt
+        language: python
+        additional_dependencies: ["pip-tools"]
+        pass_filenames: false
