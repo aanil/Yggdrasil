@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/assets/ygg_logo.png" alt="Yggdrasil Logo" width="40%" style="max-width: 400px;"/>
+  <img src="docs/assets/ygg_logo.png" alt="Yggdrasil Logo" width="15%" style="max-width: 100px;"/>
   
   # Yggdrasil
   
