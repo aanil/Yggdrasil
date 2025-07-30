@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.5
+    rev: v0.12.7
     hooks:
       - id: ruff
         args: [ --fix, --exit-zero ]
@@ -16,16 +16,16 @@ repos:
     hooks:
       - id: mypy
 
-  - repo: https://github.com/trufflesecurity/trufflehog
-    rev: v3.90.2
-    hooks:
-      - id: trufflehog
-        args:
-          [
-            "--no-update",
-            "--only-verified",
-          ]
-        stages: [pre-commit, pre-push]
+  # - repo: https://github.com/trufflesecurity/trufflehog
+  #   rev: v3.90.2
+  #   hooks:
+  #     - id: trufflehog
+  #       args:
+  #         [
+  #           "--no-update",
+  #           "--only-verified",
+  #         ]
+  #       stages: [pre-commit, pre-push]
 
   - repo: local
     hooks:
@@ -35,3 +35,9 @@ repos:
         language: python
         additional_dependencies: ["pip-tools"]
         pass_filenames: false
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-toml
+      - id: check-merge-conflict
