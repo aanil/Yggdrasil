@@ -62,7 +62,10 @@ conda activate ygg-dev
 pip install -e .[dev]
 
 # Run Yggdrasil
-python yggdrasil.py
+yggdrasil
+
+# Or alternatively
+python -m yggdrasil
 ```
 
 * Runtime dependencies come from `[project] dependencies` in `pyproject.toml`.
