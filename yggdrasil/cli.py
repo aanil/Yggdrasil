@@ -7,6 +7,12 @@ from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import configure_logging, custom_logger
 from lib.core_utils.ygg_session import YggSession
 from lib.core_utils.yggdrasil_core import YggdrasilCore
+from yggdrasil.logo_utils import print_logo
+
+try:
+    from yggdrasil import __version__
+except ImportError:
+    __version__ = "unknown"
 
 # os.environ.setdefault("PREFECT_API_URL", "auto")  # embedded server
 # os.environ.setdefault("PREFECT_LOGGING_LEVEL", "INFO")  # prevent DEBUG spam
@@ -22,15 +28,20 @@ logging = custom_logger("Yggdrasil")
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="ygg")
+    parser = argparse.ArgumentParser(prog="yggdrasil")
     # Global flags
     parser.add_argument(
         "--dev",
         action="store_true",
         help="Enable development mode (sets debug logging, dev-mode behavior)",
     )
+    parser.add_argument(
+        "--version",
+        action="store_true",
+        help="Show version information",
+    )
 
-    sub = parser.add_subparsers(dest="mode", required=True)
+    sub = parser.add_subparsers(dest="mode", required=False)
 
     # Daemon mode
     sub.add_parser("daemon", help="Start the long-running service")
@@ -46,6 +57,16 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Handle --version flag
+    if args.version:
+        print_logo(version=__version__)
+        return
+
+    # Handle case where no subcommand is provided (show help)
+    if args.mode is None:
+        parser.print_help()
+        return
 
     # 1) Initialize dev mode early (affects config loader, logging, etc.)
     YggSession.init_dev_mode(args.dev)
