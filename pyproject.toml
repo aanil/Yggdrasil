@@ -1,5 +1,6 @@
 [project]
 name = "yggdrasil"
+dynamic = ["version"]
 authors = [
     { name = "Anastasios Glaros", email = "anastasios.glaros@scilifelab.se" }
 ]
