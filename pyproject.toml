@@ -1,6 +1,5 @@
 [project]
 name = "yggdrasil"
-version = "0.0.0.dev0"
 authors = [
     { name = "Anastasios Glaros", email = "anastasios.glaros@scilifelab.se" }
 ]
@@ -26,6 +25,7 @@ dev = [
     "mypy>=1.11.2",
     "pip-tools",
     "pre-commit",
+    "setuptools-scm"
 ]
 
 [tool.ruff.lint]
@@ -53,7 +53,7 @@ check_untyped_defs = false
 yggdrasil = "yggdrasil.cli:main"
 
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=68", "wheel", "setuptools-scm[toml]>=8"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
@@ -61,3 +61,6 @@ packages = ["yggdrasil", "lib"]
 
 [tool.setuptools.package-data]
 yggdrasil = ["assets/*"]
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
