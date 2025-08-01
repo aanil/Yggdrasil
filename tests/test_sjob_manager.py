@@ -176,7 +176,8 @@ class TestSlurmJobManager(unittest.IsolatedAsyncioTestCase):
     def test_init_with_configs(self, mock_custom_logger):
         # Mock configs to return custom polling interval
         with patch(
-            "lib.module_utils.sjob_manager.configs", {"job_monitor_poll_interval": 5.0}
+            "lib.module_utils.sjob_manager.SlurmJobManager.configs",
+            {"job_monitor_poll_interval": 5.0},
         ):
             manager = SlurmJobManager()
             self.assertEqual(manager.polling_interval, 5.0)
@@ -184,7 +185,7 @@ class TestSlurmJobManager(unittest.IsolatedAsyncioTestCase):
     @patch("lib.module_utils.sjob_manager.custom_logger")
     def test_init_with_default_configs(self, mock_custom_logger):
         # Mock configs to be empty
-        with patch("lib.module_utils.sjob_manager.configs", {}):
+        with patch("lib.module_utils.sjob_manager.SlurmJobManager.configs", {}):
             manager = SlurmJobManager()
             self.assertEqual(manager.polling_interval, 10.0)
 

@@ -1,11 +1,13 @@
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Any, Mapping, Optional
 
-from lib.core_utils.config_loader import configs
+# from lib.core_utils.config_loader import configs
+from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__.split(".")[-1])
+configs: Mapping[str, Any] = ConfigLoader().load_config("config.json")
 
 
 def transfer_report(

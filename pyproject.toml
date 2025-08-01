@@ -1,4 +1,42 @@
-[tool.ruff]
+[project]
+name = "yggdrasil"
+dynamic = ["version"]
+authors = [
+    { name = "Anastasios Glaros", email = "anastasios.glaros@scilifelab.se" }
+]
+readme = "README.md"
+requires-python = ">=3.11"
+
+dependencies = [
+    "appdirs==1.4.4",
+    "CouchDB==1.2",
+    "loompy==3.0.8",
+    "matplotlib>=3.9.0,<3.11.0",
+    "networkx==3.5",
+    "numba>=0.61.0",
+    "numpy>=2.0,<3.0",
+    "pandas==2.3.1",
+    "panzi_json_logic==1.0.1",
+    "pdf2image==1.17.0",
+    "Pillow==11.3.0",
+    "reportlab==4.0.9",
+    "rich==14.0.0",
+    "ruamel.yaml==0.17.32",
+    "watchdog==6.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.6.8",
+    "black>=24.8.0",
+    "mypy>=1.11.2",
+    "coverage>=7.0",
+    "pip-tools",
+    "pre-commit",
+    "setuptools-scm"
+]
+
+[tool.ruff.lint]
 select = [
     "E4",
     "E7",
@@ -18,3 +56,19 @@ ignore = [
 ignore_missing_imports = true
 follow_imports = "skip"
 check_untyped_defs = false
+
+[project.scripts]
+yggdrasil = "yggdrasil.cli:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel", "setuptools-scm[toml]>=8"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["yggdrasil", "lib"]
+
+[tool.setuptools.package-data]
+yggdrasil = ["assets/*"]
+
+[tool.setuptools_scm]
+version_scheme = "post-release"

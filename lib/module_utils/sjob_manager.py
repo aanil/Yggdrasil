@@ -1,13 +1,26 @@
 import asyncio
 import re
 import subprocess
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
-from lib.core_utils.config_loader import configs
+from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__.split(".")[-1])
+
+
+class SlurmManagerFactory:
+    @staticmethod
+    def get_manager(is_dev: bool):
+        if is_dev:
+            from lib.mocks.mock_sjob_manager import MockSlurmJobManager
+
+            return MockSlurmJobManager()
+        else:
+            return SlurmJobManager()
+
 
 #################################################################################################
 ######### CLASS BELOW ASSUMES ACCESS TO THE HOST SYSTEM TO SUBMIT SLURM JOBS ####################
@@ -22,6 +35,17 @@ class SlurmJobManager:
         command_timeout (float): Timeout for Slurm commands in seconds.
     """
 
+    slurm_end_states = [
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED",
+        "CANCELLED+",
+        "TIMEOUT",
+        "OUT_OF_ME+",
+    ]
+
+    configs: Mapping[str, Any] = ConfigLoader().load_config("config.json")
+
     def __init__(
         self, polling_interval: float = 10.0, command_timeout: float = 8.0
     ) -> None:
@@ -33,12 +57,12 @@ class SlurmJobManager:
             command_timeout (float, optional): Timeout for Slurm commands in seconds.
                 Defaults to 8.0 seconds.
         """
-        self.polling_interval: float = configs.get(
+        self.polling_interval: float = self.configs.get(
             "job_monitor_poll_interval", polling_interval
         )
         self.command_timeout: float = command_timeout
 
-    async def submit_job(self, script_path: Union[str, Path]) -> Optional[str]:
+    async def submit_job(self, script_path: str | Path) -> str | None:
         """Submit a Slurm job using the specified script.
 
         Args:
@@ -82,7 +106,7 @@ class SlurmJobManager:
                 logging.error(
                     f"Failed to parse job ID from sbatch output: {stdout.decode().strip()}"
                 )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logging.error("Timeout while submitting job.")
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
@@ -102,13 +126,15 @@ class SlurmJobManager:
         logging.debug(f"[{sample.id}] Job {job_id} submitted for monitoring.")
         while True:
             status = await self._job_status(job_id)
-            if status in ["COMPLETED", "FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_ME+"]:
+            # if status in ["COMPLETED", "FAILED", "CANCELLED", "CANCELLED+", "TIMEOUT", "OUT_OF_ME+"]:
+            if status in self.slurm_end_states:
                 # logging.info(f"Job {job_id} status: {status}")
-                self.check_status(job_id, status, sample)
+                # self.check_status(job_id, status, sample)
+                self.check_status_new(job_id, status, sample)
                 break
             await asyncio.sleep(self.polling_interval)
 
-    async def _job_status(self, job_id: str) -> Optional[str]:
+    async def _job_status(self, job_id: str) -> str | None:
         """Retrieve the status of a Slurm job.
 
         Args:
@@ -133,7 +159,7 @@ class SlurmJobManager:
                 stdout_decoded = stdout.decode().strip()
                 logging.debug(f"sacct stdout for job {job_id}: {stdout_decoded}")
                 return stdout_decoded
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logging.error(f"Timeout while checking status of job {job_id}.")
         except UnicodeDecodeError:
             logging.error(f"Failed to decode sbatch stdout for job {job_id}.")
@@ -160,9 +186,28 @@ class SlurmJobManager:
             sample.status = "processed"
             sample.post_process()
             # sample.status = "completed"
-        elif status in ["FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_ME+"]:
+        elif status in ["FAILED", "CANCELLED", "CANCELLED+", "TIMEOUT", "OUT_OF_ME+"]:
             sample.status = "processing_failed"
             logging.info(f"[{sample.id}] Job failed.")
         else:
             logging.warning(f"[{sample.id}] Job ended with unexpacted status: {status}")
+            sample.status = "processing_failed"
+
+    @staticmethod
+    def check_status_new(job_id: str, status: str, sample: Any) -> None:
+        """
+        Called when SlurmJobManager.monitor_job determines the job is done or failed.
+        We just set the sample status now. We do NOT call sample.post_process().
+        """
+        logging.info(f"[{sample.id}] Slurm job {job_id} ended with state '{status}'.")
+
+        # Mark job complete or failed
+        if status == "COMPLETED":
+            sample.status = (
+                "processed"  # HPC finished successfully, not yet post-processed
+            )
+        elif status in ["FAILED", "CANCELLED", "CANCELLED+", "TIMEOUT", "OUT_OF_ME+"]:
+            sample.status = "processing_failed"
+        else:
+            logging.warning(f"[{sample.id}] Unexpected Slurm terminal state: {status}")
             sample.status = "processing_failed"

@@ -1,10 +1,12 @@
 import subprocess
-from typing import List
+from typing import Any, List, Mapping
 
-from lib.core_utils.config_loader import configs
+# from lib.core_utils.config_loader import configs
+from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import custom_logger
 
 logging = custom_logger(__name__)
+configs: Mapping[str, Any] = ConfigLoader().load_config("config.json")
 
 
 def generate_ngi_report(
