@@ -1,12 +1,12 @@
 import asyncio
 import re
 import subprocess
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Mapping, Optional, Union
+from typing import Any
 
 from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import custom_logger
-from tests.mocks.mock_sjob_manager import MockSlurmJobManager
 
 logging = custom_logger(__name__.split(".")[-1])
 
@@ -15,6 +15,8 @@ class SlurmManagerFactory:
     @staticmethod
     def get_manager(is_dev: bool):
         if is_dev:
+            from lib.mocks.mock_sjob_manager import MockSlurmJobManager
+
             return MockSlurmJobManager()
         else:
             return SlurmJobManager()
@@ -60,7 +62,7 @@ class SlurmJobManager:
         )
         self.command_timeout: float = command_timeout
 
-    async def submit_job(self, script_path: Union[str, Path]) -> Optional[str]:
+    async def submit_job(self, script_path: str | Path) -> str | None:
         """Submit a Slurm job using the specified script.
 
         Args:
@@ -104,7 +106,7 @@ class SlurmJobManager:
                 logging.error(
                     f"Failed to parse job ID from sbatch output: {stdout.decode().strip()}"
                 )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logging.error("Timeout while submitting job.")
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
@@ -132,7 +134,7 @@ class SlurmJobManager:
                 break
             await asyncio.sleep(self.polling_interval)
 
-    async def _job_status(self, job_id: str) -> Optional[str]:
+    async def _job_status(self, job_id: str) -> str | None:
         """Retrieve the status of a Slurm job.
 
         Args:
@@ -157,7 +159,7 @@ class SlurmJobManager:
                 stdout_decoded = stdout.decode().strip()
                 logging.debug(f"sacct stdout for job {job_id}: {stdout_decoded}")
                 return stdout_decoded
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logging.error(f"Timeout while checking status of job {job_id}.")
         except UnicodeDecodeError:
             logging.error(f"Failed to decode sbatch stdout for job {job_id}.")
