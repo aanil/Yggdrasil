@@ -85,7 +85,16 @@ class YggdrasilCore:
             # every external handler **must** expose a class-attr event_type
             event_type = getattr(handler_cls, "event_type", None)
 
-            if not isinstance(event_type, EventType):
+            # Check if event_type is a valid EventType - handle enum identity issues
+            # by checking both isinstance and value membership
+            if not (
+                isinstance(event_type, EventType)
+                or (
+                    event_type is not None
+                    and hasattr(event_type, "value")
+                    and event_type.value in [e.value for e in EventType]
+                )
+            ):
                 self._logger.error(
                     "✘  %s skipped: event_type %r is not a valid EventType",
                     entry_point.name,
