@@ -8,6 +8,7 @@ logging = custom_logger(__name__.split(".")[-1])
 
 
 class MockSlurmJobManager:
+    """Mock implementation of SlurmJobManager for development and testing purposes."""
 
     slurm_end_states = [
         "COMPLETED",
@@ -30,13 +31,6 @@ class MockSlurmJobManager:
         asyncio.create_task(self._start_job(mock_job_id))
         return mock_job_id
 
-    # async def monitor_job(self, job_id, callback=None):
-    #     while self.jobs.get(job_id) != "COMPLETED":
-    #         await asyncio.sleep(self.polling_interval)
-    #     logging.info(f"Job {job_id} status: COMPLETED")
-    #     if callback:
-    #         callback(job_id, "COMPLETED")
-
     async def monitor_job(self, job_id, sample):
         logging.info(
             f"Monitoring job {job_id} with poll interval {self.polling_interval}..."
@@ -46,8 +40,6 @@ class MockSlurmJobManager:
             if state in self.slurm_end_states:
                 break
             await asyncio.sleep(self.polling_interval)
-        # logging.info(f"Job {job_id} status: COMPLETED")
-        # self.check_status(job_id, "COMPLETED", sample)
         self.check_status_new(job_id, state, sample)
 
     async def _start_job(self, job_id):
@@ -82,7 +74,6 @@ class MockSlurmJobManager:
             logging.info(f"[{sample.id}] Job completed successfully.")
             sample.status = "processed"
             sample.post_process()
-            # sample.status = "completed"
         elif status in ["FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_ME+"]:
             sample.status = "processing_failed"
             logging.info(f"[{sample.id}] Job failed.")
@@ -105,7 +96,6 @@ class MockSlurmJobManager:
         if status == "COMPLETED":
             logging.info(f"[{sample.id}] Job completed successfully.")
             sample.status = "processed"
-            # sample.status = "completed"
         elif status in ["FAILED", "CANCELLED", "CANCELLED+", "TIMEOUT", "OUT_OF_ME+"]:
             sample.status = "processing_failed"
             logging.info(f"[{sample.id}] Job failed.")
