@@ -127,6 +127,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# IDE/Editor folders
+.vscode/
+
 # Project Specific
 set_vars.sh
 sim_out

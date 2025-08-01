@@ -94,7 +94,7 @@ class TestSlurmJobManager(unittest.IsolatedAsyncioTestCase):
         # Mock the subprocess to simulate a timeout
         async def mock_communicate():
             await asyncio.sleep(0.1)
-            raise TimeoutError()
+            raise asyncio.TimeoutError()
 
         # Mock the subprocess to simulate a timeout
         mock_create_subprocess_exec.side_effect = asyncio.TimeoutError

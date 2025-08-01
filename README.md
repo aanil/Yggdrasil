@@ -1,6 +1,17 @@
-# Yggdrasil :deciduous_tree:
+<div align="center">
+  <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/ygg_logo-dark_mode.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/ygg_logo-light_mode.png">
+  <img alt="Yggdrasil Logo" src="docs/assets/ygg_logo-light_mode.png" width="15%" style="max-width: 100px;">
+</picture>
+</div>
 
+# Yggdrasil
+
+[![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/glrs/yggdrasil?sort=semver)](https://github.com/glrs/yggdrasil/releases)
+&nbsp;
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/2fa79bea21b142d9a75d0951ec2803dd)](https://app.codacy.com/gh/glrs/Yggdrasil/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
+
 
 Yggdrasil is an in-house orchestration framework designed to automate well-defined workflows. It watches directories, CouchDB
 changes, etc., then calls **realm modules** (external or internal packages) to do the heavy lifting. Example realms today:
@@ -53,7 +64,10 @@ conda activate ygg-dev
 pip install -e .[dev]
 
 # Run Yggdrasil
-python yggdrasil.py
+yggdrasil
+
+# Or alternatively
+python -m yggdrasil
 ```
 
 * Runtime dependencies come from `[project] dependencies` in `pyproject.toml`.

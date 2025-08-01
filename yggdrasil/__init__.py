@@ -13,6 +13,7 @@ import pkgutil
 import sys
 import types
 from importlib import import_module
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 _root = Path(__file__).resolve().parent.parent
@@ -23,8 +24,8 @@ if str(_lib) not in sys.path:
     sys.path.insert(0, str(_lib))
 
 # 2) make yggdrasil a namespace package so sub-imports work
-if __name__ not in sys.modules:
-    sys.modules[__name__] = types.ModuleType(__name__)
+# if __name__ not in sys.modules:
+#     sys.modules[__name__] = types.ModuleType(__name__)
 this_pkg = sys.modules[__name__]
 this_pkg.__path__ = [str(_lib)]  # namespace path points at lib/
 
@@ -40,3 +41,11 @@ for finder, name, ispkg in pkgutil.iter_modules([str(_lib)]):
         sys.modules[full_new] = mod  # alias
     except ModuleNotFoundError:
         continue  # ignore odd files that aren't real pkgs
+
+# 4) set package version for runtime access
+try:
+    __version__ = version("yggdrasil")
+except PackageNotFoundError:  # local checkout without install
+    from setuptools_scm import get_version
+
+    __version__ = get_version(root=_root, relative_to=__file__)

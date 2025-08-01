@@ -272,7 +272,7 @@ class TestYggdrasilCore(unittest.TestCase):
         self.assertEqual(core.handlers[EventType.DELIVERY_READY], mock_handler_instance)
 
         # Check that the log message was written
-        self.mock_logger.error.assert_called_with(
+        self.mock_logger.info.assert_called_with(
             "✓  registered external handler %s for %s",
             "test_handler",
             EventType.DELIVERY_READY.name,
@@ -366,7 +366,10 @@ class TestYggdrasilCore(unittest.TestCase):
             call("Setting up event handlers..."),
             call("Registered handlers for events: %s", EventType.PROJECT_CHANGE),
         ]
-        self.mock_logger.error.assert_has_calls(expected_calls)
+        self.mock_logger.info.assert_called_with("Setting up event handlers...")
+        self.mock_logger.debug.assert_called_with(
+            "Registered handlers for events: %s", EventType.PROJECT_CHANGE
+        )
 
     # =====================================================
     # ASYNC LIFECYCLE TESTS

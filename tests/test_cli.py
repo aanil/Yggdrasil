@@ -48,19 +48,22 @@ class TestYggdrasilCLI(unittest.TestCase):
     # =====================================================
 
     def test_no_arguments_shows_help(self):
-        """Test that running without arguments shows help and exits."""
-        sys.argv = ["ygg"]
+        """Test that running without arguments shows help and returns."""
+        sys.argv = ["yggdrasil"]
 
-        with self.assertRaises(SystemExit) as context:
-            with patch("sys.stderr", new_callable=StringIO):
-                main()
+        # Capture stdout to verify help is printed
+        with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+            main()
 
-        # argparse exits with code 2 for missing required arguments
-        self.assertEqual(context.exception.code, 2)
+        # Verify help was printed (should contain usage information)
+        stdout_content = mock_stdout.getvalue()
+        self.assertIn("usage: yggdrasil", stdout_content)
+        self.assertIn("daemon", stdout_content)
+        self.assertIn("run-doc", stdout_content)
 
     def test_help_argument(self):
         """Test that --help shows help and exits."""
-        sys.argv = ["ygg", "--help"]
+        sys.argv = ["yggdrasil", "--help"]
 
         with self.assertRaises(SystemExit) as context:
             with patch("sys.stdout", new_callable=StringIO):
@@ -71,7 +74,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_daemon_mode_arguments(self):
         """Test daemon mode argument parsing."""
-        sys.argv = ["ygg", "daemon"]
+        sys.argv = ["yggdrasil", "daemon"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -92,7 +95,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_daemon_mode_with_dev_flag(self):
         """Test daemon mode with development flag."""
-        sys.argv = ["ygg", "--dev", "daemon"]
+        sys.argv = ["yggdrasil", "--dev", "daemon"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -111,7 +114,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_run_doc_mode_arguments(self):
         """Test run-doc mode argument parsing."""
-        sys.argv = ["ygg", "run-doc", "test_doc_id"]
+        sys.argv = ["yggdrasil", "run-doc", "test_doc_id"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -132,7 +135,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_run_doc_mode_with_manual_submit(self):
         """Test run-doc mode with manual submit flag."""
-        sys.argv = ["ygg", "run-doc", "test_doc_id", "--manual-submit"]
+        sys.argv = ["yggdrasil", "run-doc", "test_doc_id", "--manual-submit"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -152,7 +155,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_run_doc_mode_short_manual_submit_flag(self):
         """Test run-doc mode with short -m flag."""
-        sys.argv = ["ygg", "run-doc", "test_doc_id", "-m"]
+        sys.argv = ["yggdrasil", "run-doc", "test_doc_id", "-m"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -171,7 +174,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_run_doc_missing_doc_id(self):
         """Test run-doc mode without document ID."""
-        sys.argv = ["ygg", "run-doc"]
+        sys.argv = ["yggdrasil", "run-doc"]
 
         with self.assertRaises(SystemExit) as context:
             with patch("sys.stderr", new_callable=StringIO):
@@ -182,7 +185,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_invalid_mode(self):
         """Test invalid mode argument."""
-        sys.argv = ["ygg", "invalid_mode"]
+        sys.argv = ["yggdrasil", "invalid_mode"]
 
         with self.assertRaises(SystemExit) as context:
             with patch("sys.stderr", new_callable=StringIO):
@@ -191,13 +194,67 @@ class TestYggdrasilCLI(unittest.TestCase):
         # argparse should exit with error code for invalid choice
         self.assertEqual(context.exception.code, 2)
 
+    def test_silent_flag_logging_configuration(self):
+        """Test that --silent flag configures logging correctly."""
+        sys.argv = ["yggdrasil", "--silent", "daemon"]
+
+        with (
+            patch("yggdrasil.cli.configure_logging") as mock_configure_logging,
+            patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
+            patch("yggdrasil.cli.YggdrasilCore") as mock_core_class,
+            patch("asyncio.run"),
+        ):
+            mock_config_loader.return_value.load_config.return_value = self.mock_config
+            mock_core_class.return_value = Mock()
+
+            main()
+
+            # Verify configure_logging was called with console=False for silent mode
+            mock_configure_logging.assert_called_once_with(debug=False, console=False)
+
+    def test_dev_flag_logging_configuration(self):
+        """Test that --dev flag configures logging correctly."""
+        sys.argv = ["yggdrasil", "--dev", "daemon"]
+
+        with (
+            patch("yggdrasil.cli.configure_logging") as mock_configure_logging,
+            patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
+            patch("yggdrasil.cli.YggdrasilCore") as mock_core_class,
+            patch("asyncio.run"),
+        ):
+            mock_config_loader.return_value.load_config.return_value = self.mock_config
+            mock_core_class.return_value = Mock()
+
+            main()
+
+            # Verify configure_logging was called with debug=True, console=True for dev mode
+            mock_configure_logging.assert_called_once_with(debug=True, console=True)
+
+    def test_normal_mode_logging_configuration(self):
+        """Test that normal mode (no flags) configures logging correctly."""
+        sys.argv = ["yggdrasil", "daemon"]
+
+        with (
+            patch("yggdrasil.cli.configure_logging") as mock_configure_logging,
+            patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
+            patch("yggdrasil.cli.YggdrasilCore") as mock_core_class,
+            patch("asyncio.run"),
+        ):
+            mock_config_loader.return_value.load_config.return_value = self.mock_config
+            mock_core_class.return_value = Mock()
+
+            main()
+
+            # Verify configure_logging was called with debug=False, console=True for normal mode
+            mock_configure_logging.assert_called_once_with(debug=False, console=True)
+
     # =====================================================
     # CONFIGURATION AND INITIALIZATION TESTS
     # =====================================================
 
     def test_config_loading(self):
         """Test configuration loading process."""
-        sys.argv = ["ygg", "daemon"]
+        sys.argv = ["yggdrasil", "daemon"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -221,7 +278,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_yggdrasil_core_initialization(self):
         """Test YggdrasilCore initialization."""
-        sys.argv = ["ygg", "daemon"]
+        sys.argv = ["yggdrasil", "daemon"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -241,7 +298,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_session_initialization_order(self):
         """Test that YggSession is initialized before core setup."""
-        sys.argv = ["ygg", "--dev", "run-doc", "test_doc", "--manual-submit"]
+        sys.argv = ["yggdrasil", "--dev", "run-doc", "test_doc", "--manual-submit"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -264,7 +321,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_daemon_mode_full_flow(self):
         """Test complete daemon mode execution flow."""
-        sys.argv = ["ygg", "daemon"]
+        sys.argv = ["yggdrasil", "daemon"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -285,7 +342,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_daemon_mode_keyboard_interrupt(self):
         """Test daemon mode handling of KeyboardInterrupt."""
-        sys.argv = ["ygg", "daemon"]
+        sys.argv = ["yggdrasil", "daemon"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -312,7 +369,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_run_doc_mode_full_flow(self):
         """Test complete run-doc mode execution flow."""
-        sys.argv = ["ygg", "run-doc", "test_document_id"]
+        sys.argv = ["yggdrasil", "run-doc", "test_document_id"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -337,7 +394,7 @@ class TestYggdrasilCLI(unittest.TestCase):
     def test_run_doc_with_special_characters_in_doc_id(self):
         """Test run-doc mode with special characters in document ID."""
         special_doc_id = "test-doc_id.123@domain"
-        sys.argv = ["ygg", "run-doc", special_doc_id]
+        sys.argv = ["yggdrasil", "run-doc", special_doc_id]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -360,7 +417,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_config_loading_error(self):
         """Test error handling when config loading fails."""
-        sys.argv = ["ygg", "daemon"]
+        sys.argv = ["yggdrasil", "daemon"]
 
         with patch("yggdrasil.cli.ConfigLoader") as mock_config_loader:
             mock_config_loader.return_value.load_config.side_effect = Exception(
@@ -374,7 +431,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_yggdrasil_core_initialization_error(self):
         """Test error handling when YggdrasilCore initialization fails."""
-        sys.argv = ["ygg", "daemon"]
+        sys.argv = ["yggdrasil", "daemon"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -391,7 +448,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_session_already_set_error(self):
         """Test error handling when YggSession is already set."""
-        sys.argv = ["ygg", "--dev", "daemon"]
+        sys.argv = ["yggdrasil", "--dev", "daemon"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -412,7 +469,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_asyncio_error_in_daemon_mode(self):
         """Test error handling when asyncio operations fail in daemon mode."""
-        sys.argv = ["ygg", "daemon"]
+        sys.argv = ["yggdrasil", "daemon"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -434,30 +491,32 @@ class TestYggdrasilCLI(unittest.TestCase):
     # =====================================================
 
     def test_logging_configuration(self):
-        """Test that logging configuration happens at module import time."""
-        # Note: configure_logging is called at module import time, not during main()
-        # This test verifies that the logging system is available and working
-        sys.argv = ["ygg", "daemon"]
+        """Test that logging configuration happens correctly during main() execution."""
+        sys.argv = ["yggdrasil", "daemon"]
 
         with (
+            patch("yggdrasil.cli.configure_logging") as mock_configure_logging,
+            patch("yggdrasil.cli.custom_logger") as mock_custom_logger,
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
             patch("yggdrasil.cli.YggdrasilCore") as mock_core_class,
             patch("asyncio.run"),
         ):
-
             mock_config_loader.return_value.load_config.return_value = self.mock_config
             mock_core_class.return_value = Mock()
+            mock_logger = Mock()
+            mock_custom_logger.return_value = mock_logger
 
-            # Capture log output to verify logging is working
-            with patch("yggdrasil.cli.logging") as mock_logger:
-                main()
+            main()
 
-                # Verify that debug logging was called (indicates logging is configured)
-                mock_logger.debug.assert_called_once_with("Yggdrasil: Starting up...")
+            # Verify that logging was configured and logger was created
+            mock_configure_logging.assert_called_once_with(debug=False, console=True)
+            mock_custom_logger.assert_called_once_with("Yggdrasil")
+            # Verify that debug logging was called (indicates logging is working)
+            mock_logger.debug.assert_called_once_with("Yggdrasil: Starting up...")
 
     def test_dev_mode_affects_session_only(self):
         """Test that --dev flag only affects YggSession, not other components directly."""
-        sys.argv = ["ygg", "--dev", "daemon"]
+        sys.argv = ["yggdrasil", "--dev", "daemon"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -484,7 +543,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_all_components_integration(self):
         """Test integration between all CLI components."""
-        sys.argv = ["ygg", "--dev", "run-doc", "integration_test_doc", "-m"]
+        sys.argv = ["yggdrasil", "--dev", "run-doc", "integration_test_doc", "-m"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -510,7 +569,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_minimal_daemon_invocation(self):
         """Test minimal daemon mode invocation."""
-        sys.argv = ["ygg", "daemon"]
+        sys.argv = ["yggdrasil", "daemon"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -531,7 +590,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_minimal_run_doc_invocation(self):
         """Test minimal run-doc mode invocation."""
-        sys.argv = ["ygg", "run-doc", "minimal_doc"]
+        sys.argv = ["yggdrasil", "run-doc", "minimal_doc"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -551,11 +610,11 @@ class TestYggdrasilCLI(unittest.TestCase):
     def test_command_line_order_independence(self):
         """Test that global flags must come before subcommands (argparse behavior)."""
         # Test that --dev must come before the subcommand (this is argparse's expected behavior)
-        valid_order = ["ygg", "--dev", "run-doc", "test_doc", "--manual-submit"]
+        valid_order = ["yggdrasil", "--dev", "run-doc", "test_doc", "--manual-submit"]
         invalid_orders = [
-            ["ygg", "run-doc", "--dev", "test_doc", "--manual-submit"],
-            ["ygg", "run-doc", "test_doc", "--dev", "--manual-submit"],
-            ["ygg", "run-doc", "test_doc", "--manual-submit", "--dev"],
+            ["yggdrasil", "run-doc", "--dev", "test_doc", "--manual-submit"],
+            ["yggdrasil", "run-doc", "test_doc", "--dev", "--manual-submit"],
+            ["yggdrasil", "run-doc", "test_doc", "--manual-submit", "--dev"],
         ]
 
         # Test valid order works
@@ -596,7 +655,7 @@ class TestYggdrasilCLI(unittest.TestCase):
 
     def test_empty_doc_id(self):
         """Test run-doc mode with empty document ID."""
-        sys.argv = ["ygg", "run-doc", ""]
+        sys.argv = ["yggdrasil", "run-doc", ""]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -616,7 +675,7 @@ class TestYggdrasilCLI(unittest.TestCase):
     def test_very_long_doc_id(self):
         """Test run-doc mode with very long document ID."""
         long_doc_id = "a" * 1000  # Very long document ID
-        sys.argv = ["ygg", "run-doc", long_doc_id]
+        sys.argv = ["yggdrasil", "run-doc", long_doc_id]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -641,7 +700,7 @@ class TestYggdrasilCLI(unittest.TestCase):
         # always return False for daemon mode since the attribute doesn't exist.
         # This test verifies the normal daemon behavior (no manual_submit attribute).
 
-        sys.argv = ["ygg", "daemon"]
+        sys.argv = ["yggdrasil", "daemon"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
@@ -666,7 +725,7 @@ class TestYggdrasilCLI(unittest.TestCase):
         # that the main function works correctly when called directly, which is the
         # same code path that would be triggered by the __main__ guard.
 
-        sys.argv = ["ygg", "daemon"]
+        sys.argv = ["yggdrasil", "daemon"]
 
         with (
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,

@@ -48,11 +48,14 @@ class TestYggdrasilMain(unittest.TestCase):
     def test_python_m_yggdrasil_execution(self):
         """Test that 'python -m yggdrasil --help' works correctly."""
         # This is an integration test that verifies the complete module execution
+        from pathlib import Path
+
+        project_root = Path(__file__).resolve().parent.parent  # two levels up
         result = subprocess.run(
             [sys.executable, "-m", "yggdrasil", "--help"],
             capture_output=True,
             text=True,
-            cwd="/home/anastasios/Documents/git/Yggdrasil",
+            cwd=project_root,
         )
 
         # Should exit with code 0 for help

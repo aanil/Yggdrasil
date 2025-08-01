@@ -4,14 +4,17 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
-# from yggdrasil.core_utils.event_types import EventType  # type: ignore
-from lib.core_utils.event_types import EventType
 from lib.core_utils.singleton_decorator import singleton
 from lib.handlers.base_handler import BaseHandler
 
 # from lib.handlers.flowcell_handler import FlowcellHandler
 from lib.watchers.couchdb_watcher import CouchDBWatcher
 from lib.watchers.seq_data_watcher import SeqDataWatcher, YggdrasilEvent
+
+# NOTE: Import EventType via `yggdrasil.*` namespace (not `lib.*`), to match external handlers (enum identity issue)
+from yggdrasil.core_utils.event_types import EventType  # type: ignore
+
+# from lib.core_utils.event_types import EventType
 
 
 @singleton
@@ -82,7 +85,16 @@ class YggdrasilCore:
             # every external handler **must** expose a class-attr event_type
             event_type = getattr(handler_cls, "event_type", None)
 
-            if not isinstance(event_type, EventType):
+            # Check if event_type is a valid EventType - handle enum identity issues
+            # by checking both isinstance and value membership
+            if not (
+                isinstance(event_type, EventType)
+                or (
+                    event_type is not None
+                    and hasattr(event_type, "value")
+                    and event_type.value in [e.value for e in EventType]
+                )
+            ):
                 self._logger.error(
                     "✘  %s skipped: event_type %r is not a valid EventType",
                     entry_point.name,
@@ -92,7 +104,7 @@ class YggdrasilCore:
 
             self.register_handler(event_type, handler_cls())  # type: ignore
 
-            self._logger.error(
+            self._logger.info(
                 "✓  registered external handler %s for %s",
                 entry_point.name,
                 event_type.name,  # type: ignore
@@ -102,7 +114,7 @@ class YggdrasilCore:
         """
         Instantiate and register all event handlers.
         """
-        self._logger.error("Setting up event handlers...")
+        self._logger.info("Setting up event handlers...")
         # 1. Auto-register external handlers from entry points
         self.auto_register_external_handlers()
 
@@ -121,7 +133,7 @@ class YggdrasilCore:
         # cli_handler = CLIHandler()
         # self.register_handler(EventType.<whatever>, cli_handler)
 
-        self._logger.error(
+        self._logger.debug(
             "Registered handlers for events: %s", ", ".join(self.handlers.keys())
         )
 
