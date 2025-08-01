@@ -14,15 +14,6 @@ try:
 except ImportError:
     __version__ = "unknown"
 
-# os.environ.setdefault("PREFECT_API_URL", "auto")  # embedded server
-# os.environ.setdefault("PREFECT_LOGGING_LEVEL", "INFO")  # prevent DEBUG spam
-# os.environ.setdefault("PREFECT_EXPERIMENTAL_EVENTS", "false")  # turn off events
-# os.environ.setdefault(
-#     "PREFECT_LOGGING_SETTINGS_PATH",
-#     "yggdrasil_workspace/common/configurations/logging.yml",
-# )
-
-
 configure_logging(debug=True)
 logging = custom_logger("Yggdrasil")
 
