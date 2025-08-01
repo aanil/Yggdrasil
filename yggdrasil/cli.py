@@ -14,9 +14,6 @@ try:
 except ImportError:
     __version__ = "unknown"
 
-configure_logging(debug=True)
-logging = custom_logger("Yggdrasil")
-
 
 def main():
     parser = argparse.ArgumentParser(prog="yggdrasil")
@@ -25,6 +22,11 @@ def main():
         "--dev",
         action="store_true",
         help="Enable development mode (sets debug logging, dev-mode behavior)",
+    )
+    parser.add_argument(
+        "--silent",
+        action="store_true",
+        help="Silent mode - log to file only, no console output",
     )
     parser.add_argument(
         "--version",
@@ -62,7 +64,20 @@ def main():
     # 1) Initialize dev mode early (affects config loader, logging, etc.)
     YggSession.init_dev_mode(args.dev)
 
-    # 2) Adjust root logger
+    # 2) Configure logging based on flags
+    if args.silent:
+        # Silent mode: only log to file
+        configure_logging(debug=False, console=False)
+    elif args.dev:
+        # Development mode: debug level to console + file
+        configure_logging(debug=True, console=True)
+    else:
+        # Normal mode: info level to console + file
+        configure_logging(debug=False, console=True)
+
+    logging = custom_logger("Yggdrasil")
+
+    # 3) Adjust root logger
     # logging.basicConfig(
     #     level=logging.DEBUG if args.dev else logging.INFO,
     #     format="[%(name)s] %(message)s",
@@ -72,7 +87,7 @@ def main():
 
     logging.debug("Yggdrasil: Starting up...")
 
-    # 3) Prepare core (load config, init core, register handlers)
+    # 4) Prepare core (load config, init core, register handlers)
     config = ConfigLoader().load_config("config.json")
     core = YggdrasilCore(config)
     core.setup_handlers()

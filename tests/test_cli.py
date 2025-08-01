@@ -194,6 +194,60 @@ class TestYggdrasilCLI(unittest.TestCase):
         # argparse should exit with error code for invalid choice
         self.assertEqual(context.exception.code, 2)
 
+    def test_silent_flag_logging_configuration(self):
+        """Test that --silent flag configures logging correctly."""
+        sys.argv = ["yggdrasil", "--silent", "daemon"]
+
+        with (
+            patch("yggdrasil.cli.configure_logging") as mock_configure_logging,
+            patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
+            patch("yggdrasil.cli.YggdrasilCore") as mock_core_class,
+            patch("asyncio.run"),
+        ):
+            mock_config_loader.return_value.load_config.return_value = self.mock_config
+            mock_core_class.return_value = Mock()
+
+            main()
+
+            # Verify configure_logging was called with console=False for silent mode
+            mock_configure_logging.assert_called_once_with(debug=False, console=False)
+
+    def test_dev_flag_logging_configuration(self):
+        """Test that --dev flag configures logging correctly."""
+        sys.argv = ["yggdrasil", "--dev", "daemon"]
+
+        with (
+            patch("yggdrasil.cli.configure_logging") as mock_configure_logging,
+            patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
+            patch("yggdrasil.cli.YggdrasilCore") as mock_core_class,
+            patch("asyncio.run"),
+        ):
+            mock_config_loader.return_value.load_config.return_value = self.mock_config
+            mock_core_class.return_value = Mock()
+
+            main()
+
+            # Verify configure_logging was called with debug=True, console=True for dev mode
+            mock_configure_logging.assert_called_once_with(debug=True, console=True)
+
+    def test_normal_mode_logging_configuration(self):
+        """Test that normal mode (no flags) configures logging correctly."""
+        sys.argv = ["yggdrasil", "daemon"]
+
+        with (
+            patch("yggdrasil.cli.configure_logging") as mock_configure_logging,
+            patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
+            patch("yggdrasil.cli.YggdrasilCore") as mock_core_class,
+            patch("asyncio.run"),
+        ):
+            mock_config_loader.return_value.load_config.return_value = self.mock_config
+            mock_core_class.return_value = Mock()
+
+            main()
+
+            # Verify configure_logging was called with debug=False, console=True for normal mode
+            mock_configure_logging.assert_called_once_with(debug=False, console=True)
+
     # =====================================================
     # CONFIGURATION AND INITIALIZATION TESTS
     # =====================================================
@@ -437,26 +491,28 @@ class TestYggdrasilCLI(unittest.TestCase):
     # =====================================================
 
     def test_logging_configuration(self):
-        """Test that logging configuration happens at module import time."""
-        # Note: configure_logging is called at module import time, not during main()
-        # This test verifies that the logging system is available and working
+        """Test that logging configuration happens correctly during main() execution."""
         sys.argv = ["yggdrasil", "daemon"]
 
         with (
+            patch("yggdrasil.cli.configure_logging") as mock_configure_logging,
+            patch("yggdrasil.cli.custom_logger") as mock_custom_logger,
             patch("yggdrasil.cli.ConfigLoader") as mock_config_loader,
             patch("yggdrasil.cli.YggdrasilCore") as mock_core_class,
             patch("asyncio.run"),
         ):
-
             mock_config_loader.return_value.load_config.return_value = self.mock_config
             mock_core_class.return_value = Mock()
+            mock_logger = Mock()
+            mock_custom_logger.return_value = mock_logger
 
-            # Capture log output to verify logging is working
-            with patch("yggdrasil.cli.logging") as mock_logger:
-                main()
+            main()
 
-                # Verify that debug logging was called (indicates logging is configured)
-                mock_logger.debug.assert_called_once_with("Yggdrasil: Starting up...")
+            # Verify that logging was configured and logger was created
+            mock_configure_logging.assert_called_once_with(debug=False, console=True)
+            mock_custom_logger.assert_called_once_with("Yggdrasil")
+            # Verify that debug logging was called (indicates logging is working)
+            mock_logger.debug.assert_called_once_with("Yggdrasil: Starting up...")
 
     def test_dev_mode_affects_session_only(self):
         """Test that --dev flag only affects YggSession, not other components directly."""

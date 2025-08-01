@@ -49,15 +49,17 @@ class AbbrevRichHandler(RichHandler):
         return Text.assemble("[", lvl_txt, "]", mod_txt, "\t", Text(message))
 
 
-def configure_logging(debug: bool = False) -> None:
+def configure_logging(debug: bool = False, console: bool = True) -> None:
     """Set up logging for the Yggdrasil application.
 
     Configures the logging environment by creating a log directory if it doesn't exist,
     setting the log file's path with a timestamp, and defining the log format and log level.
 
     Args:
-        debug (bool, optional): If True, log messages will also be printed to the console.
+        debug (bool, optional): If True, sets DEBUG level. If False, sets INFO level.
             Defaults to False.
+        console (bool, optional): If True, log messages will also be printed to the console.
+            Defaults to True.
 
     Returns:
         None
@@ -78,7 +80,7 @@ def configure_logging(debug: bool = False) -> None:
     # Configure logging with a file handler and optionally a console handler
     handlers: list[logging.Handler] = []
     handlers = [logging.FileHandler(log_file)]
-    if debug:
+    if console:
         if _RICH_AVAILABLE:
             handlers.append(
                 AbbrevRichHandler(

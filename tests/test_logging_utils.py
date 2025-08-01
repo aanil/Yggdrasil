@@ -60,27 +60,32 @@ class TestLoggingUtils(unittest.TestCase):
         self.patcher_filehandler.stop()
 
     def test_configure_logging_default(self):
-        # Test configure_logging with default parameters (debug=False)
-        configure_logging()
+        # Test configure_logging with default parameters (debug=False, console=True)
+        with patch("lib.core_utils.logging_utils._RICH_AVAILABLE", True):
+            with patch("lib.core_utils.logging_utils.AbbrevRichHandler") as mock_rich:
+                configure_logging()
 
-        expected_log_dir = Path(self.mock_configs["yggdrasil_log_dir"])
-        expected_log_file = expected_log_dir / "yggdrasil_2021-01-01_12.00.00.log"
-        expected_log_level = logging.INFO
-        # Accept either the rich or non-rich format
-        possible_formats = [
-            "%(asctime)s [%(levelname)s][%(name)s]\t%(message)s",
-            "%(message)s",
-        ]
+                expected_log_dir = Path(self.mock_configs["yggdrasil_log_dir"])
+                expected_log_file = (
+                    expected_log_dir / "yggdrasil_2021-01-01_12.00.00.log"
+                )
+                expected_log_level = logging.INFO
+                # Accept either the rich or non-rich format
+                possible_formats = [
+                    "%(asctime)s [%(levelname)s][%(name)s]\t%(message)s",
+                    "%(message)s",
+                ]
 
-        self.mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
-        self.mock_filehandler.assert_called_once_with(expected_log_file)
-        self.mock_basicConfig.assert_called_once()
-        call_args = self.mock_basicConfig.call_args[1]
-        self.assertEqual(call_args.get("level"), expected_log_level)
-        self.assertIn(call_args.get("format"), possible_formats)
-        # Ensure only one handler (FileHandler) is set when debug=False
-        self.assertIn("handlers", call_args)
-        self.assertEqual(len(call_args["handlers"]), 1)
+                self.mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
+                self.mock_filehandler.assert_called_once_with(expected_log_file)
+                self.mock_basicConfig.assert_called_once()
+                call_args = self.mock_basicConfig.call_args[1]
+                self.assertEqual(call_args.get("level"), expected_log_level)
+                self.assertIn(call_args.get("format"), possible_formats)
+                # With defaults (debug=False, console=True), should have both FileHandler and console handler
+                self.assertIn("handlers", call_args)
+                self.assertEqual(len(call_args["handlers"]), 2)
+                mock_rich.assert_called_once()
 
     @patch("lib.core_utils.logging_utils.AbbrevRichHandler")
     @patch("logging.StreamHandler")
@@ -441,11 +446,16 @@ class TestLoggingUtils(unittest.TestCase):
         # Since the current code does not support this, we check that handlers are as expected
         mock_file_handler_instance = MagicMock()
         mock_file_handler.return_value = mock_file_handler_instance
-        configure_logging()
-        # Check that FileHandler was used in the handlers passed to basicConfig
-        handlers = self.mock_basicConfig.call_args[1]["handlers"]
-        self.assertEqual(len(handlers), 1)
-        self.assertIn(mock_file_handler_instance, handlers)
+
+        with patch("lib.core_utils.logging_utils._RICH_AVAILABLE", True):
+            with patch("lib.core_utils.logging_utils.AbbrevRichHandler") as mock_rich:
+                configure_logging()
+                # Check that FileHandler was used in the handlers passed to basicConfig
+                handlers = self.mock_basicConfig.call_args[1]["handlers"]
+                # With defaults (debug=False, console=True), should have 2 handlers
+                self.assertEqual(len(handlers), 2)
+                self.assertIn(mock_file_handler_instance, handlers)
+                self.assertIn(mock_rich.return_value, handlers)
 
     def test_configure_logging_with_no_handlers(self):
         # Test that an error is raised if FileHandler fails
@@ -457,6 +467,54 @@ class TestLoggingUtils(unittest.TestCase):
         configure_logging()
         configure_logging(debug=True)
         self.assertTrue(True)
+
+    def test_configure_logging_console_false(self):
+        """Test configure_logging with console=False (silent mode)."""
+        configure_logging(debug=False, console=False)
+
+        call_args = self.mock_basicConfig.call_args[1]
+        self.assertEqual(call_args.get("level"), logging.INFO)
+        # Should have only FileHandler, no console handler
+        self.assertIn("handlers", call_args)
+        self.assertEqual(len(call_args["handlers"]), 1)
+
+    def test_configure_logging_console_true_debug_false(self):
+        """Test configure_logging with console=True, debug=False (normal mode)."""
+        with patch("lib.core_utils.logging_utils._RICH_AVAILABLE", True):
+            with patch("lib.core_utils.logging_utils.AbbrevRichHandler") as mock_rich:
+                configure_logging(debug=False, console=True)
+
+                call_args = self.mock_basicConfig.call_args[1]
+                self.assertEqual(call_args.get("level"), logging.INFO)
+                # Should have both FileHandler and console handler
+                self.assertIn("handlers", call_args)
+                self.assertEqual(len(call_args["handlers"]), 2)
+                mock_rich.assert_called_once()
+
+    def test_configure_logging_console_true_debug_true(self):
+        """Test configure_logging with console=True, debug=True (dev mode)."""
+        with patch("lib.core_utils.logging_utils._RICH_AVAILABLE", True):
+            with patch("lib.core_utils.logging_utils.AbbrevRichHandler") as mock_rich:
+                configure_logging(debug=True, console=True)
+
+                call_args = self.mock_basicConfig.call_args[1]
+                self.assertEqual(call_args.get("level"), logging.DEBUG)
+                # Should have both FileHandler and console handler
+                self.assertIn("handlers", call_args)
+                self.assertEqual(len(call_args["handlers"]), 2)
+                mock_rich.assert_called_once()
+
+    def test_configure_logging_console_fallback_no_rich(self):
+        """Test console logging falls back to StreamHandler when Rich unavailable."""
+        with patch("lib.core_utils.logging_utils._RICH_AVAILABLE", False):
+            with patch("logging.StreamHandler") as mock_stream:
+                configure_logging(debug=False, console=True)
+
+                call_args = self.mock_basicConfig.call_args[1]
+                # Should have both FileHandler and StreamHandler
+                self.assertIn("handlers", call_args)
+                self.assertEqual(len(call_args["handlers"]), 2)
+                mock_stream.assert_called_once()
 
 
 if __name__ == "__main__":
