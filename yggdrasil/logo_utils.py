@@ -25,7 +25,7 @@ def get_ascii_logo() -> str:
             # Fallback for Python < 3.9
             from importlib import resources
 
-            with resources.open_text("yggdrasil", "assets/ascii-logo.txt") as f:
+            with resources.open_text("yggdrasil.assets", "ascii-logo.txt") as f:
                 return f.read()
     except (ImportError, FileNotFoundError, ModuleNotFoundError):
         # Fallback for development or if importlib.resources isn't available
