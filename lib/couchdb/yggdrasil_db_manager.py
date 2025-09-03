@@ -1,7 +1,8 @@
 import functools
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from typing import Any
 
-import couchdb
+from ibm_cloud_sdk_core.api_exception import ApiException
 
 from lib.core_utils.logging_utils import custom_logger
 from lib.couchdb.couchdb_connection import CouchDBHandler
@@ -51,8 +52,8 @@ class YggdrasilDBManager(CouchDBHandler):
         projects_reference: str,
         project_name: str,
         method: str,
-        user_info: Optional[Dict[str, Dict[str, Optional[str]]]] = None,
-        sensitive: Optional[bool] = True,
+        user_info: dict[str, dict[str, str | None]] | None = None,
+        sensitive: bool | None = True,
     ) -> YggdrasilDocument:
         """Creates a new project document in the database.
 
@@ -100,12 +101,14 @@ class YggdrasilDBManager(CouchDBHandler):
                    is logged with the error message.
         """
         try:
-            existing_doc = self.db.get(document._id)
+            existing_doc = self.connection_manager.server.get_document(db=self.db_name, doc_id=document._id).get_result()
             doc_dict = document.to_dict()
             if existing_doc:
                 # Preserve the _rev field to avoid update conflicts
                 doc_dict["_rev"] = existing_doc["_rev"]
-            self.db.save(doc_dict)
+            self.connection_manager.server.post_document(
+                db=self.db_name, document=doc_dict
+            ).get_result()
             logging.info(
                 f"Document with ID '{document._id}' saved successfully in 'yggdrasil' DB."
             )
@@ -114,7 +117,7 @@ class YggdrasilDBManager(CouchDBHandler):
 
     def get_document_by_project_id(
         self, project_id: str
-    ) -> Optional[YggdrasilDocument]:
+    ) -> YggdrasilDocument | None:
         """Retrieves a document by project ID.
 
         Args:
@@ -124,9 +127,9 @@ class YggdrasilDBManager(CouchDBHandler):
             Optional[YggdrasilDocument]: An Yggdrasil document if found, else None.
         """
         try:
-            document = self.db[project_id]
+            document = self.connection_manager.server.get_document(db=self.db_name, doc_id=project_id).get_result()
             return YggdrasilDocument.from_dict(document)
-        except couchdb.http.ResourceNotFound:
+        except ApiException:
             logging.info(f"Project with ID '{project_id}' not found.")
             return None
         except Exception as e:
@@ -208,7 +211,7 @@ class YggdrasilDBManager(CouchDBHandler):
     def add_ngi_report_entry(
         self,
         _doc_injected: YggdrasilDocument,
-        report_data: Dict[str, Any],
+        report_data: dict[str, Any],
     ) -> bool:
         """
         IMPORTANT: This method is decorated by @auto_load_and_save,

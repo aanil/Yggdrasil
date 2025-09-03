@@ -1,4 +1,8 @@
-from typing import Any, AsyncGenerator, Dict, Optional, Tuple
+import json
+from collections.abc import AsyncGenerator
+from typing import Any
+
+from ibm_cloud_sdk_core.api_exception import ApiException
 
 from lib.core_utils.common import YggdrasilUtilities as Ygg
 from lib.core_utils.config_loader import ConfigLoader
@@ -23,13 +27,13 @@ class ProjectDBManager(CouchDBHandler):
         super().__init__("projects")
         self.module_registry = ConfigLoader().load_config("module_registry.json")
 
-    async def fetch_changes(self) -> AsyncGenerator[Tuple[Dict[str, Any], str], None]:
+    async def fetch_changes(self) -> AsyncGenerator[tuple[dict[str, Any], str], None]:
         """Fetches document changes from the database asynchronously.
 
         Yields:
             Tuple[Dict[str, Any], str]: A tuple containing the document and module location.
         """
-        last_processed_seq: Optional[str] = None
+        last_processed_seq: str | None = None
 
         while True:
             async for change in self.get_changes(last_processed_seq=last_processed_seq):
@@ -59,8 +63,8 @@ class ProjectDBManager(CouchDBHandler):
                     pass
 
     async def get_changes(
-        self, last_processed_seq: Optional[str] = None
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        self, last_processed_seq: str | None = None
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """
         Fetch and yield document changes from a CouchDB database.
 
@@ -74,28 +78,33 @@ class ProjectDBManager(CouchDBHandler):
         if last_processed_seq is None:
             last_processed_seq = Ygg.get_last_processed_seq()
 
-        changes = self.db.changes(
-            feed="continuous", include_docs=False, since=last_processed_seq
-        )
+        changes = self.connection_manager.server.post_changes_as_stream(
+            db=self.db_name,
+            feed="continuous",
+            since=last_processed_seq,
+            include_docs=False,
+        ).get_result()
 
-        for change in changes:
-            try:
-                doc = self.db.get(change["id"])
-                last_processed_seq = change["seq"]
-                if last_processed_seq is not None:
-                    Ygg.save_last_processed_seq(last_processed_seq)
-                else:
-                    logging.warning(
-                        "Received `None` for last_processed_seq. Skipping save."
-                    )
+        for line in changes.iter_lines():
+            if line:
+                change = json.loads(line)
+                try:
+                    doc = self.fetch_document_by_id(change["id"])
+                    last_processed_seq = change["seq"]
+                    if last_processed_seq is not None:
+                        Ygg.save_last_processed_seq(last_processed_seq)
+                    else:
+                        logging.warning(
+                            "Received `None` for last_processed_seq. Skipping save."
+                        )
 
-                if doc is not None:
-                    yield doc
-                else:
-                    logging.warning(f"Document with ID {change['id']} is None.")
-            except Exception as e:
-                logging.warning(f"Error processing change: {e}")
-                logging.debug(f"Data causing the error: {change}")
+                    if doc is not None:
+                        yield doc
+                    else:
+                        logging.warning(f"Document with ID {change['id']} is None.")
+                except Exception as e:
+                    logging.warning(f"Error processing change: {e}")
+                    logging.debug(f"Data causing the error: {change}")
 
     def fetch_document_by_id(self, doc_id):
         """Fetches a document from the database by its ID.
@@ -107,9 +116,11 @@ class ProjectDBManager(CouchDBHandler):
             Optional[Dict[str, Any]]: The retrieved document, or None if not found.
         """
         try:
-            document = self.db[doc_id]
+            document = self.connection_manager.server.get_document(
+                db=self.db_name, doc_id=doc_id
+            ).get_result()
             return document
-        except KeyError:
+        except ApiException:
             logging.error(f"Document with ID '{doc_id}' not found in the database.")
             return None
         except Exception as e:

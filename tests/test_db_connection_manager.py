@@ -1,8 +1,6 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-import couchdb
-
 from lib.core_utils.singleton_decorator import SingletonMeta
 from lib.couchdb.couchdb_connection import CouchDBConnectionManager
 
@@ -38,7 +36,8 @@ class TestCouchDBConnectionManager(unittest.TestCase):
         },
     )
     @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.couchdb_connection.couchdb.Server")
+    @patch("lib.couchdb.couchdb_connection.cloudant_v1.CloudantV1")
+    @patch("lib.couchdb.couchdb_connection.CouchDbSessionAuthenticator")
     def test_initialization_with_defaults(
         self, mock_server_class, mock_getenv, mock_load_config
     ):
@@ -69,7 +68,8 @@ class TestCouchDBConnectionManager(unittest.TestCase):
         },
     )
     @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.couchdb_connection.couchdb.Server")
+    @patch("lib.couchdb.couchdb_connection.cloudant_v1.CloudantV1")
+    @patch("lib.couchdb.couchdb_connection.CouchDbSessionAuthenticator")
     def test_singleton_returns_same_instance(
         self, mock_server_class, mock_getenv, mock_load_config
     ):
@@ -97,7 +97,8 @@ class TestCouchDBConnectionManager(unittest.TestCase):
         },
     )
     @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.couchdb_connection.couchdb.Server")
+    @patch("lib.couchdb.couchdb_connection.cloudant_v1.CloudantV1")
+    @patch("lib.couchdb.couchdb_connection.CouchDbSessionAuthenticator")
     def test_connect_server_failure(
         self, mock_server_class, mock_getenv, mock_load_config
     ):
@@ -107,111 +108,6 @@ class TestCouchDBConnectionManager(unittest.TestCase):
         with self.assertRaises(ConnectionError) as cm:
             CouchDBConnectionManager()
         self.assertEqual(str(cm.exception), "Failed to connect to CouchDB server")
-
-    @patch(
-        "lib.couchdb.couchdb_connection.ConfigLoader.load_config",
-        return_value={
-            "couchdb": {
-                "url": "localhost:5984",
-                "default_user": "admin",
-                "default_password": "secret",
-            }
-        },
-    )
-    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.couchdb_connection.couchdb.Server")
-    def test_connect_db_success(self, mock_server_class, mock_getenv, mock_load_config):
-        # Mock a connected server and a database
-        mock_server = MagicMock()
-        mock_server.version.return_value = "3.1.1"
-        mock_db = MagicMock()
-        mock_server.__getitem__.return_value = mock_db
-        mock_server_class.return_value = mock_server
-
-        manager = CouchDBConnectionManager()
-        db = manager.connect_db("testdb")
-        self.assertIs(db, mock_db)
-        self.assertIn("testdb", manager.databases)
-        self.assertEqual(manager.databases["testdb"], mock_db)
-
-    @patch(
-        "lib.couchdb.couchdb_connection.ConfigLoader.load_config",
-        return_value={
-            "couchdb": {
-                "url": "localhost:5984",
-                "default_user": "admin",
-                "default_password": "secret",
-            }
-        },
-    )
-    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.couchdb_connection.couchdb.Server")
-    def test_connect_db_no_server(
-        self, mock_server_class, mock_getenv, mock_load_config
-    ):
-        # Mock a successful initial connection, then remove the server
-        mock_server = MagicMock()
-        mock_server.version.return_value = "3.1.1"
-        mock_server_class.return_value = mock_server
-
-        manager = CouchDBConnectionManager()
-        # Simulate losing server connection
-        manager.server = None
-
-        with self.assertRaises(ConnectionError) as cm:
-            manager.connect_db("testdb")
-        self.assertEqual(str(cm.exception), "Server not connected")
-
-    @patch(
-        "lib.couchdb.couchdb_connection.ConfigLoader.load_config",
-        return_value={
-            "couchdb": {
-                "url": "localhost:5984",
-                "default_user": "admin",
-                "default_password": "secret",
-            }
-        },
-    )
-    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.couchdb_connection.couchdb.Server")
-    def test_connect_db_not_found(
-        self, mock_server_class, mock_getenv, mock_load_config
-    ):
-        mock_server = MagicMock()
-        mock_server.version.return_value = "3.1.1"
-        # Simulate that the database does not exist
-        mock_server.__getitem__.side_effect = couchdb.http.ResourceNotFound("Not found")
-        mock_server_class.return_value = mock_server
-
-        manager = CouchDBConnectionManager()
-        with self.assertRaises(ConnectionError) as cm:
-            manager.connect_db("missingdb")
-        self.assertEqual(str(cm.exception), "Database missingdb does not exist")
-
-    @patch(
-        "lib.couchdb.couchdb_connection.ConfigLoader.load_config",
-        return_value={
-            "couchdb": {
-                "url": "localhost:5984",
-                "default_user": "admin",
-                "default_password": "secret",
-            }
-        },
-    )
-    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.couchdb_connection.couchdb.Server")
-    def test_connect_db_unexpected_error(
-        self, mock_server_class, mock_getenv, mock_load_config
-    ):
-        mock_server = MagicMock()
-        mock_server.version.return_value = "3.1.1"
-        mock_server.__getitem__.side_effect = Exception("Unknown error")
-        mock_server_class.return_value = mock_server
-
-        manager = CouchDBConnectionManager()
-        with self.assertRaises(ConnectionError) as cm:
-            manager.connect_db("errordb")
-        self.assertEqual(str(cm.exception), "Could not connect to database errordb")
 
 
 if __name__ == "__main__":

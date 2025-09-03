@@ -1,7 +1,6 @@
 import os
-from typing import Dict, Optional
 
-import couchdb
+from ibmcloudant import CouchDbSessionAuthenticator, cloudant_v1
 
 from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import custom_logger
@@ -20,18 +19,16 @@ class CouchDBConnectionManager:
       - Providing a unified entry point for connecting to CouchDB.
 
     Automatically calls `connect_server()` on initialization.
-    Typical usage involves calling`connect_db(...)` to
-    retrieve specific Database objects.
     """
 
     def __init__(
         self,
-        db_url: Optional[str] = None,
-        db_user: Optional[str] = None,
-        db_password: Optional[str] = None,
+        db_url: str | None = None,
+        db_user: str | None = None,
+        db_password: str | None = None,
     ) -> None:
         # Load defaults from configuration file or environment
-        self.db_config = ConfigLoader().load_config("main.json").get("couchdb", {})
+        self.db_config = ConfigLoader().load_config("config.json").get("couchdb", {})
         self.db_url = db_url or self.db_config.get("url")
         self.db_user = db_user or os.getenv(
             "COUCH_USER", self.db_config.get("default_user")
@@ -40,8 +37,7 @@ class CouchDBConnectionManager:
             "COUCH_PASS", self.db_config.get("default_password")
         )
 
-        self.server: Optional[couchdb.Server] = None
-        self.databases: Dict[str, couchdb.Database] = {}
+        self.server: cloudant_v1.CloudantV1 | None = None
 
         self.connect_server()
 
@@ -49,9 +45,15 @@ class CouchDBConnectionManager:
         """Establishes a connection to the CouchDB server."""
         if self.server is None:
             try:
-                server_url = f"http://{self.db_user}:{self.db_password}@{self.db_url}"
-                self.server = couchdb.Server(server_url)
-                version = self.server.version()
+                self.server = cloudant_v1.CloudantV1(
+                    authenticator=CouchDbSessionAuthenticator(
+                        self.db_user, self.db_password
+                    )
+                )
+                self.server.set_service_url(self.db_url)
+                version = (
+                    self.server.get_server_information().get_result().get("version")
+                )
                 logging.info(f"Connected to CouchDB server. Version: {version}")
             except Exception as e:
                 logging.error(
@@ -60,39 +62,6 @@ class CouchDBConnectionManager:
                 raise ConnectionError("Failed to connect to CouchDB server")
         else:
             logging.info("Already connected to CouchDB server.")
-
-    def connect_db(self, db_name: str) -> couchdb.Database:
-        """Connects to a specific database on the CouchDB server.
-
-        Args:
-            db_name (str): The name of the database to connect to.
-
-        Returns:
-            couchdb.Database: The connected database instance.
-
-        Raises:
-            ConnectionError: If the server is not connected or the database does not exist.
-        """
-        if db_name not in self.databases:
-            if not self.server:
-                logging.error(
-                    "Server is not connected. Please connect to server first."
-                )
-                raise ConnectionError("Server not connected")
-
-            try:
-                self.databases[db_name] = self.server[db_name]
-                logging.info(f"Connected to database: {db_name}")
-            except couchdb.http.ResourceNotFound:
-                logging.error(f"Database {db_name} does not exist.")
-                raise ConnectionError(f"Database {db_name} does not exist")
-            except Exception as e:
-                logging.error(f"Failed to connect to database {db_name}: {e}")
-                raise ConnectionError(f"Could not connect to database {db_name}") from e
-        else:
-            logging.info(f"Already connected to database: {db_name}")
-
-        return self.databases[db_name]
 
 
 class CouchDBHandler:
@@ -112,4 +81,4 @@ class CouchDBHandler:
 
     def __init__(self, db_name: str) -> None:
         self.connection_manager = CouchDBConnectionManager()
-        self.db = self.connection_manager.connect_db(db_name)
+        self.db_name = db_name
