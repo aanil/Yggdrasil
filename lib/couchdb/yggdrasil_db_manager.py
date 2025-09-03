@@ -100,8 +100,12 @@ class YggdrasilDBManager(CouchDBHandler):
             Exception: If there is an error during the save operation, an exception
                    is logged with the error message.
         """
+        if self.connection_manager.server is None:
+            raise ConnectionError("Database server is not connected")
         try:
-            existing_doc = self.connection_manager.server.get_document(db=self.db_name, doc_id=document._id).get_result()
+            existing_doc = self.connection_manager.server.get_document(
+                db=self.db_name, doc_id=document._id
+            ).get_result()
             doc_dict = document.to_dict()
             if existing_doc:
                 # Preserve the _rev field to avoid update conflicts
@@ -115,9 +119,7 @@ class YggdrasilDBManager(CouchDBHandler):
         except Exception as e:
             logging.error(f"Error saving document: {e}")
 
-    def get_document_by_project_id(
-        self, project_id: str
-    ) -> YggdrasilDocument | None:
+    def get_document_by_project_id(self, project_id: str) -> YggdrasilDocument | None:
         """Retrieves a document by project ID.
 
         Args:
@@ -126,8 +128,12 @@ class YggdrasilDBManager(CouchDBHandler):
         Returns:
             Optional[YggdrasilDocument]: An Yggdrasil document if found, else None.
         """
+        if self.connection_manager.server is None:
+            raise ConnectionError("Database server is not connected")
         try:
-            document = self.connection_manager.server.get_document(db=self.db_name, doc_id=project_id).get_result()
+            document = self.connection_manager.server.get_document(
+                db=self.db_name, doc_id=project_id
+            ).get_result()
             return YggdrasilDocument.from_dict(document)
         except ApiException:
             logging.info(f"Project with ID '{project_id}' not found.")

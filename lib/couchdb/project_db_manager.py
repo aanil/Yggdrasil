@@ -78,6 +78,9 @@ class ProjectDBManager(CouchDBHandler):
         if last_processed_seq is None:
             last_processed_seq = Ygg.get_last_processed_seq()
 
+        if self.connection_manager.server is None:
+            raise ConnectionError("Database server is not connected")
+
         changes = self.connection_manager.server.post_changes_as_stream(
             db=self.db_name,
             feed="continuous",
