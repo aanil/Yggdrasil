@@ -2,6 +2,7 @@ import os
 
 from ibmcloudant import CouchDbSessionAuthenticator, cloudant_v1
 
+from lib.core_utils.common import YggdrasilUtilities as Ygg
 from lib.core_utils.config_loader import ConfigLoader
 from lib.core_utils.logging_utils import custom_logger
 from lib.core_utils.singleton_decorator import singleton
@@ -28,8 +29,8 @@ class CouchDBConnectionManager:
         db_password: str | None = None,
     ) -> None:
         # Load defaults from configuration file or environment
-        self.db_config = ConfigLoader().load_config("config.json").get("couchdb", {})
-        self.db_url = db_url or self.db_config.get("url")
+        self.db_config = ConfigLoader().load_config("main.json").get("couchdb", {})
+        self.db_url = Ygg.normalize_url(db_url or self.db_config.get("url"))
         self.db_user = db_user or os.getenv(
             "COUCH_USER", self.db_config.get("default_user")
         )
@@ -51,9 +52,13 @@ class CouchDBConnectionManager:
                     )
                 )
                 self.server.set_service_url(self.db_url)
-                version = (
-                    self.server.get_server_information().get_result().get("version")
-                )
+
+                info = self.server.get_server_information().get_result() or {}
+                if isinstance(info, dict):
+                    version = str(info.get("version", "unknown"))
+                else:
+                    version = "unknown"
+
                 logging.info(f"Connected to CouchDB server. Version: {version}")
             except Exception as e:
                 logging.error(
