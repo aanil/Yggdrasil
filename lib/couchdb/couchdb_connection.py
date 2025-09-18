@@ -1,5 +1,6 @@
 import os
 
+from ibm_cloud_sdk_core.api_exception import ApiException
 from ibmcloudant import CouchDbSessionAuthenticator, cloudant_v1
 
 from lib.core_utils.common import YggdrasilUtilities as Ygg
@@ -68,6 +69,22 @@ class CouchDBConnectionManager:
         else:
             logging.info("Already connected to CouchDB server.")
 
+    def ensure_db(self, db_name: str) -> str:
+        """Verify the database exists. Return `db_name` if it does."""
+        if not self.server:
+            raise ConnectionError("Server not connected")
+        try:
+            self.server.get_database_information(db=db_name)
+            return db_name
+        except ApiException as e:
+            if e.code == 404:
+                logging.error(f"Database {db_name} does not exist on the server.")
+            else:
+                logging.error(
+                    f"An error occurred while accessing database {db_name}: {e}"
+                )
+            raise ConnectionError(f"Database {db_name} does not exist") from e
+
 
 class CouchDBHandler:
     """
@@ -86,4 +103,5 @@ class CouchDBHandler:
 
     def __init__(self, db_name: str) -> None:
         self.connection_manager = CouchDBConnectionManager()
-        self.db_name = db_name
+        self.db_name = self.connection_manager.ensure_db(db_name)  # fail fast
+        self.server = self.connection_manager.server
