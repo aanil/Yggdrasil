@@ -1,3 +1,4 @@
+import os
 import sys
 import unittest
 from unittest.mock import MagicMock, call, patch
@@ -18,8 +19,14 @@ sys.modules["ibm_cloud_sdk_core.api_exception"] = mock_api_exception_module
 sys.modules["ibmcloudant"] = MagicMock()
 sys.modules["ibmcloudant.cloudant_v1"] = MagicMock()
 
+# Also make the ApiException available in the connection module
+import lib.couchdb.couchdb_connection
+
+# Import the modules AFTER setting up the mocks
 from lib.core_utils.singleton_decorator import SingletonMeta
 from lib.couchdb.couchdb_connection import CouchDBConnectionManager
+
+lib.couchdb.couchdb_connection.ApiException = MockApiException
 
 
 class TestCouchDBConnectionManager(unittest.TestCase):
@@ -43,7 +50,7 @@ class TestCouchDBConnectionManager(unittest.TestCase):
             del SingletonMeta._instances[CouchDBConnectionManager]
 
     @patch("lib.couchdb.couchdb_connection.ConfigLoader")
-    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
+    @patch("lib.couchdb.couchdb_connection.os.getenv")
     @patch("lib.couchdb.couchdb_connection.cloudant_v1.CloudantV1")
     @patch("lib.couchdb.couchdb_connection.CouchDbSessionAuthenticator")
     def test_initialization_with_defaults(
@@ -57,6 +64,12 @@ class TestCouchDBConnectionManager(unittest.TestCase):
                 "default_password": "secret",
             }
         }
+
+        # Configure getenv mock to return default values
+        def getenv_side_effect(key, default=None):
+            return default
+
+        mock_getenv.side_effect = getenv_side_effect
 
         # Mock a successful server connection
         mock_server = MagicMock()
@@ -111,13 +124,15 @@ class TestCouchDBConnectionManager(unittest.TestCase):
             }
         },
     )
-    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
+    @patch("lib.couchdb.couchdb_connection.os.getenv")
     @patch("lib.couchdb.couchdb_connection.cloudant_v1.CloudantV1")
     @patch("lib.couchdb.couchdb_connection.CouchDbSessionAuthenticator")
     def test_ensure_db_success(
         self, mock_auth, mock_cloudant, mock_getenv, mock_load_config
     ):
         """Test successful database verification with ensure_db."""
+        # Configure getenv mock to return default values (handle 1 or 2 args)
+        mock_getenv.side_effect = lambda key, default=None: default
         mock_server = MagicMock()
         mock_server.get_server_information.return_value.get_result.return_value = {
             "version": "3.1.1"
@@ -131,23 +146,29 @@ class TestCouchDBConnectionManager(unittest.TestCase):
         self.assertEqual(result, "testdb")
         mock_server.get_database_information.assert_called_once_with(db="testdb")
 
-    @patch(
-        "lib.couchdb.couchdb_connection.ConfigLoader.load_config",
-        return_value={
+    @patch("lib.couchdb.couchdb_connection.ConfigLoader")
+    @patch("lib.couchdb.couchdb_connection.os.getenv")
+    @patch("lib.couchdb.couchdb_connection.cloudant_v1.CloudantV1")
+    @patch("lib.couchdb.couchdb_connection.CouchDbSessionAuthenticator")
+    def test_ensure_db_not_found(
+        self, mock_auth, mock_cloudant, mock_getenv, mock_config_loader
+    ):
+        """Test ensure_db when database does not exist (404 error)."""
+        # Mock configuration loading
+        mock_config_loader.return_value.load_config.return_value = {
             "couchdb": {
                 "url": "localhost:5984",
                 "default_user": "admin",
                 "default_password": "secret",
             }
-        },
-    )
-    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.couchdb_connection.cloudant_v1.CloudantV1")
-    @patch("lib.couchdb.couchdb_connection.CouchDbSessionAuthenticator")
-    def test_ensure_db_not_found(
-        self, mock_auth, mock_cloudant, mock_getenv, mock_load_config
-    ):
-        """Test ensure_db when database does not exist (404 error)."""
+        }
+
+        # Configure getenv mock to return default values
+        def getenv_side_effect(key, default=None):
+            return default
+
+        mock_getenv.side_effect = getenv_side_effect
+
         # Create a proper ApiException mock
         api_exception = MockApiException("Not Found", code=404)
 
@@ -167,23 +188,29 @@ class TestCouchDBConnectionManager(unittest.TestCase):
         self.assertEqual(str(cm.exception), "Database missingdb does not exist")
         mock_server.get_database_information.assert_called_once_with(db="missingdb")
 
-    @patch(
-        "lib.couchdb.couchdb_connection.ConfigLoader.load_config",
-        return_value={
+    @patch("lib.couchdb.couchdb_connection.ConfigLoader")
+    @patch("lib.couchdb.couchdb_connection.os.getenv")
+    @patch("lib.couchdb.couchdb_connection.cloudant_v1.CloudantV1")
+    @patch("lib.couchdb.couchdb_connection.CouchDbSessionAuthenticator")
+    def test_ensure_db_unexpected_error(
+        self, mock_auth, mock_cloudant, mock_getenv, mock_config_loader
+    ):
+        """Test ensure_db when an unexpected API error occurs."""
+        # Mock configuration loading
+        mock_config_loader.return_value.load_config.return_value = {
             "couchdb": {
                 "url": "localhost:5984",
                 "default_user": "admin",
                 "default_password": "secret",
             }
-        },
-    )
-    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.couchdb_connection.cloudant_v1.CloudantV1")
-    @patch("lib.couchdb.couchdb_connection.CouchDbSessionAuthenticator")
-    def test_ensure_db_unexpected_error(
-        self, mock_auth, mock_cloudant, mock_getenv, mock_load_config
-    ):
-        """Test ensure_db when an unexpected API error occurs."""
+        }
+
+        # Configure getenv mock to return default values
+        def getenv_side_effect(key, default=None):
+            return default
+
+        mock_getenv.side_effect = getenv_side_effect
+
         # Create a proper ApiException mock with different error code
         api_exception = MockApiException("Internal Server Error", code=500)
 
@@ -213,13 +240,14 @@ class TestCouchDBConnectionManager(unittest.TestCase):
             }
         },
     )
-    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
+    @patch("lib.couchdb.couchdb_connection.os.getenv")
     @patch("lib.couchdb.couchdb_connection.cloudant_v1.CloudantV1")
     @patch("lib.couchdb.couchdb_connection.CouchDbSessionAuthenticator")
     def test_ensure_db_no_server_connection(
         self, mock_auth, mock_cloudant, mock_getenv, mock_load_config
     ):
         """Test ensure_db when server is not connected."""
+        mock_getenv.side_effect = lambda key, default=None: default
         mock_server = MagicMock()
         mock_server.get_server_information.return_value.get_result.return_value = {
             "version": "3.1.1"
@@ -245,13 +273,14 @@ class TestCouchDBConnectionManager(unittest.TestCase):
             }
         },
     )
-    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
+    @patch("lib.couchdb.couchdb_connection.os.getenv")
     @patch("lib.couchdb.couchdb_connection.cloudant_v1.CloudantV1")
     @patch("lib.couchdb.couchdb_connection.CouchDbSessionAuthenticator")
     def test_ensure_db_multiple_calls_same_database(
         self, mock_auth, mock_cloudant, mock_getenv, mock_load_config
     ):
         """Test ensure_db called multiple times with the same database name."""
+        mock_getenv.side_effect = lambda key, default=None: default
         mock_server = MagicMock()
         mock_server.get_server_information.return_value.get_result.return_value = {
             "version": "3.1.1"
@@ -284,13 +313,14 @@ class TestCouchDBConnectionManager(unittest.TestCase):
             }
         },
     )
-    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
+    @patch("lib.couchdb.couchdb_connection.os.getenv")
     @patch("lib.couchdb.couchdb_connection.cloudant_v1.CloudantV1")
     @patch("lib.couchdb.couchdb_connection.CouchDbSessionAuthenticator")
     def test_ensure_db_different_databases(
         self, mock_auth, mock_cloudant, mock_getenv, mock_load_config
     ):
         """Test ensure_db with different database names."""
+        mock_getenv.side_effect = lambda key, default=None: default
         mock_server = MagicMock()
         mock_server.get_server_information.return_value.get_result.return_value = {
             "version": "3.1.1"
@@ -317,23 +347,33 @@ class TestCouchDBConnectionManager(unittest.TestCase):
         ]
         mock_server.get_database_information.assert_has_calls(expected_calls)
 
-    @patch(
-        "lib.couchdb.couchdb_connection.ConfigLoader.load_config",
-        return_value={
+    @patch("lib.couchdb.couchdb_connection.ConfigLoader")
+    @patch("lib.couchdb.couchdb_connection.os.getenv")
+    @patch("lib.couchdb.couchdb_connection.cloudant_v1.CloudantV1")
+    @patch("lib.couchdb.couchdb_connection.CouchDbSessionAuthenticator")
+    def test_ensure_db_special_database_names(
+        self, mock_auth, mock_cloudant, mock_getenv, mock_config_loader
+    ):
+        """Test ensure_db with special database names (edge cases)."""
+        # Mock configuration loading
+        mock_config_loader.return_value.load_config.return_value = {
             "couchdb": {
                 "url": "localhost:5984",
                 "default_user": "admin",
                 "default_password": "secret",
             }
-        },
-    )
-    @patch("lib.couchdb.couchdb_connection.os.getenv", side_effect=lambda k, d: d)
-    @patch("lib.couchdb.couchdb_connection.cloudant_v1.CloudantV1")
-    @patch("lib.couchdb.couchdb_connection.CouchDbSessionAuthenticator")
-    def test_ensure_db_special_database_names(
-        self, mock_auth, mock_cloudant, mock_getenv, mock_load_config
-    ):
-        """Test ensure_db with special database names (edge cases)."""
+        }
+
+        # Configure getenv mock to return default values
+        # Ensure TEST_RUN_PIPE is available if the adapter expects it
+        def getenv_side_effect(key, default=None):
+            if key == "TEST_RUN_PIPE":
+                # Return a dummy value if not already set, to satisfy adapter expectations
+                return os.environ.get(key, "/dev/null")
+            return default
+
+        mock_getenv.side_effect = getenv_side_effect
+
         mock_server = MagicMock()
         mock_server.get_server_information.return_value.get_result.return_value = {
             "version": "3.1.1"
@@ -353,10 +393,11 @@ class TestCouchDBConnectionManager(unittest.TestCase):
             "very_long_database_name_with_many_characters_123",  # long name
         ]
 
+        # Test each special database name with subTest for clear per-case reporting
+        # Note: We ensure os.getenv is properly mocked to avoid adapter conflicts
         for db_name in special_names:
             with self.subTest(db_name=db_name):
-                result = manager.ensure_db(db_name)
-                self.assertEqual(result, db_name)
+                self.assertEqual(manager.ensure_db(db_name), db_name)
 
 
 if __name__ == "__main__":
