@@ -78,10 +78,7 @@ class ProjectDBManager(CouchDBHandler):
         if last_processed_seq is None:
             last_processed_seq = Ygg.get_last_processed_seq()
 
-        if self.connection_manager.server is None:
-            raise ConnectionError("Database server is not connected")
-
-        changes = self.connection_manager.server.post_changes_as_stream(
+        changes = self.server.post_changes_as_stream(
             db=self.db_name,
             feed="continuous",
             since=last_processed_seq,
@@ -89,25 +86,33 @@ class ProjectDBManager(CouchDBHandler):
         ).get_result()
 
         for line in changes.iter_lines():
-            if line:
-                change = json.loads(line)
-                try:
-                    doc = self.fetch_document_by_id(change["id"])
-                    last_processed_seq = change["seq"]
-                    if last_processed_seq is not None:
-                        Ygg.save_last_processed_seq(last_processed_seq)
-                    else:
-                        logging.warning(
-                            "Received `None` for last_processed_seq. Skipping save."
-                        )
+            # Reduce nesting / skip empty lines
+            if not line:
+                continue
 
-                    if doc is not None:
-                        yield doc
-                    else:
-                        logging.warning(f"Document with ID {change['id']} is None.")
-                except Exception as e:
-                    logging.warning(f"Error processing change: {e}")
-                    logging.debug(f"Data causing the error: {change}")
+            change = json.loads(line)
+
+            # Only process real change entries
+            if "id" not in change or "seq" not in change:
+                continue
+
+            try:
+                doc = self.fetch_document_by_id(change["id"])
+                last_processed_seq = change["seq"]
+                if last_processed_seq is not None:
+                    Ygg.save_last_processed_seq(last_processed_seq)
+                else:
+                    logging.warning(
+                        "Received `None` for last_processed_seq. Skipping save."
+                    )
+
+                if doc is not None:
+                    yield doc
+                else:
+                    logging.warning(f"Document with ID {change['id']} is None.")
+            except Exception as e:
+                logging.warning(f"Error processing change: {e}")
+                logging.debug(f"Data causing the error: {change}")
 
     def fetch_document_by_id(self, doc_id):
         """Fetches a document from the database by its ID.
@@ -119,12 +124,17 @@ class ProjectDBManager(CouchDBHandler):
             Optional[Dict[str, Any]]: The retrieved document, or None if not found.
         """
         try:
-            document = self.connection_manager.server.get_document(
+            document = self.server.get_document(
                 db=self.db_name, doc_id=doc_id
             ).get_result()
             return document
-        except ApiException:
-            logging.error(f"Document with ID '{doc_id}' not found in the database.")
+        except ApiException as e:
+            if e.code == 404:
+                logging.error(f"Document '{doc_id}' not found in the database.")
+                return None
+            logging.error(
+                f"Cloudant API error fetching '{doc_id}': {e.code} {e.message}"
+            )
             return None
         except Exception as e:
             logging.error(f"Error while accessing database: {e}")
