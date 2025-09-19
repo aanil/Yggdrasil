@@ -1,4 +1,5 @@
 import os
+from typing import cast
 
 from ibm_cloud_sdk_core.api_exception import ApiException
 from ibmcloudant import CouchDbSessionAuthenticator, cloudant_v1
@@ -104,4 +105,7 @@ class CouchDBHandler:
     def __init__(self, db_name: str) -> None:
         self.connection_manager = CouchDBConnectionManager()
         self.db_name = self.connection_manager.ensure_db(db_name)  # fail fast
-        self.server = self.connection_manager.server
+        # Type assertion: to satisfy Mypy
+        self.server: cloudant_v1.CloudantV1 = cast(
+            cloudant_v1.CloudantV1, self.connection_manager.server
+        )
