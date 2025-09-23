@@ -757,6 +757,39 @@ class TestProjectDBManager(unittest.IsolatedAsyncioTestCase):
 
     @patch("lib.couchdb.project_db_manager.ConfigLoader")
     @patch("lib.couchdb.project_db_manager.CouchDBHandler.__init__")
+    def test_fetch_document_by_id_non_dict_response(
+        self, mock_handler_init, mock_config_loader
+    ):
+        """Test document retrieval when response is not a dictionary."""
+        # Arrange
+        mock_handler_init.return_value = None
+        mock_config_instance = MagicMock()
+        mock_config_instance.load_config.return_value = self.mock_module_registry
+        mock_config_loader.return_value = mock_config_instance
+
+        manager = ProjectDBManager()
+
+        # Mock IBM Cloud SDK server
+        mock_server = MagicMock()
+        manager.server = mock_server
+        manager.db_name = "projects"
+
+        # Mock response with non-dict result (e.g., string or None)
+        mock_response = MagicMock()
+        mock_response.result = "not_a_dict"  # Non-dict response
+        mock_server.get_document.return_value = mock_response
+
+        # Act
+        result = manager.fetch_document_by_id("test_doc")
+
+        # Assert
+        self.assertIsNone(result)
+        mock_server.get_document.assert_called_once_with(
+            db="projects", doc_id="test_doc"
+        )
+
+    @patch("lib.couchdb.project_db_manager.ConfigLoader")
+    @patch("lib.couchdb.project_db_manager.CouchDBHandler.__init__")
     async def test_fetch_changes_multiple_documents(
         self, mock_handler_init, mock_config_loader
     ):

@@ -1,8 +1,9 @@
 import json
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, cast
 
 from ibm_cloud_sdk_core.api_exception import ApiException
+from requests import Response
 
 from lib.core_utils.common import YggdrasilUtilities as Ygg
 from lib.core_utils.config_loader import ConfigLoader
@@ -78,12 +79,15 @@ class ProjectDBManager(CouchDBHandler):
         if last_processed_seq is None:
             last_processed_seq = Ygg.get_last_processed_seq()
 
-        changes = self.server.post_changes_as_stream(
+        response = self.server.post_changes_as_stream(
             db=self.db_name,
             feed="continuous",
             since=last_processed_seq,
             include_docs=False,
         ).get_result()
+
+        # Type assertion: we expect a Response object for streaming
+        changes = cast(Response, response)  # Makes Pylance happy
 
         for line in changes.iter_lines():
             # Reduce nesting / skip empty lines
@@ -114,7 +118,7 @@ class ProjectDBManager(CouchDBHandler):
                 logging.warning(f"Error processing change: {e}")
                 logging.debug(f"Data causing the error: {change}")
 
-    def fetch_document_by_id(self, doc_id):
+    def fetch_document_by_id(self, doc_id) -> dict[str, Any] | None:
         """Fetches a document from the database by its ID.
 
         Args:
@@ -127,7 +131,10 @@ class ProjectDBManager(CouchDBHandler):
             document = self.server.get_document(
                 db=self.db_name, doc_id=doc_id
             ).get_result()
-            return document
+            if isinstance(document, dict):
+                return document
+            logging.warning("Unexpected non-dict response when fetching %s", doc_id)
+            return None
         except ApiException as e:
             if e.code == 404:
                 logging.error(f"Document '{doc_id}' not found in the database.")
