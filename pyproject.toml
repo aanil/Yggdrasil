@@ -33,7 +33,8 @@ dev = [
     "coverage>=7.0",
     "pip-tools",
     "pre-commit",
-    "setuptools-scm"
+    "setuptools-scm",
+    "types-requests"
 ]
 
 [tool.ruff.lint]
