@@ -117,7 +117,7 @@ class CouchDBHandler:
             doc_id (str): The ID of the document to fetch.
 
         Returns:
-            Optional[Dict[str, Any]]: The retrieved document, or None if not found.
+            Optional[dict[str, Any]]: The retrieved document, or None if not found.
         """
         try:
             document = self.server.get_document(
