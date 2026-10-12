@@ -6,11 +6,15 @@ jobs:
   trufflehog:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Scan for secrets with TruffleHog
         uses: trufflesecurity/trufflehog@main
         with:
-          extra_args: --results=verified,unknown
+          # tests/test_couch_utils.py (deleted) held a placeholder
+          # http://username:password@<internal-host> URL. A full-history scan,
+          # which the first push of a new branch triggers, reports it as
+          # "unknown" because the host is unreachable from the runner.
+          extra_args: --results=verified,unknown --exclude-globs=tests/test_couch_utils.py
