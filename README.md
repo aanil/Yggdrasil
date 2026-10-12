@@ -48,10 +48,11 @@ See [docs/getting_started/quickstart.md](docs/getting_started/quickstart.md) for
 
 | Path | Contents |
 |------|---------|
-| `yggdrasil/` | Public API: `flow/` (execution framework), `cli.py`, `core/` |
-| `lib/` | Internal implementation: core, watchers, CouchDB, realm handlers |
-| `lib/realms/` | Internal realm implementations and `test_realm` (dev-only) |
-| `tests/` | Test suite (1700+ tests) |
+| `yggdrasil/` | The package. Realm-facing API: `flow/` (execution framework), `watchers` (`EventType`, `WatchSpec`), `core/realm/` (`RealmDescriptor`) |
+| `yggdrasil/daemon/`, `yggdrasil/cli.py` | Orchestrator (`YggdrasilCore`), execution coordinator, daemon lock; command line |
+| `yggdrasil/watchers/`, `yggdrasil/storage/`, `yggdrasil/couchdb/`, `yggdrasil/ops/`, `yggdrasil/config/` | Internal implementation: watchers, internal storage (CouchDB and SQLite), CouchDB client, ops projection, configuration |
+| `yggdrasil/realms/` | `test_realm`, the dev-only reference realm; production realms are external packages |
+| `tests/` | Test suite |
 | `docs/` | Documentation |
 
 Realms are the extension point for domain-specific workflow logic. External realms self-register via the `ygg.realm` entry-point group. See [docs/realm_authoring/guide.md](docs/realm_authoring/guide.md).

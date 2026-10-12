@@ -150,8 +150,7 @@ class PlanBuilder:
     still inferred correctly from artifact keys, but a consumer can read a
     different file than its producer wrote once that producer's output path is
     overridden, and a step's fingerprint can miss changes to the input it
-    actually reads. The gap is recorded as entry 20 in
-    ``docs/TECH_DEBT_LEDGER.md``.
+    actually reads.
     """
 
     plan_id: str

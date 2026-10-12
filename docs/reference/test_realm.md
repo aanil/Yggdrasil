@@ -6,7 +6,7 @@ This document describes test scenario documents that exercise different aspects 
 
 ## Overview
 
-Test scenarios are inserted into the yggdrasil database as documents with `type="ygg_test_scenario"`. The `ScenarioDocWatcher` detects them and generates plans via predefined recipes **or custom step definitions**.
+Test scenarios are inserted into the yggdrasil database as documents with `type="ygg_test_scenario"`. The test realm's WatchSpec detects them and `TestRealmHandler` generates plans via predefined recipes **or custom step definitions**.
 
 **Two modes supported:**
 
@@ -803,7 +803,7 @@ curl -X POST http://localhost:5984/yggdrasil \
 ### Via Python REPL:
 
 ```python
-from lib.couchdb.yggdrasil_db_manager import YggdrasilDBManager
+from yggdrasil.storage.couchdb.yggdrasil_db_manager import YggdrasilDBManager
 
 ydm = YggdrasilDBManager()
 
@@ -824,7 +824,7 @@ print("Scenario inserted successfully")
 ```python
 #!/usr/bin/env python3
 import json
-from lib.couchdb.yggdrasil_db_manager import YggdrasilDBManager
+from yggdrasil.storage.couchdb.yggdrasil_db_manager import YggdrasilDBManager
 
 scenarios = [
     {
@@ -977,7 +977,7 @@ Once retry logic is implemented, use **fail_fast** or **fail_mid_plan** scenario
 ## Troubleshooting
 
 **Plan not created after inserting scenario:**
-- Check ScenarioDocWatcher is running: `tail -f yggdrasil.log | grep ScenarioDocWatcher`
+- Check the test realm's watcher backend started: `tail -f yggdrasil.log | grep yggdrasil_testdocs`
 - Verify `_id` field is set (must be unique)
 - Verify `type="ygg_test_scenario"` 
 - Verify EITHER `recipe` field OR `steps` array exists
@@ -989,9 +989,9 @@ Once retry logic is implemented, use **fail_fast** or **fail_mid_plan** scenario
 - Check PlanWatcher is running: `tail -f yggdrasil.log | grep PlanWatcher`
 
 **Step failures with missing fn_ref:**
-- For standard recipes, ensure the recipe exists in `lib/realms/test_realm/recipes.py`.
-- For planning-time handler scenarios such as `data_fetch_plan` or `metadata_harvest`, ensure the handler special-case exists in `lib/realms/test_realm/handler.py` — these are intentionally not in the RECIPES registry.
-- Verify step function exists in `lib/realms/test_realm/steps.py`
+- For standard recipes, ensure the recipe exists in `yggdrasil/realms/test_realm/recipes.py`.
+- For planning-time handler scenarios such as `data_fetch_plan` or `metadata_harvest`, ensure the handler special-case exists in `yggdrasil/realms/test_realm/handler.py` — these are intentionally not in the RECIPES registry.
+- Verify step function exists in `yggdrasil/realms/test_realm/steps.py`
 - Check error message for typos in override field names or fn_name
 
 **Custom steps not working:**
