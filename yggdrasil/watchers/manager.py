@@ -159,8 +159,9 @@ class WatcherManager:
             on_event: Callback invoked for each transformed YggdrasilEvent.
                       Typically YggdrasilCore.handle_event.
             checkpoint_store: Storage for backend checkpoints.
-                              Defaults to CouchDBCheckpointStore (legacy
-                              default, ``docs/TECH_DEBT_LEDGER.md`` entry 22).
+                              Defaults to CouchDBCheckpointStore, a legacy
+                              default for bare construction; YggdrasilCore
+                              injects the internal-storage bundle's store.
             logger: Optional logger instance.
             watcher_policy: Optional dict with retry policy overrides:
                             ``max_observation_retries`` (int, default 3) and

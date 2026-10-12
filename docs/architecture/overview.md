@@ -207,7 +207,7 @@ Trigger events control *which handler runs*. Step events record *what happened d
 | `yggdrasil/couchdb/` | CouchDB connection handler, `ChangesFetcher` (continuous poller), typed models (`models.py`), endpoint defaults |
 | `yggdrasil/ops/` | Event spool consumer and `plan_status` snapshots |
 | `yggdrasil/realms/` | `test_realm`, the dev-only reference realm; production realms are external packages |
-| `tests/` | Full test suite (1700+ tests) |
+| `tests/` | Full test suite |
 
 ---
 

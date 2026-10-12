@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Activate the conda environment before running any tooling: `conda activate ygg` (it has pytest, ruff, black, mypy installed).
 
 ```bash
-pytest                                        # full suite (~1700 tests)
+pytest                                        # full suite
 pytest tests/watchers/test_manager.py         # single file
 pytest tests/watchers/test_manager.py -k name # single test
 ruff check .                                  # lint (rules: E4/E7/E9, F, I, UP)
@@ -61,5 +61,5 @@ Entry point is `yggdrasil.cli:main` (`yggdrasil` console script). `yggdrasil dae
 - Prefer explicit construction + dependency injection over singletons (especially DB handlers/managers).
 - Python ≥3.11: use `X | Y` unions, including in `isinstance` (ruff UP rules enforce this).
 - Adding a watcher = adding a `WatchSpec` to a realm descriptor (with `filter_expr`, `build_scope()`, `build_payload()`); no registration in core setup code needed.
-- **Doc references**: docstrings, comments and docs never cite "the PRD", "PRD §N", plan phases or acceptance-criterion numbers, since several PRDs exist. Explain the behavior itself, or name the source by path (`docs/design/prds/<name>.md`, `docs/TECH_DEBT_LEDGER.md` entry N). Write it as an explanation of how something works, what needs doing, or what was done, not as instructions to the reader.
-- **Resolving tech debt**: when a `docs/TECH_DEBT_LEDGER.md` entry is resolved (marked resolved or removed), the same change updates every docstring, comment and doc that describes that gap or points at the entry, so none still describes a limitation that no longer exists. References come in several forms (`Tech Debt #17`, `docs/TECH_DEBT_LEDGER.md #15`, `entry 20`, or the ledger with no number), so search for both `TECH_DEBT_LEDGER` and `Tech Debt`.
+- **Doc references**: docstrings, comments and docs never cite "the PRD", "PRD §N", plan phases or acceptance-criterion numbers, since several PRDs exist. Explain the behavior itself, or name the source by path (`docs/design/prds/<name>.md`). Write it as an explanation of how something works, what needs doing, or what was done, not as instructions to the reader.
+- **Known gaps**: a docstring, comment or doc that mentions a known limitation describes the limitation itself: what is missing and what a fix has to do. The tech-debt ledger (`docs/TECH_DEBT_LEDGER.md`) is a local, untracked file, so tracked files do not cite it or its entry numbers, except where the entry is needed to carry out a fix. When a gap is resolved, the same change updates every docstring, comment and doc that describes it, so none still describes a limitation that no longer exists.

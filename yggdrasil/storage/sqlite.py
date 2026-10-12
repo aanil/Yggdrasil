@@ -968,8 +968,9 @@ class SQLitePlanChangeSource:
         ``"now"`` resolves to the current head. An unparseable cursor (e.g.
         a checkpoint written by a different backend) also starts at the
         current head with a warning. Callers requiring lossless recovery
-        must coordinate the recovery scan and cursor handoff described in
-        Tech Debt #17.
+        must capture a baseline sequence before their recovery scan and
+        stream from that baseline, so changes made during the scan are not
+        missed.
         """
         if since == "now":
             return self._store.current_plan_seq()
