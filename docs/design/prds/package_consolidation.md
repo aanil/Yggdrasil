@@ -7,7 +7,8 @@ review's three execution clarifications added to sections 5.4 and 12)
 ## Status
 Implemented; outcome and deviations recorded in section 18. The record covers
 the `refactor/package-consolidation` branch: cycles 1 to 3 and the
-documentation step of cycle 4.
+documentation step of cycle 4. Corrections made after its merge into `dev`
+are recorded at the end of that section.
 
 ---
 
@@ -840,7 +841,9 @@ modules Bifrost's generator loads import; importing `yggdrasil.flow` and
 `yggdrasil.watchers` leaves `ibmcloudant` and `yggdrasil.logging_utils`
 unimported and the `DEBUG` level name unchanged. The seven runtime
 dependencies and `requirements/lock.txt` are unchanged. `yggdrasil --version`
-reports a `0.4.0.postN` development version until the tag exists.
+reports a `0.4.0.postN` development version until the tag exists. These
+figures are for the branch as merged; the ones after the later packaging
+change are under "Post-merge corrections" below.
 
 In the committed tree both greps of section 12 return nothing outside
 `docs/design/`. Every file that section 5 marks as trashcan or trim is under
@@ -850,9 +853,12 @@ of 10.1 applied to a demux_realm checkout, its suite passes against the branch
 head (134 passed), and realm discovery in dev mode returns `dmx_realm` and
 `test_realm`.
 
-As of 2026-10-10 the branch is pushed and not merged: `dev` is still at
-caacacc. What remains is cycle 4 from step 2 on: the merge and a potential
-tag; demux_realm's commit (10.1); tenx_realm (10.2), which is no longer
+The branch was merged into `dev` on 2026-10-10 by PR #107 (a461df6). What
+remains is the rest of cycle 4: the merge into `main` and a potential `v0.5.0`
+tag, whose release notes carry the three operator-visible changes of section
+13 (logger names, test-realm plans in development databases, and the removed
+repository-path insertion); demux_realm's commit (10.1); tenx_realm (10.2),
+which is no longer
 discovered because it still registers `tenx_project` under `ygg.handler`,
 and which imports `yggdrasil.core_utils.event_types`, a path that only the
 removed alias finder served.
@@ -872,7 +878,9 @@ Where the implementation departed from the plan:
    warning. It sets `namespaces = true` because `yggdrasil/flow/utils/` still
    has no `__init__.py`: section 2 promises every package a real one, and the
    packages that came from `lib/` have it, but `flow/` was left unchanged
-   (section 4). The same commit excludes `build/` from mypy.
+   (section 4). The same commit excludes `build/` from mypy. This is the
+   configuration as merged; it was changed afterwards ("Post-merge
+   corrections" below).
 3. **The `ygg.handler` test trim differed from 5.8.**
    `tests/test_setup_realms.py` lost one case; eleven others were kept and
    only stopped patching the legacy entry-point lookup. Four
@@ -884,6 +892,8 @@ Where the implementation departed from the plan:
    level, so `PlanWatcher`'s default was not the only reason the `watchers`
    package imports the CouchDB storage backend. Entry 22 covers both classes
    and both docstrings name it. The ledger is still a local, untracked file.
+   The docstrings stopped citing it afterwards ("Post-merge corrections"
+   below).
 5. **Tests beyond 5.8.** `tests/watchers/test_package_exports.py` checks
    that every name in the `watchers` package's `__all__` resolves, eagerly or
    on first access. The lightness guard gained a second class that imports
@@ -893,3 +903,52 @@ Where the implementation departed from the plan:
    is outside the realm-facing import graph.
 6. **`docs/diagrams/ygg_architecture.mmd` was updated** with the
    documentation of 10.4, which does not list it.
+
+Two choices were settled before the implementation started but after this
+copy of the plan was last revised, so sections 9 and 16 do not carry them:
+
+- Package discovery uses `packages.find`, replacing the explicit package
+  list, whose apparent correctness depended on git tracking, and `build/.*`
+  is excluded from mypy. Both were planned for cycle 3 and landed in the one
+  commit that follows it. Departure 2 therefore records a choice taken
+  beforehand, not one made during the work.
+- `yggdrasil/toolkit/__init__.py` does not name the draft that will decide
+  the toolkit's final shape (decision 3). Local drafts are not repository
+  files, and `CLAUDE.md` allows citing a source only by its path, so the
+  docstring describes the open question itself.
+
+### Post-merge corrections (2026-10-12)
+
+Made on the branch `fix/package-consolidation-followup`, after a review of
+the merged result. The record above describes the branch as merged and is
+left as written, apart from the merge status.
+
+- **Every package directory has an `__init__.py`, and namespace discovery is
+  off.** `yggdrasil/flow/utils/__init__.py` was added (docstring only), and
+  `[tool.setuptools.packages.find]` changed from the merged
+  `namespaces = true` to `namespaces = false`; `where`, `include` and
+  `package-data` are unchanged. A wheel built with the change holds 108
+  modules in 20 packages, against 107 modules in 20 packages as merged, and
+  the new file is the only difference in its contents. Installed into an
+  empty virtual environment and used from a directory outside the checkout,
+  `yggdrasil.flow.utils`, `yggdrasil.daemon.core` and `yggdrasil.cli` import.
+- **What the setting keeps out of a wheel.** Measured with a directory under
+  `yggdrasil/` that holds a module and no `__init__.py`. With
+  `namespaces = true` it ships whether or not git tracks it. With
+  `namespaces = false` it is left out while untracked; once tracked it ships
+  again, as package data of its parent, and setuptools warns that the package
+  "would be ignored". `tests/test_package_layout.py` therefore checks the
+  source tree itself: every directory that holds Python modules has an
+  `__init__.py`.
+- **The `watchers` package docstring no longer cites a plan phase.** It
+  describes `AbstractWatcher`, `PlanWatcher` and `SeqDataWatcher` instead.
+- **Docstrings explain known gaps instead of citing ledger entries.** The
+  tech-debt ledger has never been tracked, so "where the repository keeps
+  such debt" (section 14.1, decision 17) did not hold, and a reader of the
+  repository could not follow the citations. The docstrings of `OpsWriter`,
+  `PlanWatcher`, `WatcherManager`, `PlanBuilder`,
+  `SQLitePlanChangeSource._resolve_since` and
+  `YggdrasilCore._recover_approved_plans` now state the limitation itself.
+  Section 14.1 remains the tracked text of the two follow-ups identified
+  here, with the wider scope of entry B that departure 4 describes.
+  `CLAUDE.md` states the rule.
