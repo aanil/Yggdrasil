@@ -27,10 +27,13 @@ Public API:
     # (CouchDBCheckpointStore lives in yggdrasil.storage.couchdb.checkpoint_store)
     from yggdrasil.watchers import WatcherManager, WatcherBackendGroup
 
-Legacy watchers (deprecated after Phase 3):
-    - AbstractWatcher
-    - SeqDataWatcher
-    - PlanWatcher (excluded from refactor; remains core infrastructure)
+Not exported from this package (imported by module path):
+    - AbstractWatcher: base class of the two watchers below, which predate
+      the WatchSpec and backend model.
+    - PlanWatcher: core infrastructure; YggdrasilCore wires it to the
+      internal-storage plan change source, not through a WatchSpec.
+    - SeqDataWatcher: filesystem watcher, kept until a filesystem
+      WatcherBackend replaces it.
 """
 
 from __future__ import annotations

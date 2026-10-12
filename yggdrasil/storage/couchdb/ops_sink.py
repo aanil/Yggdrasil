@@ -31,8 +31,10 @@ class OpsWriter(CouchDBHandler):
     """CouchDB sink that upserts ``plan_status`` snapshots for the FileSpoolConsumer.
 
     Resolves its endpoint with its own lookup rather than
-    ``resolve_couchdb_params``; the two accept different configurations
-    (``docs/TECH_DEBT_LEDGER.md`` entry 21).
+    ``resolve_couchdb_params``, and the two accept different configurations:
+    an explicit URL with default credential-variable names and no configured
+    ``couchdb`` endpoint is accepted here and rejected by the resolver, which
+    also reads ``main.json`` when every argument is explicit.
     """
 
     def __init__(

@@ -75,8 +75,8 @@ class PlanWatcher(AbstractWatcher):
         """
         Initialize PlanWatcher.
 
-        The legacy CouchDB defaults for bare construction are tracked as
-        ``docs/TECH_DEBT_LEDGER.md`` entry 22.
+        The CouchDB defaults for bare construction are legacy: YggdrasilCore
+        always injects the three stores from its internal-storage bundle.
 
         Args:
             on_event: Callback to invoke when eligible plan is detected

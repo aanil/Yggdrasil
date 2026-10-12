@@ -624,11 +624,13 @@ class YggdrasilCore:
     async def _recover_approved_plans(self) -> None:
         """Queue all eligible plans through the configured daemon watcher.
 
-        This helper is not currently called by :meth:`start` (see Tech Debt
-        #17). The watcher's recovery scan emits callbacks, which queue
-        execution; this method neither inspects nor initializes a checkpoint.
-        A future startup caller must coordinate the scan with the live change
-        cursor and deduplicate any overlap.
+        This helper is not currently called by :meth:`start`, so startup does
+        not run a recovery scan. Without a checkpoint, the watcher starts at
+        ``"now"`` and can miss plans approved before startup. The watcher's
+        recovery scan emits callbacks, which queue execution; this method
+        neither inspects nor initializes a checkpoint. A future startup caller
+        must coordinate the scan with the live change cursor and deduplicate
+        any overlap.
         """
         if not hasattr(self, "_plan_watcher") or self._plan_watcher is None:
             self._logger.warning("No PlanWatcher configured; skipping recovery")
